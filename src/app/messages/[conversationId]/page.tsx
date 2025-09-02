@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import ChatInput from '../ChatInput';
 import MessageBubble from '@/components/messages/MessageBubble';
 import TypingIndicator from '@/components/messages/TypingIndicator';
@@ -13,6 +12,7 @@ import { useTheme } from '@/context/theme/ThemeContext';
 import { ArrowLeft, Phone, Video, MoreVertical, Search, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabase';
+import { VerifyBadge } from '@/components/ui/VerifyBadge';
 
 interface Message {
   id: string;
@@ -39,6 +39,7 @@ interface OtherUserProfile {
   full_name: string | null;
   username: string | null;
   avatar_url: string | null;
+  is_verified?: boolean;
 }
 
 export default function ConversationPage() {
@@ -129,7 +130,7 @@ export default function ConversationPage() {
         
         const { data: profile, error: profErr } = await supabase
           .from('users')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, is_verified')
           .eq('id', otherId)
           .single();
           
@@ -145,8 +146,15 @@ export default function ConversationPage() {
   // Proxied image helper
   function getProxiedImageUrl(url: string | null | undefined): string | null {
     if (!url) return null;
-    const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
-    return `${base}${encodeURIComponent(url)}`;
+    
+    // Only proxy S3 URLs that start with "s3://"
+    if (url.startsWith('s3://')) {
+      const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
+      return `${base}${encodeURIComponent(url)}`;
+    }
+    
+    // All other URLs (Google, direct HTTPS, etc.) use directly
+    return url;
   }
 
   // Real-time updates for messages
@@ -299,22 +307,13 @@ export default function ConversationPage() {
   }, []);
 
   return (
-    <DashboardLayout>
-      <div className="chat-container flex flex-col h-[calc(100vh-8rem)] w-full overflow-hidden">
+    <div className="chat-container flex flex-col h-full w-full overflow-hidden">
         {/* Header */}
-        <div className={`backdrop-blur-sm border-b px-3 md:px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10 ${
-          isDarkMode 
-            ? 'bg-gray-900/80 border-gray-700' 
-            : 'bg-white/80 border-gray-200'
-        }`}>
+        <div className="backdrop-blur-sm border-b px-3 md:px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10 bg-card/80 border-border/50">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className={`p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                isDarkMode 
-                  ? 'hover:bg-white/10 text-gray-200' 
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
+              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary md:hidden hover:bg-accent/60 text-foreground"
               aria-label="Back to conversations"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -322,7 +321,7 @@ export default function ConversationPage() {
             
             {/* Avatar with status */}
             <div className="relative">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-emerald-700/60 flex items-center justify-center text-white font-semibold">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground font-semibold">
                 {(() => {
                   const src = getProxiedImageUrl(otherUser?.avatar_url ?? null);
                   return src ? (
@@ -338,30 +337,20 @@ export default function ConversationPage() {
                   );
                 })()}
               </div>
-              {/* Online status indicator */}
-              <span
-                className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ${
-                  isDarkMode ? 'ring-gray-900' : 'ring-white'
-                } ${isOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}
-                aria-hidden="true"
-              />
             </div>
             
             <div>
-              <div className={`font-semibold leading-5 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {otherUser?.full_name || otherUser?.username || 'Loading...'}
+              <div className="flex items-center gap-2">
+                <span className="font-semibold leading-5 text-foreground">
+                  {otherUser?.full_name || otherUser?.username || 'Loading...'}
+                </span>
+                {otherUser?.is_verified && (
+                  <VerifyBadge />
+                )}
               </div>
-              <div className={`text-xs ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>
+              <div className="text-xs text-muted-foreground">
                 {isTyping ? (
-                  <span className="text-emerald-500">typing...</span>
-                ) : isOnline ? (
-                  'Online'
-                ) : lastSeen ? (
-                  `Last seen ${lastSeen}`
+                  <span className="text-primary">typing...</span>
                 ) : (
                   `${messages.length} message${messages.length === 1 ? '' : 's'}`
                 )}
@@ -372,41 +361,19 @@ export default function ConversationPage() {
           {/* Action buttons */}
           <div className="flex items-center gap-1.5">
             <button 
-              className={`p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                isDarkMode 
-                  ? 'hover:bg-white/10 text-gray-200' 
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
+              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
               aria-label="Search in conversation"
             >
               <Search className="h-5 w-5" />
             </button>
             <button 
-              className={`p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                isDarkMode 
-                  ? 'hover:bg-white/10 text-gray-200' 
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
+              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
               aria-label="Voice call"
             >
               <Phone className="h-5 w-5" />
             </button>
             <button 
-              className={`p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                isDarkMode 
-                  ? 'hover:bg-white/10 text-gray-200' 
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
-              aria-label="Video call"
-            >
-              <Video className="h-5 w-5" />
-            </button>
-            <button 
-              className={`p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                isDarkMode 
-                  ? 'hover:bg-white/10 text-gray-200' 
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
+              className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
               aria-label="More options"
             >
               <MoreVertical className="h-5 w-5" />
@@ -423,22 +390,16 @@ export default function ConversationPage() {
           ) : error ? (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center max-w-md">
-                <AlertCircle className={`h-12 w-12 mx-auto mb-4 ${
-                  isDarkMode ? 'text-red-400' : 'text-red-500'
-                }`} />
-                <h3 className={`text-lg font-semibold mb-2 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+                <h3 className="text-lg font-semibold mb-2 text-foreground">
                   Failed to load messages
                 </h3>
-                <p className={`text-sm mb-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <p className="text-sm mb-4 text-muted-foreground">
                   {error}
                 </p>
                 <button
                   onClick={handleRetry}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors shadow-sm hover:shadow-md"
                 >
                   Try again
                 </button>
@@ -447,27 +408,19 @@ export default function ConversationPage() {
           ) : (
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 w-full"
+              className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 w-full message-scroll"
               aria-live="polite" 
               aria-relevant="additions" 
               role="log"
             >
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                  <div className={`text-center max-w-sm mx-auto p-6 rounded-2xl border ${
-                    isDarkMode 
-                      ? 'bg-gray-800/50 border-gray-700' 
-                      : 'bg-gray-50 border-gray-200'
-                  }`}>
+                  <div className="text-center max-w-sm mx-auto p-6 rounded-2xl border bg-card/50 backdrop-blur-sm border-border/50">
                     <div className="text-4xl mb-3">💬</div>
-                    <h2 className={`font-semibold mb-2 ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
+                    <h2 className="font-semibold mb-2 text-foreground">
                       No messages yet
                     </h2>
-                    <p className={`text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
+                    <p className="text-sm text-muted-foreground">
                       Send a message to start the conversation
                     </p>
                   </div>
@@ -477,11 +430,7 @@ export default function ConversationPage() {
                   <React.Fragment key={date}>
                     {/* Date Separator */}
                     <div className="flex justify-center my-6">
-                      <div className={`px-4 py-1.5 rounded-full text-xs font-medium shadow-sm ${
-                        isDarkMode 
-                          ? 'bg-gray-800 text-emerald-300 border border-emerald-900/40' 
-                          : 'bg-white text-emerald-600 border border-emerald-200'
-                      }`}>
+                      <div className="px-4 py-1.5 rounded-full text-xs font-medium shadow-sm bg-card/50 backdrop-blur-sm text-primary border border-primary/20">
                         {formatDate(date)}
                       </div>
                     </div>
@@ -516,6 +465,7 @@ export default function ConversationPage() {
                           parentMessage={parentMessage}
                           senderAvatar={otherUser?.avatar_url}
                           senderName={otherUser?.full_name || otherUser?.username}
+                          senderIsVerified={otherUser?.is_verified}
                           reactions={groupedReactions}
                           myReaction={myReaction}
                           isLastInGroup={isLastInGroup}
@@ -546,11 +496,7 @@ export default function ConversationPage() {
         </div>
 
         {/* Chat Input */}
-        <div className={`flex-shrink-0 backdrop-blur-sm border-t p-3 md:p-4 min-w-0 ${
-          isDarkMode 
-            ? 'bg-gray-900/80 border-gray-700' 
-            : 'bg-white/80 border-gray-200'
-        }`}>
+        <div className="flex-shrink-0 backdrop-blur-sm border-t p-3 md:p-4 min-w-0 bg-card/80 border-border/50">
           <ChatInput
             conversationId={String(conversationId)}
             userId={userId!}
@@ -564,6 +510,5 @@ export default function ConversationPage() {
           />
         </div>
       </div>
-    </DashboardLayout>
   );
 }

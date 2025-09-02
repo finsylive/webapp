@@ -4,6 +4,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import type { Message } from '@/types/messaging';
 import { cn } from '@/utils/cn';
+import { VerifyBadge } from '@/components/ui/VerifyBadge';
 
 interface MessageBubbleProps {
   message: Message;
@@ -50,6 +51,9 @@ export function MessageBubble({
           <span className="text-xs font-medium text-green-500">
             {isReplyFromMe ? 'You' : replyTo.sender?.username || 'User'}
           </span>
+          {!isReplyFromMe && replyTo.sender?.is_verified && (
+            <VerifyBadge size="sm" />
+          )}
         </div>
         <div className="text-xs text-gray-400 line-clamp-2">
           {replyTo.message_type === 'image' && '📷 Image'}

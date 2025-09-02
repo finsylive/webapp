@@ -6,20 +6,51 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// GET /api/conversation-categories?conversationId=...
+// GET /api/conversation-categories?conversationId=... OR ?userId=...
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
-  if (!conversationId) {
-    return NextResponse.json({ error: 'Missing conversationId' }, { status: 400 });
+  const userId = searchParams.get('userId');
+  
+  try {
+    if (conversationId) {
+      // Original behavior: Get categories for a specific conversation
+      const { data, error } = await supabase
+        .from('conversation_categories')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return NextResponse.json(data);
+    } else if (userId) {
+      // New behavior: Get all conversation-category mappings for a user
+      const { data: mappings, error } = await supabase
+        .from('conversation_categories')
+        .select(`
+          conversation_id,
+          category_id,
+          chat_categories!inner(
+            user_id
+          )
+        `)
+        .eq('chat_categories.user_id', userId);
+
+      if (error) throw error;
+
+      // Transform the data to include only the fields we need
+      const result = mappings?.map(mapping => ({
+        conversation_id: mapping.conversation_id,
+        category_id: mapping.category_id
+      })) || [];
+
+      return NextResponse.json(result);
+    } else {
+      return NextResponse.json({ error: 'Missing conversationId or userId' }, { status: 400 });
+    }
+  } catch (error: any) {
+    console.error('Error fetching conversation categories:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  const { data, error } = await supabase
-    .from('conversation_categories')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
 }
 
 // POST /api/conversation-categories - Assign conversation to category

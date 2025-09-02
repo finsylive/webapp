@@ -8,8 +8,8 @@ import type {
 } from '@/types/messaging';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // GET: List all conversations for a user with optimized query
 export async function GET(req: NextRequest) {
@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    console.log('Fetching conversations for userId:', userId);
+    
     // Get basic conversation data first
     const { data: conversationData, error } = await supabase
       .from('conversations')
@@ -33,9 +35,15 @@ export async function GET(req: NextRequest) {
       .order('updated_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    console.log('Conversations query result:', { conversationData, error });
+
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
+    }
 
     if (!conversationData || conversationData.length === 0) {
+      console.log('No conversations found for user:', userId);
       return NextResponse.json([]);
     }
 

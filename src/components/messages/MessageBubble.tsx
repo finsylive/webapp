@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MoreVertical, Reply, Copy, Trash2, Edit, Check, CheckCheck } from 'lucide-react';
 import { useTheme } from '@/context/theme/ThemeContext';
 import Image from 'next/image';
+import { VerifyBadge } from '@/components/ui/VerifyBadge';
 
 interface Message {
   id: string;
@@ -26,6 +27,7 @@ interface MessageBubbleProps {
   parentMessage?: Message | null;
   senderAvatar?: string;
   senderName?: string;
+  senderIsVerified?: boolean;
   reactions: GroupedReaction[];
   myReaction?: string;
   isLastInGroup?: boolean;
@@ -47,6 +49,7 @@ export default function MessageBubble({
   parentMessage,
   senderAvatar,
   senderName,
+  senderIsVerified,
   reactions,
   myReaction,
   isLastInGroup,
@@ -131,12 +134,12 @@ export default function MessageBubble({
         isOwn ? 'justify-end' : 'justify-start'
       } ${isGrouped ? 'mt-1' : 'mt-4'} ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-      } hover:bg-black/5 dark:hover:bg-white/5 rounded-lg px-2 py-1 -mx-2`}
+      } hover:bg-accent/20 rounded-lg px-2 py-1 -mx-2`}
     >
       {/* Avatar for incoming messages (only show for first in group) */}
       {!isOwn && !isGrouped && (
         <div className="mr-3 flex-shrink-0">
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-emerald-700/60 flex items-center justify-center text-white text-xs">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground text-xs">
             {(() => {
               const src = getProxiedImageUrl(senderAvatar ?? null);
               return src ? (
@@ -163,11 +166,7 @@ export default function MessageBubble({
       }`}>
         {/* Reply context */}
         {parentMessage && (
-          <div className={`mb-2 pl-3 py-2 rounded-lg text-xs border-l-4 ${
-            isDarkMode
-              ? 'bg-gray-800/50 border-gray-600 text-gray-400'
-              : 'bg-gray-100 border-gray-400 text-gray-600'
-          }`}>
+          <div className="mb-2 pl-3 py-2 rounded-lg text-xs border-l-4 bg-muted/50 border-border text-muted-foreground">
             <div className="font-medium mb-1 opacity-75">
               {parentMessage.sender_id === userId ? 'You' : senderName}
             </div>
@@ -178,13 +177,13 @@ export default function MessageBubble({
         {/* Message bubble */}
         <div className="relative">
           {/* Quick reactions (show on hover) */}
-          <div className={`absolute ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} top-0 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1 bg-white dark:bg-gray-800 rounded-full px-2 py-1 shadow-lg border border-gray-200 dark:border-gray-700 z-10 whitespace-nowrap ${isOwn ? 'hidden sm:flex' : 'hidden sm:flex'}`}>
+          <div className={`absolute ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} top-0 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1 bg-popover rounded-full px-2 py-1 shadow-lg border border-border z-10 whitespace-nowrap ${isOwn ? 'hidden sm:flex' : 'hidden sm:flex'}`}>
             {QUICK_REACTIONS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={(e) => handleQuickReact(emoji, e)}
                 className={`p-1 rounded-full hover:scale-125 transition-transform ${
-                  myReaction === emoji ? 'bg-blue-500/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  myReaction === emoji ? 'bg-primary/20' : 'hover:bg-accent/60'
                 }`}
                 title={`React with ${emoji}`}
               >
@@ -193,10 +192,10 @@ export default function MessageBubble({
             ))}
             <button
               onClick={() => setShowActions(true)}
-              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="p-1 rounded-full hover:bg-accent/60 transition-colors"
               title="More actions"
             >
-              <MoreVertical className="h-3 w-3 text-gray-500" />
+              <MoreVertical className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
 
@@ -204,22 +203,23 @@ export default function MessageBubble({
           <div
             className={`px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 ${
               isOwn
-                ? `bg-emerald-500 text-white ${
+                ? `bg-primary text-primary-foreground ${
                     isLastInGroup ? 'rounded-br-md' : ''
-                  } hover:bg-emerald-600 hover:shadow-md`
-                : `${
-                    isDarkMode
-                      ? 'bg-gray-800 text-gray-100 border border-gray-700'
-                      : 'bg-white text-gray-900 border border-gray-200'
-                  } ${
+                  } hover:bg-primary/90 hover:shadow-md`
+                : `bg-card text-foreground border border-border ${
                     isLastInGroup ? 'rounded-bl-md' : ''
                   } hover:shadow-md`
             }`}
           >
             {/* Sender name (for incoming grouped messages) */}
             {!isOwn && !isGrouped && senderName && (
-              <div className="text-xs font-medium text-emerald-400 mb-1">
-                {senderName}
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-xs font-medium text-primary">
+                  {senderName}
+                </span>
+                {senderIsVerified && (
+                  <VerifyBadge size="sm" />
+                )}
               </div>
             )}
 
@@ -234,10 +234,8 @@ export default function MessageBubble({
             }`}>
               <span className={`text-xs ${
                 isOwn 
-                  ? 'text-emerald-100/80' 
-                  : isDarkMode 
-                    ? 'text-gray-400' 
-                    : 'text-gray-500'
+                  ? 'text-primary-foreground/80' 
+                  : 'text-muted-foreground'
               }`}>
                 {formatTime(message.created_at)}
               </span>
@@ -246,9 +244,9 @@ export default function MessageBubble({
               {isOwn && (
                 <div className="flex items-center">
                   {isLastMessage ? (
-                    <CheckCheck className="h-3 w-3 text-emerald-200" />
+                    <CheckCheck className="h-3 w-3 text-primary-foreground/80" />
                   ) : (
-                    <Check className="h-3 w-3 text-emerald-200" />
+                    <Check className="h-3 w-3 text-primary-foreground/80" />
                   )}
                 </div>
               )}
@@ -273,10 +271,8 @@ export default function MessageBubble({
                 }}
                 className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all duration-200 border ${
                   myReaction === reaction.emoji
-                    ? 'bg-blue-500 border-blue-400 text-white scale-105'
-                    : isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                      : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-primary border-primary text-primary-foreground scale-105'
+                    : 'bg-muted border-border text-muted-foreground hover:bg-accent/60'
                 } hover:scale-105 active:scale-95`}
                 title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
               >
@@ -295,19 +291,11 @@ export default function MessageBubble({
             className="fixed inset-0 z-20"
             onClick={() => setShowActions(false)}
           />
-          <div className={`absolute ${isOwn ? 'right-0' : 'left-12'} top-0 mt-2 py-2 rounded-xl shadow-xl border min-w-40 max-w-xs z-30 ${
-            isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-200'
-          } animate-in fade-in duration-200`}>
+          <div className={`absolute ${isOwn ? 'right-0' : 'left-12'} top-0 mt-2 py-2 rounded-xl shadow-xl border min-w-40 max-w-xs z-30 bg-popover border-border animate-in fade-in duration-200`}>
             {onReply && (
               <button
                 onClick={handleReply}
-                className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                  isDarkMode
-                    ? 'hover:bg-gray-700 text-gray-300'
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
+                className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/60 text-popover-foreground"
               >
                 <Reply className="h-4 w-4" />
                 <span>Reply</span>
@@ -315,11 +303,7 @@ export default function MessageBubble({
             )}
             <button
               onClick={handleCopy}
-              className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                isDarkMode
-                  ? 'hover:bg-gray-700 text-gray-300'
-                  : 'hover:bg-gray-50 text-gray-700'
-              }`}
+              className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/60 text-popover-foreground"
             >
               <Copy className="h-4 w-4" />
               <span>Copy</span>
@@ -327,11 +311,7 @@ export default function MessageBubble({
             {isOwn && onEdit && (
               <button
                 onClick={handleEdit}
-                className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                  isDarkMode
-                    ? 'hover:bg-gray-700 text-gray-300'
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
+                className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/60 text-popover-foreground"
               >
                 <Edit className="h-4 w-4" />
                 <span>Edit</span>
@@ -340,11 +320,7 @@ export default function MessageBubble({
             {isOwn && onDelete && (
               <button
                 onClick={handleDelete}
-                className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
-                  isDarkMode
-                    ? 'hover:bg-red-900/50 text-red-400'
-                    : 'hover:bg-red-50 text-red-600'
-                }`}
+                className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-destructive/10 text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
                 <span>Delete</span>

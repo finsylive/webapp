@@ -90,10 +90,82 @@
   scroll-behavior: smooth;
 }
 
+/* Global Custom Scrollbars - Light Theme */
+* {
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.3) transparent;
+}
+
+/* WebKit scrollbar for all elements */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.6));
+  border-radius: 10px;
+  border: 1px solid hsl(var(--background));
+  transition: all 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.8));
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.3);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.7), hsl(var(--primary) / 0.9));
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark mode scrollbar styles */
+.dark-mode * {
+  scrollbar-color: hsl(var(--primary) / 0.5) transparent;
+}
+
+.dark-mode *::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.5), hsl(var(--primary) / 0.7));
+  border: 1px solid hsl(var(--card));
+}
+
+.dark-mode *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.7), hsl(var(--primary) / 0.9));
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.4);
+}
+
+.dark-mode *::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--primary)));
+}
+
+/* Thin scrollbars for specific components */
+.conversations-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.4) transparent;
+}
+
+.conversations-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversations-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.6));
+  border-radius: 6px;
+}
+
 /* Custom scrollbar for message container */
 .message-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  scrollbar-color: hsl(var(--primary) / 0.4) transparent;
   /* Prevent horizontal overflow */
   overflow-x: hidden;
   word-wrap: break-word;
@@ -132,25 +204,29 @@
 }
 
 .message-scroll::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 3px;
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.6));
+  border-radius: 6px;
+  border: 1px solid hsl(var(--background));
 }
 
 .message-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.7);
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.8));
+  box-shadow: 0 0 6px hsl(var(--primary) / 0.3);
 }
 
 /* Dark mode scrollbar */
 .dark-mode .message-scroll {
-  scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+  scrollbar-color: hsl(var(--primary) / 0.5) transparent;
 }
 
 .dark-mode .message-scroll::-webkit-scrollbar-thumb {
-  background-color: rgba(75, 85, 99, 0.5);
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.5), hsl(var(--primary) / 0.7));
+  border: 1px solid hsl(var(--card));
 }
 
 .dark-mode .message-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(75, 85, 99, 0.7);
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.7), hsl(var(--primary) / 0.9));
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.4);
 }
 
 /* Prevent horizontal overflow in chat container */

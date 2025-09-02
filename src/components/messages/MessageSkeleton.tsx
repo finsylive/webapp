@@ -8,8 +8,16 @@ interface MessageSkeletonProps {
   count?: number;
 }
 
-const SingleMessageSkeleton = ({ isOwn = false }: { isOwn: boolean }) => {
+const SingleMessageSkeleton = ({ isOwn = false, index = 0 }: { isOwn: boolean; index?: number }) => {
   const { isDarkMode } = useTheme();
+  
+  // Predefined widths to avoid hydration mismatch
+  const widths = ['75%', '60%', '85%', '45%', '90%', '55%'];
+  const secondWidths = ['40%', '30%', '50%', '35%', '45%'];
+  const firstWidth = widths[index % widths.length];
+  const secondWidth = secondWidths[index % secondWidths.length];
+  const showSecondLine = index % 3 !== 0; // Show second line for 2/3 of messages
+  const showReactions = index % 4 === 0; // Show reactions for 1/4 of messages
 
   return (
     <div className={`flex items-end ${isOwn ? 'justify-end' : 'justify-start'} mt-4 px-2 py-1 -mx-2`}>
@@ -42,11 +50,11 @@ const SingleMessageSkeleton = ({ isOwn = false }: { isOwn: boolean }) => {
           <div className="space-y-2">
             <div className={`h-3 rounded animate-pulse ${
               isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
-            }`} style={{ width: Math.random() * 60 + 40 + '%' }} />
-            {Math.random() > 0.5 && (
+            }`} style={{ width: firstWidth }} />
+            {showSecondLine && (
               <div className={`h-3 rounded animate-pulse ${
                 isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
-              }`} style={{ width: Math.random() * 40 + 30 + '%' }} />
+              }`} style={{ width: secondWidth }} />
             )}
           </div>
           
@@ -56,10 +64,10 @@ const SingleMessageSkeleton = ({ isOwn = false }: { isOwn: boolean }) => {
           } ${isOwn ? 'ml-auto' : 'mr-auto'}`} />
         </div>
 
-        {/* Random reactions skeleton */}
-        {Math.random() > 0.7 && (
+        {/* Reactions skeleton */}
+        {showReactions && (
           <div className={`flex gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-            {Array.from({ length: Math.floor(Math.random() * 3) + 1 }).map((_, i) => (
+            {Array.from({ length: (index % 2) + 1 }).map((_, i) => (
               <div
                 key={i}
                 className={`w-8 h-6 rounded-full animate-pulse ${
@@ -80,7 +88,8 @@ export default function MessageSkeleton({ isOwn, count = 5 }: MessageSkeletonPro
       {Array.from({ length: count }).map((_, index) => (
         <SingleMessageSkeleton 
           key={index} 
-          isOwn={isOwn ?? Math.random() > 0.5} 
+          index={index}
+          isOwn={isOwn ?? (index % 3 === 0)} 
         />
       ))}
     </div>
