@@ -11,18 +11,17 @@ import { compressMediaBatch, type CompressedResult } from '@/utils/mediaCompress
 import { MentionDropdown } from './MentionDropdown';
 import { processMentionsInContent, extractMentions, notifyMentionedUsers } from '@/utils/mentions';
 import { extractCleanUsername } from '@/utils/username';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 
 // Avatar image with fallback logic
 function AvatarImageWithFallback({ avatarUrl, email }: { avatarUrl: string, email?: string }) {
-  const [src, setSrc] = useState<string>(
-    `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(avatarUrl)}`
-  );
+  const [src, setSrc] = useState<string>(toProxyUrl(avatarUrl, { width: 40, quality: 82 }));
   const [proxyFailed, setProxyFailed] = useState(false);
   const [directFailed, setDirectFailed] = useState(false);
 
   useEffect(() => {
-    setSrc(`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(avatarUrl)}`);
+    setSrc(toProxyUrl(avatarUrl, { width: 40, quality: 82 }));
     setProxyFailed(false);
     setDirectFailed(false);
   }, [avatarUrl]);

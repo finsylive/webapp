@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Avatar } from '@/components/ui/avatar';
+import { toProxyUrl } from '@/utils/imageUtils';
 import { Button } from '@/components/ui/Button';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
@@ -86,7 +87,7 @@ export default function FollowingPage({ params }: { params: Promise<{ username?:
             <ul className="divide-y divide-border rounded-xl border border-border bg-card/60">
               {list.map((u) => {
                 const img = u.avatar_url
-                  ? `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(u.avatar_url)}`
+                  ? toProxyUrl(u.avatar_url, { width: 48, quality: 82 })
                   : undefined;
                 const initials = (u.full_name || u.username)
                   .split(' ')

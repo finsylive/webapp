@@ -11,6 +11,7 @@ import { MentionDropdown } from './MentionDropdown';
 import { processMentionsInContent, notifyMentionedUsers } from '@/utils/mentions';
 import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 type CreatePostFormProps = {
   environmentId: string;
@@ -237,9 +238,41 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
         throw new Error(error.message);
       }
       
-      // TODO: Upload images to storage if media post
-      if (selectedImages.length > 0) {
-        console.log('[CreatePostForm] Would upload images here:', selectedImages);
+      // Upload media files to storage if media post
+      if (selectedImages.length > 0 && postData) {
+        console.log('[CreatePostForm] Uploading media files...');
+        const { uploadPostMedia } = await import('@/utils/fileUpload');
+        const { urls, error: uploadError } = await uploadPostMedia(selectedImages);
+        
+        if (uploadError) {
+          throw new Error(`Media upload failed: ${uploadError}`);
+        }
+        
+        // Save media URLs to post_media table
+        if (urls.length > 0) {
+          const mediaInserts = urls.map((url, index) => {
+            const file = selectedImages[index];
+            const isVideo = file.type.startsWith('video/');
+            const result = compressedResults[index];
+            
+            return supabase.from('post_media').insert({
+              post_id: postData.id,
+              media_url: url,
+              media_type: isVideo ? 'video' : 'photo',
+              width: result?.width || null,
+              height: result?.height || null,
+            });
+          });
+          
+          const mediaResults = await Promise.all(mediaInserts);
+          const mediaErrors = mediaResults.filter(r => r.error);
+          
+          if (mediaErrors.length > 0) {
+            console.error('[CreatePostForm] Failed to save media records:', mediaErrors);
+          } else {
+            console.log('[CreatePostForm] Successfully uploaded and saved', urls.length, 'media files');
+          }
+        }
       }
       
       // Send notifications to mentioned users
@@ -309,12 +342,13 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
             {user?.user_metadata?.avatar_url ? (
               <Image 
-                src={`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(user.user_metadata.avatar_url)}`}
+                src={toProxyUrl(user.user_metadata.avatar_url, { width: 40, quality: 82 })}
                 alt={user.user_metadata.full_name || 'User avatar'} 
                 width={40}
                 height={40}
                 className="w-full h-full object-cover"
-                unoptimized
+                sizes="40px"
+                loading="lazy"
               />
             ) : (
               <div className="text-lg font-semibold text-muted-foreground">

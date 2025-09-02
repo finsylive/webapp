@@ -6,50 +6,73 @@ type UploadResponse = {
   error?: string;
 };
 
-export async function uploadMediaFile(file: File): Promise<UploadResponse> {
-  try {
-    // First, get a signed URL for the upload
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = `posts/${fileName}`;
+// Convert file to base64 data URL
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+}
 
-    // Get a signed URL for the upload
-    const { data: uploadData, error: urlError } = await supabase.functions.invoke('upload-media', {
-      body: { 
-        path: filePath,
-        contentType: file.type,
-        action: 'upload'
+export async function uploadMediaFile(file: File, isVideo: boolean = false): Promise<UploadResponse> {
+  try {
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    // Convert file to base64 for edge function (matches mobile app)
+    const base64Data = await fileToBase64(file);
+    
+    // Call edge function to upload to S3 (matching mobile app)
+    const { data: uploadResult, error: uploadError } = await supabase.functions.invoke('upload-post-media', {
+      body: {
+        imageData: base64Data,
+        fileName: fileName,
+        userId: userId,
+        fileType: file.type,
+        isVideo: isVideo,
+        // Add video dimensions if it's a video
+        ...(isVideo && {
+          videoWidth: 1920, // Default, should be extracted from video
+          videoHeight: 1080
+        })
       }
     });
 
-    if (urlError || !uploadData?.signedUrl) {
-      console.error('Error getting signed URL:', urlError || 'No signed URL returned');
-      throw new Error('Failed to get upload URL');
+    if (uploadError || !uploadResult?.imageUrl) {
+      // Fallback to direct Supabase storage for large files
+      console.warn('Edge function upload failed, using fallback:', uploadError);
+      
+      const filePath = `media/${userId}/${fileName}`;
+      const { data, error: storageError } = await supabase.storage
+        .from('media')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: true
+        });
+
+      if (storageError) {
+        throw storageError;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      return {
+        url: publicUrlData.publicUrl,
+        path: filePath,
+      };
     }
-
-    // Upload the file using the signed URL
-    const uploadResponse = await fetch(uploadData.signedUrl, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type,
-        'x-upsert': 'true',
-      },
-    });
-
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('Upload failed:', uploadResponse.status, errorText);
-      throw new Error(`Upload failed: ${uploadResponse.statusText}`);
-    }
-
-    // Get the public URL for the uploaded file
-    const { data: publicUrlData } = supabase.storage
-      .from('posts')
-      .getPublicUrl(filePath);
 
     return {
-      url: publicUrlData.publicUrl,
-      path: filePath,
+      url: uploadResult.imageUrl,
+      path: `media/${userId}/${fileName}`,
     };
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -61,9 +84,12 @@ export async function uploadMediaFile(file: File): Promise<UploadResponse> {
   }
 }
 
-export async function uploadPostImages(files: File[]): Promise<{ urls: string[]; error?: string }> {
+export async function uploadPostMedia(files: File[]): Promise<{ urls: string[]; error?: string }> {
   try {
-    const uploadPromises = files.map(file => uploadMediaFile(file));
+    const uploadPromises = files.map(file => {
+      const isVideo = file.type.startsWith('video/');
+      return uploadMediaFile(file, isVideo);
+    });
     const results = await Promise.all(uploadPromises);
     
     const errors = results.filter(result => result.error);
@@ -79,10 +105,13 @@ export async function uploadPostImages(files: File[]): Promise<{ urls: string[];
       urls: results.map(r => r.url)
     };
   } catch (error) {
-    console.error('Error in uploadPostImages:', error);
+    console.error('Error in uploadPostMedia:', error);
     return {
       urls: [],
       error: error instanceof Error ? error.message : 'Failed to upload files'
     };
   }
 }
+
+// Alias for backward compatibility
+export const uploadPostImages = uploadPostMedia;

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Search, MapPin, User } from 'lucide-react';
 import { useTheme } from '@/context/theme/ThemeContext';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 type UserProfile = {
   id: string;
@@ -149,12 +150,13 @@ export default function SearchPage() {
                     <div className={`w-16 h-16 rounded-full overflow-hidden shadow-xl ring-4 ${isDarkMode ? 'ring-[#10141a]' : 'ring-white'} bg-white`}>
                       {u.avatar_url ? (
                         <Image
-                          src={`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(u.avatar_url)}`}
+                          src={toProxyUrl(u.avatar_url, { width: 64, quality: 85 })}
                           alt={u.username}
                           width={64}
                           height={64}
                           className="w-full h-full object-cover"
-                          unoptimized
+                          sizes="64px"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">

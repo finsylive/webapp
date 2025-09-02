@@ -58,9 +58,8 @@ const formatTimeAgoShort = (date: Date): string => {
   return 'now';
 };
 
-// Memoized proxy URL function with proper dependencies
-const toProxyUrl = (rawUrl: string) => 
-  `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(rawUrl)}`;
+// Import optimized proxy URL function
+import { toProxyUrl } from '@/utils/imageUtils';
 
 // Memoized Google avatar check with proper dependencies
 const isGoogleAvatar = (url?: string | null): boolean => {
@@ -73,14 +72,15 @@ const isGoogleAvatar = (url?: string | null): boolean => {
   }
 };
 
-// Optimized Video Thumbnail component with enhanced performance
+// Enhanced Video Thumbnail component with lazy loading optimization
 const VideoThumbnail = memo(({ 
   src, 
   thumbnail, 
   onPlay, 
   width, 
   height,
-  className = "" 
+  className = "",
+  priority = false
 }: { 
   src: string; 
   thumbnail?: string | null; 
@@ -88,6 +88,7 @@ const VideoThumbnail = memo(({
   width?: number | null;
   height?: number | null;
   className?: string;
+  priority?: boolean;
 }) => {
   const [thumbnailError, setThumbnailError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -126,10 +127,9 @@ const VideoThumbnail = memo(({
           className="object-cover w-full h-full rounded-2xl transition-all duration-300"
           sizes="(max-width: 768px) 100vw, 700px"
           draggable={false}
-          loading="lazy"
-          priority={false}
+          loading={priority ? "eager" : "lazy"}
+          priority={priority}
           onError={handleThumbnailError}
-          unoptimized={true}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -163,6 +163,7 @@ const VideoThumbnail = memo(({
 });
 
 VideoThumbnail.displayName = 'VideoThumbnail';
+
 
 // Optimized ResponsiveVideo component with lazy loading
 const ResponsiveVideo = memo(({ src, poster, width, height }: { 
@@ -285,7 +286,7 @@ const ResponsiveVideo = memo(({ src, poster, width, height }: {
 
 ResponsiveVideo.displayName = 'ResponsiveVideo';
 
-// Optimized MediaGallery with enhanced video thumbnail support
+// Enhanced MediaGallery with optimized lazy loading and preloading strategy
 const MediaGallery = memo(({ items, onOpen }: { 
   items: Array<{ 
     id?: string; 
@@ -298,50 +299,29 @@ const MediaGallery = memo(({ items, onOpen }: {
   onOpen?: (index: number) => void 
 }) => {
   const total = items?.length || 0;
-  const [current, setCurrent] = useState(0);
-  const [imageError, setImageError] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
-  
-  const touchStartX = useRef<number | null>(null);
-  const touchStartTime = useRef<number | null>(null);
-  const lastTouchXRef = useRef<number | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<Map<number, {width: number, height: number}>>(new Map());
 
-  const handleImageError = useCallback(() => setImageError(true), []);
-  
-  const goPrev = useCallback((e?: React.MouseEvent) => { 
-    if (e) e.stopPropagation(); 
-    setCurrent(c => (c - 1 + total) % total);
-    setPlayingVideo(null); // Stop any playing video when navigating
-  }, [total]);
-  
-  const goNext = useCallback((e?: React.MouseEvent) => { 
-    if (e) e.stopPropagation(); 
-    setCurrent(c => (c + 1) % total);
-    setPlayingVideo(null); // Stop any playing video when navigating
-  }, [total]);
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => { 
-    touchStartX.current = e.touches[0].clientX; 
-    touchStartTime.current = Date.now(); 
+  const handleImageError = useCallback((index: number) => {
+    setImageErrors(prev => new Set([...prev, index]));
   }, []);
-  
-  const onTouchMove = useCallback((e: React.TouchEvent) => { 
-    lastTouchXRef.current = e.touches[0].clientX; 
-  }, []);
-  
-  const onTouchEnd = useCallback(() => {
-    if (touchStartX.current == null || touchStartTime.current == null) return;
-    const dx = (lastTouchXRef.current ?? touchStartX.current) - touchStartX.current;
-    const dt = Date.now() - touchStartTime.current;
-    if (dt < SWIPE_TIME_THRESHOLD && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0) goNext(); else goPrev();
-    }
-    touchStartX.current = null; 
-    touchStartTime.current = null; 
-    lastTouchXRef.current = null;
-  }, [goNext, goPrev]);
 
-  // Memoized click handlers
+  // Load image to get natural dimensions
+  const loadImageDimensions = useCallback((src: string, index: number) => {
+    if (imageDimensions.has(index)) return; // Already loaded
+
+    const img = new window.Image();
+    img.onload = () => {
+      setImageDimensions(prev => new Map(prev.set(index, { width: img.naturalWidth, height: img.naturalHeight })));
+    };
+    img.onerror = () => {
+      handleImageError(index);
+    };
+    img.src = src;
+  }, [imageDimensions, handleImageError]);
+
+  // Click handlers
   const handleImageClick = useMemo(() => 
     (index: number) => (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -355,170 +335,214 @@ const MediaGallery = memo(({ items, onOpen }: {
     }, []
   );
 
-  const handleDotClick = useMemo(() => 
-    (index: number) => (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setCurrent(index);
-      setPlayingVideo(null);
-    }, []
-  );
-
   if (!items || total === 0) return null;
 
-  // Single item optimization
-  if (total === 1) {
-    const m = items[0];
-    const aspect = m.width && m.height 
-      ? `${m.width} / ${m.height}` 
-      : (m.media_type === 'photo' ? IMAGE_ASPECT : VIDEO_ASPECT);
-    
-    if (m.media_type === 'photo') {
-      return (
-        <div 
-          className="relative w-full max-w-2xl mx-auto rounded-2xl overflow-hidden max-h-[520px] md:max-h-[600px] cursor-zoom-in" 
-          style={{ aspectRatio: aspect }} 
-          onClick={handleImageClick(0)} 
-          data-no-nav="true"
-        >
-          {!imageError ? (
-            <Image
-              src={toProxyUrl(m.media_url)}
-              alt="Post media"
-              fill
-              className="object-contain w-full h-full rounded-2xl transition-transform duration-300 group-hover:scale-[1.02] bg-black"
-              sizes="(max-width: 768px) 100vw, 700px"
-              draggable={false}
-              loading="lazy"
-              priority={false}
-              onError={handleImageError}
-              unoptimized={true}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-muted/30 to-muted/50 rounded-2xl flex items-center justify-center">
-              <span className="text-muted-foreground">Failed to load image</span>
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    // Single video - show thumbnail first, then video on play
-    return (
-      <div className="relative w-full max-w-2xl mx-auto" data-no-nav="true">
-        {playingVideo === 0 ? (
-          <ResponsiveVideo 
-            src={toProxyUrl(m.media_url)} 
-            poster={m.media_thumbnail || undefined}
-            width={m.width}
-            height={m.height}
-          />
-        ) : (
-          <VideoThumbnail
-            src={toProxyUrl(m.media_url)}
-            thumbnail={m.media_thumbnail}
-            onPlay={handleVideoPlay(0)}
-            width={m.width}
-            height={m.height}
-          />
-        )}
-      </div>
-    );
-  }
+  // Horizontal scrolling line layout for all media counts
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const currentMedia = items[current];
-  const currentAspect = currentMedia.width && currentMedia.height 
-    ? `${currentMedia.width} / ${currentMedia.height}` 
-    : (currentMedia.media_type === 'photo' ? IMAGE_ASPECT : VIDEO_ASPECT);
+  // Check scroll position
+  const checkScroll = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    
+    setCanScrollLeft(container.scrollLeft > 0);
+    setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const container = scrollRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScroll);
+      return () => container.removeEventListener('scroll', checkScroll);
+    }
+  }, [checkScroll]);
+
+  const scrollLeft = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const container = scrollRef.current;
+    if (container) {
+      const scrollAmount = Math.min(container.clientWidth * 0.8, 300);
+      container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+    }
+  }, []);
+
+  const scrollRight = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const container = scrollRef.current;
+    if (container) {
+      const scrollAmount = Math.min(container.clientWidth * 0.8, 300);
+      container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  }, []);
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <div className="rounded-2xl overflow-hidden bg-black max-h-[520px] md:max-h-[600px]">
-        {currentMedia.media_type === 'photo' ? (
-          <div 
-            className="relative w-full max-h-[520px] md:max-h-[600px] cursor-zoom-in" 
-            style={{ aspectRatio: currentAspect }} 
-            onClick={handleImageClick(current)} 
-            data-no-nav="true"
-          >
-            <Image
-              key={`${current}-${currentMedia.media_url}`}
-              src={toProxyUrl(currentMedia.media_url)}
-              alt={`Media ${current + 1}`}
-              fill
-              className="object-contain w-full h-full bg-black"
-              sizes="(max-width: 768px) 100vw, 700px"
-              draggable={false}
-              loading="lazy"
-              onError={handleImageError}
-              unoptimized={true}
-            />
-          </div>
-        ) : (
-          <div
-            data-no-nav="true"
-            className="relative w-full max-h-[520px] md:max-h-[600px]"
-          >
-            {playingVideo === current ? (
-              <ResponsiveVideo 
-                key={`video-${current}-${currentMedia.media_url}`}
-                src={toProxyUrl(currentMedia.media_url)} 
-                poster={currentMedia.media_thumbnail || undefined}
-                width={currentMedia.width}
-                height={currentMedia.height}
-              />
-            ) : (
-              <VideoThumbnail
-                key={`thumbnail-${current}-${currentMedia.media_url}`}
-                src={toProxyUrl(currentMedia.media_url)}
-                thumbnail={currentMedia.media_thumbnail}
-                onPlay={handleVideoPlay(current)}
-                width={currentMedia.width}
-                height={currentMedia.height}
-                className="cursor-pointer"
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      {total > 1 && (
-        <>
-          <button
-            data-no-nav="true"
-            className="absolute top-1/2 -translate-y-1/2 left-2 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center z-10"
-            onClick={goPrev}
-            aria-label="Previous"
-          >
-            ‹
-          </button>
-          <button
-            data-no-nav="true"
-            className="absolute top-1/2 -translate-y-1/2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center z-10"
-            onClick={goNext}
-            aria-label="Next"
-          >
-            ›
-          </button>
-
-          <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1 z-10">
-            {items.map((item, i) => (
-              <button
-                data-no-nav="true"
-                key={i}
-                onClick={handleDotClick(i)}
-                className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
-                  i === current 
-                    ? 'bg-white scale-125' 
-                    : 'bg-white/40 hover:bg-white/60'
-                }`}
-                aria-label={`Go to ${item.media_type} ${i + 1}`}
-              />
-            ))}
-          </div>
-        </>
+    <div className="relative w-full">
+      {/* Scroll buttons */}
+      {canScrollLeft && (
+        <button
+          onClick={scrollLeft}
+          data-no-nav="true"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200"
+          aria-label="Scroll left"
+        >
+          ‹
+        </button>
       )}
+      
+      {canScrollRight && (
+        <button
+          onClick={scrollRight}
+          data-no-nav="true"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200"
+          aria-label="Scroll right"
+        >
+          ›
+        </button>
+      )}
+
+      {/* Horizontal scrolling container */}
+      <div 
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+      >
+        {items.map((m, i) => {
+          const imageUrl = toProxyUrl(m.media_url);
+          
+          // Get dimensions from state, API, or use defaults
+          const loadedDimensions = imageDimensions.get(i);
+          const apiWidth = m.width;
+          const apiHeight = m.height;
+          
+          let imageWidth, imageHeight;
+          
+          if (loadedDimensions) {
+            // Use dynamically loaded dimensions (most accurate)
+            imageWidth = loadedDimensions.width;
+            imageHeight = loadedDimensions.height;
+          } else if (apiWidth && apiHeight) {
+            // Use API dimensions if available
+            imageWidth = apiWidth;
+            imageHeight = apiHeight;
+          } else {
+            // No dimensions yet - start loading and use default
+            if (m.media_type === 'photo') {
+              loadImageDimensions(imageUrl, i);
+            }
+            imageWidth = 16; // Default to landscape while loading
+            imageHeight = 9;
+          }
+          
+          const aspectRatio = imageWidth / imageHeight;
+          
+          // Calculate container dimensions
+          const baseSize = 200;
+          const maxSize = 350;
+          const minSize = 120;
+          
+          let containerWidth, containerHeight;
+          
+          // For landscape images (width > height), base on height
+          if (aspectRatio > 1) {
+            containerHeight = Math.min(baseSize, maxSize);
+            containerWidth = containerHeight * aspectRatio;
+            if (containerWidth > maxSize) {
+              containerWidth = maxSize;
+              containerHeight = containerWidth / aspectRatio;
+            }
+          } 
+          // For portrait images (height > width), base on width
+          else {
+            containerWidth = Math.min(baseSize, maxSize);
+            containerHeight = containerWidth / aspectRatio;
+            if (containerHeight > maxSize) {
+              containerHeight = maxSize;
+              containerWidth = containerHeight * aspectRatio;
+            }
+          }
+          
+          // Ensure minimums
+          if (containerWidth < minSize) containerWidth = minSize;
+          if (containerHeight < minSize) containerHeight = minSize;
+          
+          return (
+            <div 
+              key={i}
+              className="flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in bg-muted/20"
+              style={{ 
+                width: `${Math.round(containerWidth)}px`, 
+                height: `${Math.round(containerHeight)}px`
+              }}
+              onClick={handleImageClick(i)}
+              data-no-nav="true"
+            >
+              {m.media_type === 'photo' ? (
+                !imageErrors.has(i) ? (
+                  <img
+                    src={imageUrl}
+                    alt={`Media ${i + 1}`}
+                    width={Math.round(containerWidth)}
+                    height={Math.round(containerHeight)}
+                    className="hover:opacity-95 transition-opacity rounded-2xl block"
+                    loading="lazy"
+                    onError={() => handleImageError(i)}
+                    onLoad={() => {
+                      // Try to get natural dimensions when image loads
+                      const img = document.querySelector(`img[src="${imageUrl}"]`) as HTMLImageElement;
+                      if (img && !imageDimensions.has(i)) {
+                        setImageDimensions(prev => new Map(prev.set(i, { 
+                          width: img.naturalWidth, 
+                          height: img.naturalHeight 
+                        })));
+                      }
+                    }}
+                    style={{
+                      width: `${Math.round(containerWidth)}px`,
+                      height: `${Math.round(containerHeight)}px`,
+                      objectFit: 'cover'
+                    }}
+                  />
+                ) : (
+                  <div 
+                    className="bg-muted/50 flex items-center justify-center rounded-2xl"
+                    style={{ 
+                      width: `${Math.round(containerWidth)}px`, 
+                      height: `${Math.round(containerHeight)}px`
+                    }}
+                  >
+                    <span className="text-muted-foreground text-sm">Failed to load</span>
+                  </div>
+                )
+              ) : (
+                playingVideo === i ? (
+                  <ResponsiveVideo 
+                    src={toProxyUrl(m.media_url)} 
+                    poster={m.media_thumbnail || undefined}
+                    width={imageWidth}
+                    height={imageHeight}
+                  />
+                ) : (
+                  <VideoThumbnail
+                    src={toProxyUrl(m.media_url)}
+                    thumbnail={m.media_thumbnail}
+                    onPlay={handleVideoPlay(i)}
+                    width={imageWidth}
+                    height={imageHeight}
+                    className="w-full h-full rounded-2xl"
+                  />
+                )
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
+
+  // Fallback - shouldn't reach here
+  return null;
 });
 
 MediaGallery.displayName = 'MediaGallery';
@@ -575,7 +599,7 @@ const Lightbox = memo(({ items, index, onClose, onPrev, onNext }: {
               sizes="100vw"
               draggable={false}
               priority={true}
-              unoptimized={true}
+              unoptimized={false}
             />
           ) : (
             <video
@@ -633,28 +657,32 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
   const router = useRouter();
   const { user } = useAuth();
   
-  // State management
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [likes, setLikes] = useState(post.likes || 0);
-  const [isLiked, setIsLiked] = useState(false);
-  const [replies] = useState(post.replies || 0);
-  const [isLiking, setIsLiking] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [showFullContent, setShowFullContent] = useState(false);
-  const [envImageError, setEnvImageError] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Consolidated state management for better performance
+  const [uiState, setUiState] = useState({
+    isMenuOpen: false,
+    likes: post.likes || 0,
+    isLiked: false,
+    isLiking: false,
+    imageError: false,
+    isBookmarked: false,
+    showFullContent: false,
+    envImageError: false,
+    lightboxOpen: false,
+    lightboxIndex: 0,
+    isEditModalOpen: false,
+    isDeleting: false,
+    showDeleteConfirm: false,
+  });
+  const replies = post.replies || 0; // No need for state since it doesn't change
   
-  // Poll state
-  const [pollVotes, setPollVotes] = useState<{[key: string]: number}>({});
-  const [userVotedOptions, setUserVotedOptions] = useState<string[]>([]);
-  const [hasUserVoted, setHasUserVoted] = useState(false);
-  const [isVoting, setIsVoting] = useState(false);
-  const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
+  // Poll state - consolidated for better performance
+  const [pollState, setPollState] = useState({
+    votes: {} as {[key: string]: number},
+    userVotedOptions: [] as string[],
+    hasUserVoted: false,
+    isVoting: false,
+    votingOptionId: null as string | null,
+  });
 
   // Refs
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -663,54 +691,56 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
   const content = useMemo(() => post.content ?? '', [post.content]);
   const isLongContent = useMemo(() => content.length > CONTENT_TRUNCATE_LENGTH, [content.length]);
   const displayContent = useMemo(() => 
-    isLongContent && !showFullContent 
+    isLongContent && !uiState.showFullContent 
       ? content.substring(0, CONTENT_TRUNCATE_LENGTH) + '...' 
       : content,
-    [content, isLongContent, showFullContent]
+    [content, isLongContent, uiState.showFullContent]
   );
   
   const isVerified = useMemo(() => Boolean(post.author?.is_verified), [post.author?.is_verified]);
   const isAuthor = useMemo(() => user?.id === post.author_id, [user?.id, post.author_id]);
   const totalPollVotes = useMemo(() => 
-    Object.values(pollVotes).reduce((sum, votes) => sum + votes, 0), 
-    [pollVotes]
+    Object.values(pollState.votes).reduce((sum, votes) => sum + votes, 0), 
+    [pollState.votes]
   );
   const createdAtDate = useMemo(() => new Date(post.created_at), [post.created_at]);
   const timeAgo = useMemo(() => formatTimeAgoShort(createdAtDate), [createdAtDate]);
   const timeAgoFull = useMemo(() => formatDistanceToNow(createdAtDate, { addSuffix: true }), [createdAtDate]);
 
-  // Event handlers (keeping your existing handlers with the same optimization)
-  const handleImageError = useCallback(() => setImageError(true), []);
-  const handleEnvImageError = useCallback(() => setEnvImageError(true), []);
+  // Event handlers - optimized with state updater functions
+  const handleImageError = useCallback(() => {
+    setUiState(prev => ({ ...prev, imageError: true }));
+  }, []);
+  const handleEnvImageError = useCallback(() => {
+    setUiState(prev => ({ ...prev, envImageError: true }));
+  }, []);
 
   const handleLike = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user?.id || isLiking) return;
+    if (!user?.id || uiState.isLiking) return;
 
-    setIsLiking(true);
+    setUiState(prev => ({ ...prev, isLiking: true }));
     
     try {
-      if (isLiked) {
+      if (uiState.isLiked) {
         const { error } = await unlikePost(post.id, user.id);
         if (!error) {
-          setLikes(prev => prev - 1);
-          setIsLiked(false);
+          setUiState(prev => ({ ...prev, likes: prev.likes - 1, isLiked: false }));
         }
       } else {
         const { error } = await likePost(post.id, user.id);
         if (!error) {
-          setLikes(prev => prev + 1);
-          setIsLiked(true);
+          setUiState(prev => ({ ...prev, likes: prev.likes + 1, isLiked: true }));
         }
       }
     } catch (error) {
       console.error('Error liking/unliking post:', error);
     } finally {
-      setIsLiking(false);
+      setUiState(prev => ({ ...prev, isLiking: false }));
     }
     
     onLike?.();
-  }, [user?.id, isLiking, isLiked, post.id, onLike]);
+  }, [user?.id, uiState.isLiking, uiState.isLiked, post.id, onLike]);
 
   const handleReply = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -731,7 +761,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
   const toggleMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsMenuOpen(prev => !prev);
+    setUiState(prev => ({ ...prev, isMenuOpen: !prev.isMenuOpen }));
   }, []);
 
   const handleCardClick = useCallback(() => {
@@ -750,7 +780,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
   const handleBookmark = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsBookmarked(prev => !prev);
+    setUiState(prev => ({ ...prev, isBookmarked: !prev.isBookmarked }));
   }, []);
 
   const handleShare = useCallback((e: React.MouseEvent) => {
@@ -770,25 +800,25 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
   }, [post.id, post.author?.username, content]);
 
   const handlePollVote = useCallback(async (optionId: string) => {
-    if (!user?.id || isVoting) return;
+    if (!user?.id || pollState.isVoting) return;
 
-    const previousVotes = { ...pollVotes };
-    const previousUserVotes = [...userVotedOptions];
-    const previousHasVoted = hasUserVoted;
+    const previousVotes = { ...pollState.votes };
+    const previousUserVotes = [...pollState.userVotedOptions];
+    const previousHasVoted = pollState.hasUserVoted;
 
-    const newVotes = { ...pollVotes };
-    let newUserVotes = [...userVotedOptions];
+    const newVotes = { ...pollState.votes };
+    let newUserVotes = [...pollState.userVotedOptions];
     let action: 'added' | 'removed' = 'added';
     let previousOptionId: string | null = null;
 
-    const isRemovingVote = userVotedOptions.includes(optionId);
+    const isRemovingVote = pollState.userVotedOptions.includes(optionId);
     
     if (isRemovingVote) {
       action = 'removed';
       newUserVotes = newUserVotes.filter(id => id !== optionId);
       newVotes[optionId] = Math.max(0, (newVotes[optionId] || 1) - 1);
     } else {
-      previousOptionId = userVotedOptions[0] || null;
+      previousOptionId = pollState.userVotedOptions[0] || null;
       
       if (previousOptionId) {
         newUserVotes = newUserVotes.filter(id => id !== previousOptionId);
@@ -799,26 +829,32 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       newVotes[optionId] = (newVotes[optionId] || 0) + 1;
     }
 
-    setPollVotes(newVotes);
-    setUserVotedOptions(newUserVotes);
-    setHasUserVoted(newUserVotes.length > 0);
-    setIsVoting(true);
-    setVotingOptionId(optionId);
+    setPollState(prev => ({
+      ...prev,
+      votes: newVotes,
+      userVotedOptions: newUserVotes,
+      hasUserVoted: newUserVotes.length > 0,
+      isVoting: true,
+      votingOptionId: optionId,
+    }));
 
     try {
       const { data, error } = await votePollOption(optionId, user.id);
       
       if (error || !data || !data.success) {
         console.error('Vote failed, rolling back:', error);
-        setPollVotes(previousVotes);
-        setUserVotedOptions(previousUserVotes);
-        setHasUserVoted(previousHasVoted);
+        setPollState(prev => ({
+          ...prev,
+          votes: previousVotes,
+          userVotedOptions: previousUserVotes,
+          hasUserVoted: previousHasVoted,
+        }));
         return;
       }
 
       if (data.action !== action) {
-        const serverVotes = { ...pollVotes };
-        let serverUserVotes = [...userVotedOptions];
+        const serverVotes = { ...pollState.votes };
+        let serverUserVotes = [...pollState.userVotedOptions];
         
         if (data.action === 'removed') {
           serverUserVotes = serverUserVotes.filter(id => id !== optionId);
@@ -834,41 +870,45 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
           serverVotes[optionId] = (serverVotes[optionId] || 0) + 1;
         }
         
-        setPollVotes(serverVotes);
-        setUserVotedOptions(serverUserVotes);
-        setHasUserVoted(serverUserVotes.length > 0);
+        setPollState(prev => ({
+          ...prev,
+          votes: serverVotes,
+          userVotedOptions: serverUserVotes,
+          hasUserVoted: serverUserVotes.length > 0,
+        }));
       }
     } catch (error) {
       console.error('Error voting on poll:', error);
-      setPollVotes(previousVotes);
-      setUserVotedOptions(previousUserVotes);
-      setHasUserVoted(previousHasVoted);
+      setPollState(prev => ({
+        ...prev,
+        votes: previousVotes,
+        userVotedOptions: previousUserVotes,
+        hasUserVoted: previousHasVoted,
+      }));
     } finally {
-      setIsVoting(false);
-      setVotingOptionId(null);
+      setPollState(prev => ({ ...prev, isVoting: false, votingOptionId: null }));
     }
-  }, [user?.id, isVoting, pollVotes, userVotedOptions, hasUserVoted]);
+  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted]);
 
-  // Lightbox handlers
+  // Lightbox handlers - consolidated state updates
   const openLightbox = useCallback((index: number) => {
-    setLightboxIndex(index);
-    setLightboxOpen(true);
+    setUiState(prev => ({ ...prev, lightboxIndex: index, lightboxOpen: true }));
   }, []);
 
   const closeLightbox = useCallback(() => {
-    setLightboxOpen(false);
+    setUiState(prev => ({ ...prev, lightboxOpen: false }));
   }, []);
 
   const lightboxPrev = useCallback(() => {
     if (!post.media) return;
     const total = post.media.length;
-    setLightboxIndex(prev => (prev - 1 + total) % total);
+    setUiState(prev => ({ ...prev, lightboxIndex: (prev.lightboxIndex - 1 + total) % total }));
   }, [post.media]);
 
   const lightboxNext = useCallback(() => {
     if (!post.media) return;
     const total = post.media.length;
-    setLightboxIndex(prev => (prev + 1) % total);
+    setUiState(prev => ({ ...prev, lightboxIndex: (prev.lightboxIndex + 1) % total }));
   }, [post.media]);
 
   // Effects - optimized with proper dependencies
@@ -884,21 +924,23 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
         const { liked, error: likeError } = likeResult;
         if (!likeError) {
-          setIsLiked(liked);
+          setUiState(prev => ({ ...prev, isLiked: liked }));
         }
 
         if (post.poll && !pollResult.error) {
           const votedOptionIds = pollResult.votes.map(v => v.option_id);
-          setUserVotedOptions(votedOptionIds);
-          setHasUserVoted(votedOptionIds.length > 0);
-          
+          const initialVotes: {[key: string]: number} = {};
           if (post.poll.options) {
-            const initialVotes: {[key: string]: number} = {};
             post.poll.options.forEach(option => {
               initialVotes[option.id] = option.votes;
             });
-            setPollVotes(initialVotes);
           }
+          setPollState(prev => ({
+            ...prev,
+            userVotedOptions: votedOptionIds,
+            hasUserVoted: votedOptionIds.length > 0,
+            votes: initialVotes,
+          }));
         }
       } catch (error) {
         console.error('Error in checkUserInteractions:', error);
@@ -906,19 +948,19 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
     };
 
     checkUserInteractions();
-  }, [user?.id, post.id, post.poll?.id]);
+  }, [user?.id, post.id, post.poll]);
 
   useEffect(() => {
-    if (!isMenuOpen) return;
+    if (!uiState.isMenuOpen) return;
     
     const onDocMouseDown = (e: MouseEvent) => {
       const n = menuRef.current;
       if (n && !n.contains(e.target as Node)) {
-        setIsMenuOpen(false);
+        setUiState(prev => ({ ...prev, isMenuOpen: false }));
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsMenuOpen(false);
+      if (e.key === 'Escape') setUiState(prev => ({ ...prev, isMenuOpen: false }));
     };
     
     document.addEventListener('mousedown', onDocMouseDown);
@@ -928,12 +970,12 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       document.removeEventListener('mousedown', onDocMouseDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isMenuOpen]);
+  }, [uiState.isMenuOpen]);
 
   // Delete post handler
   const handleDeletePost = useCallback(async () => {
     if (!user) return;
-    setIsDeleting(true);
+    setUiState(prev => ({ ...prev, isDeleting: true }));
     try {
       const { error } = await deletePost(post.id, user.id);
       if (!error) {
@@ -944,92 +986,97 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
     } catch (error) {
       console.error('Error deleting post:', error);
     } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
+      setUiState(prev => ({ ...prev, isDeleting: false, showDeleteConfirm: false }));
     }
   }, [user, post.id]);
 
   // Memoized JSX elements to prevent unnecessary re-renders (keeping your existing profileSection and tagsSection)
   const profileSection = useMemo(() => (
-    <div className="flex items-center gap-4 flex-1 min-w-0">
-      {/* Profile Picture */}
-      <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
-        <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
-          {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !imageError ? (
-            <div className="relative w-full h-full">
-              <Image
-                src={toProxyUrl(post.author.avatar_url)}
-                alt={post.author.username || 'User'}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-110"
-                onError={handleImageError}
-                unoptimized={true}
-              />
-            </div>
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center">
-              <span className="text-xl font-bold text-primary">
-                {post.author?.username?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            </div>
-          )}
-        </div>
-        {isVerified && (
-          <div className="absolute -bottom-1 -right-1 w-6 h-6" aria-label="Verified">
-            <svg viewBox="0 0 40 40" width="24" height="24" className="block" aria-hidden="true">
-              <path
-                d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Zm7.415 11.225 2.254 2.287-11.43 11.5-6.835-6.93 2.244-2.258 4.587 4.581 9.18-9.18Z"
-                fill="#0095F6"
-                fillRule="evenodd"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        )}
-      </div>
-      
-      {/* User Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3 mb-1">
-          <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors duration-200 cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
-            {post.author?.full_name || post.author?.username || 'Anonymous'}
-          </h3>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-          <span className="font-medium cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
-            @{post.author?.handle || post.author?.username?.toLowerCase() || 'anonymous'}
-          </span>
-          <span className="opacity-60">•</span>
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span title={timeAgoFull}>{timeAgo}</span>
-          </div>
-        </div>
-        
-        {/* Environment info */}
-        {post.environment && (
-          <div className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit">
-            {post.environment.picture && !envImageError ? (
-              <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-[#3C4049]">
+    <div className="flex-1 min-w-0">
+      {/* User profile and name section - horizontally aligned */}
+      <div className="flex items-start gap-4 mb-3">
+        {/* Profile Picture */}
+        <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
+          <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
+            {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !uiState.imageError ? (
+              <div className="relative w-full h-full">
                 <Image
-                  src={toProxyUrl(post.environment.picture)}
-                  alt={post.environment.name}
-                  width={24}
-                  height={24}
-                  className="object-cover w-full h-full"
-                  onError={handleEnvImageError}
-                  unoptimized={true}
+                  src={toProxyUrl(post.author.avatar_url, { width: 56, quality: 82 })}
+                  alt={post.author.username || 'User'}
+                  fill
+                  sizes="56px"
+                  className="object-cover transition-transform duration-300 group-hover:scale-110"
+                  onError={handleImageError}
+                  priority={false}
+                  loading="lazy"
                 />
               </div>
             ) : (
-              <Users className="h-5 w-5 text-gray-400" />
+              <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center">
+                <span className="text-xl font-bold text-primary">
+                  {post.author?.username?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </div>
             )}
-            <span className="text-white font-semibold">{post.environment.name}</span>
           </div>
-        )}
+        </div>
+        
+        {/* Name and Username section - vertically stacked */}
+        <div className="flex-1 min-w-0">
+          {/* Name + Verification Badge */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors duration-200 cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
+              {post.author?.full_name || post.author?.username || 'Anonymous'}
+            </h3>
+            {isVerified && (
+              <div className="flex-shrink-0">
+                <Image
+                  src="/icons/verify_badge.svg"
+                  alt="Verified"
+                  width={14}
+                  height={14}
+                  className="w-3.5 h-3.5"
+                  title="Verified user"
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Username/Handle and Time */}
+          <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+            <span className="font-medium cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
+              @{post.author?.handle || post.author?.username?.toLowerCase() || 'anonymous'}
+            </span>
+            <span className="opacity-60">•</span>
+            <span title={timeAgoFull}>{timeAgo}</span>
+          </div>
+        </div>
       </div>
+      
+      {/* Environment Badge - Full width below user info */}
+      {post.environment && (
+        <div className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit">
+          {post.environment.picture && !uiState.envImageError ? (
+            <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-[#3C4049]">
+              <Image
+                src={toProxyUrl(post.environment.picture, { width: 24, quality: 82 })}
+                alt={post.environment.name}
+                width={24}
+                height={24}
+                className="object-cover w-full h-full"
+                onError={handleEnvImageError}
+                sizes="24px"
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <Users className="h-5 w-5 text-gray-400" />
+          )}
+          <span className="text-white font-semibold">{post.environment.name}</span>
+        </div>
+      )}
     </div>
-  ), [post.author, isVerified, imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull, post.environment, envImageError, handleEnvImageError]);
+  ), [post.author, isVerified, uiState.imageError, handleProfileClick, handleImageError, timeAgo, timeAgoFull, post.environment, uiState.envImageError, handleEnvImageError]);
 
   const tagsSection = useMemo(() => {
     if (!post.tags || post.tags.length === 0) return null;
@@ -1073,12 +1120,12 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
               className="h-10 w-10 rounded-2xl transition-colors hover:bg-accent/40 text-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               onClick={toggleMenu}
               aria-haspopup="menu"
-              aria-expanded={isMenuOpen}
+              aria-expanded={uiState.isMenuOpen}
               aria-label="More options"
             >
               <MoreVertical className="h-5 w-5" />
             </Button>
-            {isMenuOpen && (
+            {uiState.isMenuOpen && (
               <div 
                 className="absolute right-0 mt-2 w-56 rounded-xl bg-popover text-popover-foreground border border-border/60 shadow-xl z-20 overflow-hidden animate-in fade-in-0 zoom-in-95"
                 role="menu"
@@ -1091,8 +1138,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                         role="menuitem"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsMenuOpen(false);
-                          setIsEditModalOpen(true);
+                          setUiState(prev => ({ ...prev, isMenuOpen: false, isEditModalOpen: true }));
                         }}
                       >
                         <Edit className="h-4 w-4 opacity-80" />
@@ -1103,13 +1149,12 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                         role="menuitem"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsMenuOpen(false);
-                          setShowDeleteConfirm(true);
+                          setUiState(prev => ({ ...prev, isMenuOpen: false, showDeleteConfirm: true }));
                         }}
-                        disabled={isDeleting}
+                        disabled={uiState.isDeleting}
                       >
                         <Trash2 className="h-4 w-4 opacity-80" />
-                        <span>{isDeleting ? 'Deleting...' : 'Delete post'}</span>
+                        <span>{uiState.isDeleting ? 'Deleting...' : 'Delete post'}</span>
                       </button>
                       <div className="h-px bg-border/60 my-1" />
                     </>
@@ -1120,7 +1165,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                     onClick={(e) => {
                       e.stopPropagation();
                       handleShare(e);
-                      setIsMenuOpen(false);
+                      setUiState(prev => ({ ...prev, isMenuOpen: false }));
                     }}
                   >
                     <Share className="h-4 w-4 opacity-80" />
@@ -1134,7 +1179,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                         role="menuitem"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsMenuOpen(false);
+                          setUiState(prev => ({ ...prev, isMenuOpen: false }));
                         }}
                       >
                         <TrendingUp className="h-4 w-4 opacity-80" />
@@ -1161,11 +1206,11 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setShowFullContent(!showFullContent);
+                setUiState(prev => ({ ...prev, showFullContent: !prev.showFullContent }));
               }}
               className="mt-2 text-primary hover:text-primary/80 text-sm font-medium transition-colors"
             >
-              {showFullContent ? 'Show less' : 'Show more'}
+              {uiState.showFullContent ? 'Show less' : 'Show more'}
             </button>
           )}
         </div>
@@ -1186,11 +1231,11 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             <div className="font-bold mb-4 text-foreground text-lg">{post.poll.question}</div>
             <div className="space-y-3">
               {post.poll.options?.map(option => {
-                const voteCount = pollVotes[option.id] || 0;
+                const voteCount = pollState.votes[option.id] || 0;
                 const percentage = totalPollVotes > 0 ? (voteCount / totalPollVotes) * 100 : 0;
-                const isSelected = userVotedOptions.includes(option.id);
-                const isCurrentlyVoting = votingOptionId === option.id;
-                const isDisabled = isVoting && !isCurrentlyVoting;
+                const isSelected = pollState.userVotedOptions.includes(option.id);
+                const isCurrentlyVoting = pollState.votingOptionId === option.id;
+                const isDisabled = pollState.isVoting && !isCurrentlyVoting;
                 
                 return (
                   <div key={option.id} className="relative">
@@ -1204,7 +1249,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                       onClick={() => handlePollVote(option.id)}
                       disabled={isDisabled}
                     >
-                      {hasUserVoted && (
+                      {pollState.hasUserVoted && (
                         <div 
                           className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-xl transition-all duration-700 ease-out"
                           style={{ width: `${percentage}%` }}
@@ -1224,7 +1269,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                         )}
                       </span>
                       
-                      {hasUserVoted && (
+                      {pollState.hasUserVoted && (
                         <div className="flex items-center gap-2 relative z-10">
                           <span className="text-muted-foreground text-sm font-medium transition-all duration-300">
                             {voteCount} vote{voteCount !== 1 ? 's' : ''}
@@ -1239,7 +1284,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                 );
               })}
             </div>
-            {hasUserVoted && (
+            {pollState.hasUserVoted && (
               <div className="mt-4 pt-3 border-t border-border/30">
                 <p className="text-muted-foreground text-sm text-center">
                   {totalPollVotes} total vote{totalPollVotes !== 1 ? 's' : ''}
@@ -1273,16 +1318,16 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             variant="ghost" 
             size="sm" 
             className={`flex items-center gap-2 rounded-2xl px-4 py-2 transition-all duration-200 group/like ${
-              isLiked 
+              uiState.isLiked 
                 ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20' 
                 : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
-            } ${isLiking ? 'opacity-50 scale-95' : ''}`}
+            } ${uiState.isLiking ? 'opacity-50 scale-95' : ''}`}
             onClick={handleLike}
-            disabled={isLiking}
+            disabled={uiState.isLiking}
           >
-            <Heart className={`h-5 w-5 group-hover/like:scale-110 transition-all duration-200 ${isLiked ? 'fill-current animate-pulse' : ''}`} />
+            <Heart className={`h-5 w-5 group-hover/like:scale-110 transition-all duration-200 ${uiState.isLiked ? 'fill-current animate-pulse' : ''}`} />
             <span className="text-sm font-semibold">
-              {likes > 0 ? likes : 'Like'}
+              {uiState.likes > 0 ? uiState.likes : 'Like'}
             </span>
           </Button>
 
@@ -1290,13 +1335,13 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             variant="ghost" 
             size="sm" 
             className={`flex items-center gap-2 rounded-2xl px-4 py-2 transition-all duration-200 group/bookmark ${
-              isBookmarked 
+              uiState.isBookmarked 
                 ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' 
                 : 'text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10'
             }`}
             onClick={handleBookmark}
           >
-            <Bookmark className={`h-5 w-5 group-hover/bookmark:scale-110 transition-all duration-200 ${isBookmarked ? 'fill-current' : ''}`} />
+            <Bookmark className={`h-5 w-5 group-hover/bookmark:scale-110 transition-all duration-200 ${uiState.isBookmarked ? 'fill-current' : ''}`} />
           </Button>
           
           <Button 
@@ -1313,20 +1358,11 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       {/* Hover effects */}
       <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       
-      {/* Animation dots */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-30 transition-opacity duration-300">
-        <div className="flex gap-1">
-          <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-          <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '200ms' }} />
-          <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '400ms' }} />
-        </div>
-      </div>
-      
       {/* Lightbox */}
-      {lightboxOpen && post.media && (
+      {uiState.lightboxOpen && post.media && (
         <Lightbox
           items={post.media}
-          index={lightboxIndex}
+          index={uiState.lightboxIndex}
           onClose={closeLightbox}
           onPrev={lightboxPrev}
           onNext={lightboxNext}
@@ -1334,10 +1370,10 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       )}
       
       {/* Edit Modal */}
-      {isEditModalOpen && user && (
+      {uiState.isEditModalOpen && user && (
         <EditPostModal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
+          isOpen={uiState.isEditModalOpen}
+          onClose={() => setUiState(prev => ({ ...prev, isEditModalOpen: false }))}
           postId={post.id}
           initialContent={post.content || ''}
           userId={user.id}
@@ -1348,7 +1384,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       )}
       
       {/* Delete Confirmation */}
-      {showDeleteConfirm && (
+      {uiState.showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-card border border-border rounded-xl w-full max-w-sm shadow-lg p-6">
             <h3 className="text-lg font-semibold mb-2">Delete Post?</h3>
@@ -1358,17 +1394,17 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
+                onClick={() => setUiState(prev => ({ ...prev, showDeleteConfirm: false }))}
+                disabled={uiState.isDeleting}
               >
                 Cancel
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleDeletePost}
-                disabled={isDeleting}
+                disabled={uiState.isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {uiState.isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
             </div>
           </div>

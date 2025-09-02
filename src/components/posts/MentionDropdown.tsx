@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 type User = {
   id: string;
@@ -127,11 +128,13 @@ export function MentionDropdown({ searchTerm, onSelectUser, position, isVisible 
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
               {user.avatar_url ? (
                 <Image
-                  src={`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(user.avatar_url)}`}
+                  src={toProxyUrl(user.avatar_url, { width: 32, quality: 82 })}
                   alt={user.username || user.email}
                   width={32}
                   height={32}
                   className="w-full h-full object-cover"
+                  sizes="32px"
+                  loading="lazy"
                   unoptimized
                 />
               ) : (

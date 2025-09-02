@@ -6,6 +6,7 @@ import { Users, X, ChevronDown, ChevronUp, Eye, BarChart3 } from 'lucide-react';
 import { getPollVoters, getPollStats, type PollVoter } from '@/api/posts';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 type PollVotersProps = {
   pollId: string;
@@ -194,12 +195,13 @@ export function PollVoters({ pollId, isCreator, totalVotes }: PollVotersProps) {
                             <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                               {voter.user.avatar_url ? (
                                 <Image
-                                  src={`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(voter.user.avatar_url)}`}
+                                  src={toProxyUrl(voter.user.avatar_url, { width: 24, quality: 82 })}
                                   alt={voter.user.username}
                                   width={24}
                                   height={24}
                                   className="w-full h-full object-cover"
-                                  unoptimized
+                                  sizes="24px"
+                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="text-xs font-medium text-muted-foreground">

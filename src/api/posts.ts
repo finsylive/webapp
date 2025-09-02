@@ -114,6 +114,7 @@ export type PostResponse = {
 
 /**
  * Fetch posts for a specific environment (paginated)
+ * Optimized to eliminate N+1 queries by using aggregated joins
  */
 export async function fetchPosts(
   environmentId: string,
@@ -122,95 +123,177 @@ export async function fetchPosts(
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
 
-  const { data, error, count } = await supabase
-    .from('posts')
-    .select(`
-      *,
-      author:author_id(id, username, avatar_url, full_name, is_verified),
-      environment:environment_id(id, name, description, picture),
-      media:post_media(*),
-      poll:post_polls(*, options:post_poll_options(*))
-    `, { count: 'exact' })
-    .eq('deleted', false)
-    .is('parent_post_id', null) // Only fetch top-level posts
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+  try {
+    // Use a single query with aggregations to avoid N+1 queries
+    // Pass null for environment_id if it's the default UUID to fetch all posts
+    const effectiveEnvId = environmentId === '00000000-0000-0000-0000-000000000000' ? null : environmentId;
+    const { data, error } = await supabase.rpc('get_posts_with_counts', {
+      env_id: effectiveEnvId,
+      limit_count: limit,
+      offset_count: offset
+    });
 
-  if (error || !data) {
-    return { data: null, error };
-  }
-
-  // Fetch likes and replies counts for each post
-  const postsWithCounts = await Promise.all(
-    data.map(async (post) => {
-      // Get likes count
-      const { count: likesCount } = await supabase
-        .from('post_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('post_id', post.id);
-
-      // Get replies count
-      const { count: repliesCount } = await supabase
+    if (error) {
+      console.warn('RPC function not available, falling back to optimized query:', error.message);
+      
+      // Fallback: Optimized query with batch counting
+      // Build the query - only filter by environment_id if it's not the default/null UUID
+      let query = supabase
         .from('posts')
-        .select('*', { count: 'exact', head: true })
-        .eq('parent_post_id', post.id)
-        .eq('deleted', false);
+        .select(`
+          *,
+          author:author_id(id, username, avatar_url, full_name, is_verified),
+          environment:environment_id(id, name, description, picture),
+          media:post_media(*),
+          poll:post_polls(*, options:post_poll_options(*))
+        `, { count: 'exact' });
+      
+      // Only filter by environment_id if it's not the default/null UUID
+      if (environmentId && environmentId !== '00000000-0000-0000-0000-000000000000') {
+        query = query.eq('environment_id', environmentId);
+      }
+      
+      const { data: posts, error: postsError, count } = await query
+        .eq('deleted', false)
+        .is('parent_post_id', null)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-      return {
+      if (postsError || !posts) {
+        return { data: null, error: postsError };
+      }
+
+      // Batch fetch all likes and replies counts in two queries instead of N queries
+      const postIds = posts.map(p => p.id);
+      
+      const [likesResult, repliesResult] = await Promise.all([
+        // Get likes counts for all posts in one query
+        supabase
+          .from('post_likes')
+          .select('post_id')
+          .in('post_id', postIds),
+        // Get replies counts for all posts in one query
+        supabase
+          .from('posts')
+          .select('parent_post_id')
+          .in('parent_post_id', postIds)
+          .eq('deleted', false)
+      ]);
+
+      // Process the results to count likes and replies per post
+      const likesMap = new Map<string, number>();
+      const repliesMap = new Map<string, number>();
+
+      if (likesResult.data) {
+        likesResult.data.forEach(like => {
+          const count = likesMap.get(like.post_id) || 0;
+          likesMap.set(like.post_id, count + 1);
+        });
+      }
+
+      if (repliesResult.data) {
+        repliesResult.data.forEach(reply => {
+          if (reply.parent_post_id) {
+            const count = repliesMap.get(reply.parent_post_id) || 0;
+            repliesMap.set(reply.parent_post_id, count + 1);
+          }
+        });
+      }
+
+      // Attach counts to posts
+      const postsWithCounts = posts.map(post => ({
         ...post,
-        likes: likesCount || 0,
-        replies: repliesCount || 0,
-      } as Post;
-    })
-  );
+        likes: likesMap.get(post.id) || 0,
+        replies: repliesMap.get(post.id) || 0,
+      })) as Post[];
 
-  const total = count ?? postsWithCounts.length;
-  const hasMore = offset + postsWithCounts.length < total;
+      const total = count ?? postsWithCounts.length;
+      const hasMore = offset + postsWithCounts.length < total;
 
-  return { data: postsWithCounts, error: null, hasMore };
+      return { data: postsWithCounts, error: null, hasMore };
+    }
+
+    // Process RPC result if available
+    const postsWithCounts = data?.map((post: any) => ({
+      ...post,
+      likes: post.likes_count || 0,
+      replies: post.replies_count || 0,
+    })) as Post[] || [];
+
+    const hasMore = postsWithCounts.length === limit;
+    return { data: postsWithCounts, error: null, hasMore };
+    
+  } catch (err) {
+    console.error('Error in fetchPosts:', err);
+    return { data: null, error: err as any };
+  }
 }
 
 /**
  * Fetch a single post by ID
+ * Optimized to use batch queries for counts
  */
 export async function fetchPostById(postId: string): Promise<PostResponse> {
-  const { data, error } = await supabase
-    .from('posts')
-    .select(`
-      *,
-      author:author_id(id, username, avatar_url, full_name, is_verified),
-      environment:environment_id(id, name, description, picture),
-      media:post_media(*),
-      poll:post_polls(*, options:post_poll_options(*))
-    `)
-    .eq('id', postId)
-    .eq('deleted', false)
-    .single();
+  try {
+    // Try RPC first for optimal performance
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_post_with_counts', {
+      post_id_param: postId
+    });
 
-  if (error || !data) {
-    return { data: null, error };
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      const post = rpcData[0];
+      const postWithCounts = {
+        ...post,
+        likes: post.likes_count || 0,
+        replies: post.replies_count || 0,
+      } as Post;
+      return { data: postWithCounts, error: null };
+    }
+
+    // Fallback to optimized manual query
+    const [postResult, likesResult, repliesResult] = await Promise.all([
+      // Get the post data
+      supabase
+        .from('posts')
+        .select(`
+          *,
+          author:author_id(id, username, avatar_url, full_name, is_verified),
+          environment:environment_id(id, name, description, picture),
+          media:post_media(*),
+          poll:post_polls(*, options:post_poll_options(*))
+        `)
+        .eq('id', postId)
+        .eq('deleted', false)
+        .single(),
+      // Get likes count
+      supabase
+        .from('post_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('post_id', postId),
+      // Get replies count
+      supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('parent_post_id', postId)
+        .eq('deleted', false)
+    ]);
+
+    const { data, error } = postResult;
+    if (error || !data) {
+      return { data: null, error };
+    }
+
+    const postWithCounts = {
+      ...data,
+      likes: likesResult.count || 0,
+      replies: repliesResult.count || 0,
+    } as Post;
+
+    return { data: postWithCounts, error: null };
+  } catch (err) {
+    console.error('Error in fetchPostById:', err);
+    return { data: null, error: err as any };
   }
-
-  // Get likes count
-  const { count: likesCount } = await supabase
-    .from('post_likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('post_id', postId);
-
-  // Get replies count
-  const { count: repliesCount } = await supabase
-    .from('posts')
-    .select('*', { count: 'exact', head: true })
-    .eq('parent_post_id', postId)
-    .eq('deleted', false);
-
-  const postWithCounts = {
-    ...data,
-    likes: likesCount || 0,
-    replies: repliesCount || 0,
-  } as Post;
-
-  return { data: postWithCounts, error: null };
 }
 
 /**

@@ -11,8 +11,8 @@ export type CompressedResult = {
   reason?: string; // if not compressed, why
 };
 
-const DEFAULT_IMAGE_MAX = 1440; // px
-const DEFAULT_IMAGE_QUALITY = 0.82; // 0..1
+const DEFAULT_IMAGE_MAX = 1080; // Match mobile app: max 1080x1080px
+const DEFAULT_IMAGE_QUALITY = 0.82; // Match mobile app: 82% quality
 
 function isHeicOrHeif(type: string, name: string) {
   const lower = `${type}|${name}`.toLowerCase();
@@ -129,16 +129,16 @@ export async function compressVideo(
   file: File,
   options?: { maxSizeMB?: number; quality?: number }
 ): Promise<CompressedResult> {
-  const maxSizeMB = options?.maxSizeMB ?? 10; // Default 10MB max
+  const maxSizeMB = options?.maxSizeMB ?? 15; // Match mobile app: 15MB threshold
   const quality = options?.quality ?? 0.6; // Default 0.6 quality for better compression
   
-  // Only skip if video is very small (< 500KB)
-  if (file.size < 500_000) {
+  // Match mobile app: only compress videos > 15MB
+  if (file.size < (maxSizeMB * 1024 * 1024)) {
     const videoKB = (file.size / 1024).toFixed(2);
     const videoMB = (file.size / (1024 * 1024)).toFixed(2);
     console.log(`[Video Skip] ${file.name}:`);
     console.log(`  File size: ${videoKB} KB (${videoMB} MB)`);
-    console.log(`  Reason: Already very small (< 500KB), no compression needed`);
+    console.log(`  Reason: Below ${maxSizeMB}MB threshold, no compression needed`);
     return { file, previewUrl: URL.createObjectURL(file), wasCompressed: false, reason: 'already small' };
   }
   

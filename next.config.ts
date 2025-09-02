@@ -15,9 +15,21 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
+    // Enable modern image formats
+    formats: ['image/avif', 'image/webp'],
+    // Optimize for 1-year cache TTL (31536000 seconds)
+    minimumCacheTTL: 31536000,
+    // Optimize device sizes for responsive images
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     unoptimized: false,
-    minimumCacheTTL: 60,
   },
   async headers() {
     return [
@@ -26,7 +38,16 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, must-revalidate',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
+        source: '/api/posts/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
           },
         ],
       },

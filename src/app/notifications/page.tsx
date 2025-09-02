@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/utils/supabase';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 interface NotificationItem {
   id: string;
@@ -23,7 +24,7 @@ interface NotificationItem {
 function AvatarImageWithFallback({ avatarUrl, email }: { avatarUrl: string, email?: string }) {
   const [src, setSrc] = useState<string>(
     avatarUrl
-      ? `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(avatarUrl)}`
+      ? toProxyUrl(avatarUrl, { width: 40, quality: 82 })
       : ""
   );
   const [proxyFailed, setProxyFailed] = useState(false);
@@ -32,7 +33,7 @@ function AvatarImageWithFallback({ avatarUrl, email }: { avatarUrl: string, emai
   useEffect(() => {
     setSrc(
       avatarUrl
-        ? `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(avatarUrl)}`
+        ? toProxyUrl(avatarUrl, { width: 40, quality: 82 })
         : ""
     );
     setProxyFailed(false);

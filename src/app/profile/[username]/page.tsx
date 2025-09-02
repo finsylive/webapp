@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Loader2, User, Diamond, Zap, Building2, BadgeCheck, Pencil } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 // Public profile page routed via /profile/[username]
 export default function PublicProfilePage() {
@@ -133,12 +134,12 @@ export default function PublicProfilePage() {
               <div className="relative h-40 w-full">
                 {coverUrl ? (
                   <Image
-                    src={`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(coverUrl)}`}
+                    src={toProxyUrl(coverUrl, { width: 1200, quality: 85 })}
                     alt="Cover image"
                     fill
                     className="object-cover object-center"
                     priority
-                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 1200px"
                   />
                 ) : (
                   <div className="h-full w-full bg-gradient-to-r from-purple-400 to-pink-500" />
@@ -151,12 +152,13 @@ export default function PublicProfilePage() {
               <div className={`w-24 h-24 rounded-full overflow-hidden shadow-xl ring-4 ${isDarkMode ? 'ring-[#10141a]' : 'ring-white'} bg-white`}>
                 {avatarUrl ? (
                   <Image
-                    src={`https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(avatarUrl)}`}
+                    src={toProxyUrl(avatarUrl, { width: 96, quality: 90 })}
                     alt={fullName}
                     width={96}
                     height={96}
                     className="w-full h-full object-cover"
-                    unoptimized
+                    sizes="96px"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">

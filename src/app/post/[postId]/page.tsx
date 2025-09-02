@@ -7,15 +7,15 @@ import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/utils/supabase";
 import { compressMediaBatch } from "@/utils/mediaCompressor";
+import { toProxyUrl } from '@/utils/imageUtils';
 
 // Define a new type that extends Post with nested replies
 type PostWithReplies = Omit<Post, 'replies'> & {
   replies: PostWithReplies[];
 };
 
-// Build proxy URL for avatars (align with PostCard implementation)
-const toImageProxy = (rawUrl: string) =>
-  `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(rawUrl)}`;
+// Use the optimized toProxyUrl utility (replaces toImageProxy)
+const toImageProxy = (rawUrl: string) => toProxyUrl(rawUrl, { width: 40, quality: 82 });
 
 // Recursively fetch replies for a post and build the reply tree
 async function fetchRepliesTree(parentPostId: string): Promise<PostWithReplies[]> {

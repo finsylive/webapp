@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/utils/supabase';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 type UserMetadata = {
   avatar_url?: string;
@@ -69,7 +70,7 @@ export function MobileNavBar() {
 
   const proxiedAvatar = useMemo(() => (
     profileAvatar
-      ? `https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=${encodeURIComponent(String(profileAvatar))}`
+      ? toProxyUrl(String(profileAvatar), { width: 32, quality: 82 })
       : null
   ), [profileAvatar]);
   
