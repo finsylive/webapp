@@ -298,81 +298,29 @@ const MediaGallery = memo(({ items, onOpen }: {
   onOpen?: (index: number) => void 
 }) => {
   const total = items?.length || 0;
-  const [current, setCurrent] = useState(0);
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
-  const [preloadedImages, setPreloadedImages] = useState<Set<number>>(new Set());
-  
-  const touchStartX = useRef<number | null>(null);
-  const touchStartTime = useRef<number | null>(null);
-  const lastTouchXRef = useRef<number | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<Map<number, {width: number, height: number}>>(new Map());
 
   const handleImageError = useCallback((index: number) => {
     setImageErrors(prev => new Set([...prev, index]));
   }, []);
-  
-  // Preload adjacent images for better UX
-  const preloadImage = useCallback((index: number) => {
-    if (preloadedImages.has(index) || !items[index] || items[index].media_type !== 'photo') return;
-    
-    // Use native browser Image constructor (not Next.js Image component)
+
+  // Load image to get natural dimensions
+  const loadImageDimensions = useCallback((src: string, index: number) => {
+    if (imageDimensions.has(index)) return; // Already loaded
+
     const img = new window.Image();
     img.onload = () => {
-      setPreloadedImages(prev => new Set([...prev, index]));
+      setImageDimensions(prev => new Map(prev.set(index, { width: img.naturalWidth, height: img.naturalHeight })));
     };
-    img.src = toProxyUrl(items[index].media_url, { width: 800, quality: 85 });
-  }, [items, preloadedImages]);
-  
-  // Preload current and adjacent images
-  useEffect(() => {
-    if (total <= 1) return;
-    
-    // Always preload current
-    preloadImage(current);
-    
-    // Preload next and previous
-    const next = (current + 1) % total;
-    const prev = (current - 1 + total) % total;
-    preloadImage(next);
-    preloadImage(prev);
-  }, [current, total, preloadImage]);
-  
-  const goPrev = useCallback((e?: React.MouseEvent) => { 
-    if (e) e.stopPropagation(); 
-    const newIndex = (current - 1 + total) % total;
-    setCurrent(newIndex);
-    setPlayingVideo(null); // Stop any playing video when navigating
-  }, [current, total]);
-  
-  const goNext = useCallback((e?: React.MouseEvent) => { 
-    if (e) e.stopPropagation(); 
-    const newIndex = (current + 1) % total;
-    setCurrent(newIndex);
-    setPlayingVideo(null); // Stop any playing video when navigating
-  }, [current, total]);
+    img.onerror = () => {
+      handleImageError(index);
+    };
+    img.src = src;
+  }, [imageDimensions, handleImageError]);
 
-  const onTouchStart = useCallback((e: React.TouchEvent) => { 
-    touchStartX.current = e.touches[0].clientX; 
-    touchStartTime.current = Date.now(); 
-  }, []);
-  
-  const onTouchMove = useCallback((e: React.TouchEvent) => { 
-    lastTouchXRef.current = e.touches[0].clientX; 
-  }, []);
-  
-  const onTouchEnd = useCallback(() => {
-    if (touchStartX.current == null || touchStartTime.current == null) return;
-    const dx = (lastTouchXRef.current ?? touchStartX.current) - touchStartX.current;
-    const dt = Date.now() - touchStartTime.current;
-    if (dt < SWIPE_TIME_THRESHOLD && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0) goNext(); else goPrev();
-    }
-    touchStartX.current = null; 
-    touchStartTime.current = null; 
-    lastTouchXRef.current = null;
-  }, [goNext, goPrev]);
-
-  // Memoized click handlers
+  // Click handlers
   const handleImageClick = useMemo(() => 
     (index: number) => (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -386,171 +334,214 @@ const MediaGallery = memo(({ items, onOpen }: {
     }, []
   );
 
-  const handleDotClick = useMemo(() => 
-    (index: number) => (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setCurrent(index);
-      setPlayingVideo(null);
-    }, []
-  );
-
   if (!items || total === 0) return null;
 
-  // Single item optimization
-  if (total === 1) {
-    const m = items[0];
-    const aspect = m.width && m.height 
-      ? `${m.width} / ${m.height}` 
-      : (m.media_type === 'photo' ? IMAGE_ASPECT : VIDEO_ASPECT);
-    
-    if (m.media_type === 'photo') {
-      return (
-        <div 
-          className="relative w-full max-w-2xl mx-auto rounded-2xl overflow-hidden max-h-[520px] md:max-h-[600px] cursor-zoom-in" 
-          style={{ aspectRatio: aspect }} 
-          onClick={handleImageClick(0)} 
-          data-no-nav="true"
-        >
-          {!imageErrors.has(0) ? (
-            <Image
-              src={toProxyUrl(m.media_url)}
-              alt="Post media"
-              fill
-              className="object-contain w-full h-full rounded-2xl transition-transform duration-300 group-hover:scale-[1.02] bg-black"
-              sizes="(max-width: 768px) 100vw, 700px"
-              draggable={false}
-              loading="eager"
-              priority={true}
-              onError={() => handleImageError(0)}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-muted/30 to-muted/50 rounded-2xl flex items-center justify-center">
-              <span className="text-muted-foreground">Failed to load image</span>
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    // Single video - show thumbnail first, then video on play
-    return (
-      <div className="relative w-full max-w-2xl mx-auto" data-no-nav="true">
-        {playingVideo === 0 ? (
-          <ResponsiveVideo 
-            src={toProxyUrl(m.media_url)} 
-            poster={m.media_thumbnail || undefined}
-            width={m.width}
-            height={m.height}
-          />
-        ) : (
-          <VideoThumbnail
-            src={toProxyUrl(m.media_url)}
-            thumbnail={m.media_thumbnail}
-            onPlay={handleVideoPlay(0)}
-            width={m.width}
-            height={m.height}
-            priority={true}
-          />
-        )}
-      </div>
-    );
-  }
+  // Horizontal scrolling line layout for all media counts
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const currentMedia = items[current];
-  const currentAspect = currentMedia.width && currentMedia.height 
-    ? `${currentMedia.width} / ${currentMedia.height}` 
-    : (currentMedia.media_type === 'photo' ? IMAGE_ASPECT : VIDEO_ASPECT);
+  // Check scroll position
+  const checkScroll = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    
+    setCanScrollLeft(container.scrollLeft > 0);
+    setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const container = scrollRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScroll);
+      return () => container.removeEventListener('scroll', checkScroll);
+    }
+  }, [checkScroll]);
+
+  const scrollLeft = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const container = scrollRef.current;
+    if (container) {
+      const scrollAmount = Math.min(container.clientWidth * 0.8, 300);
+      container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+    }
+  }, []);
+
+  const scrollRight = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const container = scrollRef.current;
+    if (container) {
+      const scrollAmount = Math.min(container.clientWidth * 0.8, 300);
+      container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  }, []);
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <div className="rounded-2xl overflow-hidden bg-black max-h-[520px] md:max-h-[600px]">
-        {currentMedia.media_type === 'photo' ? (
-          <div 
-            className="relative w-full max-h-[520px] md:max-h-[600px] cursor-zoom-in" 
-            style={{ aspectRatio: currentAspect }} 
-            onClick={handleImageClick(current)} 
-            data-no-nav="true"
-          >
-            <Image
-              key={`${current}-${currentMedia.media_url}`}
-              src={toProxyUrl(currentMedia.media_url)}
-              alt={`Media ${current + 1}`}
-              fill
-              className="object-contain w-full h-full bg-black"
-              sizes="(max-width: 768px) 100vw, 700px"
-              draggable={false}
-              loading="eager"
-              priority={true}
-              onError={() => handleImageError(current)}
-            />
-          </div>
-        ) : (
-          <div
-            data-no-nav="true"
-            className="relative w-full max-h-[520px] md:max-h-[600px]"
-          >
-            {playingVideo === current ? (
-              <ResponsiveVideo 
-                key={`video-${current}-${currentMedia.media_url}`}
-                src={toProxyUrl(currentMedia.media_url)} 
-                poster={currentMedia.media_thumbnail || undefined}
-                width={currentMedia.width}
-                height={currentMedia.height}
-              />
-            ) : (
-              <VideoThumbnail
-                key={`thumbnail-${current}-${currentMedia.media_url}`}
-                src={toProxyUrl(currentMedia.media_url)}
-                thumbnail={currentMedia.media_thumbnail}
-                onPlay={handleVideoPlay(current)}
-                width={currentMedia.width}
-                height={currentMedia.height}
-                className="cursor-pointer"
-                priority={true}
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      {total > 1 && (
-        <>
-          <button
-            data-no-nav="true"
-            className="absolute top-1/2 -translate-y-1/2 left-2 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center z-10"
-            onClick={goPrev}
-            aria-label="Previous"
-          >
-            ‹
-          </button>
-          <button
-            data-no-nav="true"
-            className="absolute top-1/2 -translate-y-1/2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center z-10"
-            onClick={goNext}
-            aria-label="Next"
-          >
-            ›
-          </button>
-
-          <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1 z-10">
-            {items.map((item, i) => (
-              <button
-                data-no-nav="true"
-                key={i}
-                onClick={handleDotClick(i)}
-                className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
-                  i === current 
-                    ? 'bg-white scale-125' 
-                    : 'bg-white/40 hover:bg-white/60'
-                }`}
-                aria-label={`Go to ${item.media_type} ${i + 1}`}
-              />
-            ))}
-          </div>
-        </>
+    <div className="relative w-full">
+      {/* Scroll buttons */}
+      {canScrollLeft && (
+        <button
+          onClick={scrollLeft}
+          data-no-nav="true"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200"
+          aria-label="Scroll left"
+        >
+          ‹
+        </button>
       )}
+      
+      {canScrollRight && (
+        <button
+          onClick={scrollRight}
+          data-no-nav="true"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200"
+          aria-label="Scroll right"
+        >
+          ›
+        </button>
+      )}
+
+      {/* Horizontal scrolling container */}
+      <div 
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+      >
+        {items.map((m, i) => {
+          const imageUrl = toProxyUrl(m.media_url);
+          
+          // Get dimensions from state, API, or use defaults
+          const loadedDimensions = imageDimensions.get(i);
+          const apiWidth = m.width;
+          const apiHeight = m.height;
+          
+          let imageWidth, imageHeight;
+          
+          if (loadedDimensions) {
+            // Use dynamically loaded dimensions (most accurate)
+            imageWidth = loadedDimensions.width;
+            imageHeight = loadedDimensions.height;
+          } else if (apiWidth && apiHeight) {
+            // Use API dimensions if available
+            imageWidth = apiWidth;
+            imageHeight = apiHeight;
+          } else {
+            // No dimensions yet - start loading and use default
+            if (m.media_type === 'photo') {
+              loadImageDimensions(imageUrl, i);
+            }
+            imageWidth = 16; // Default to landscape while loading
+            imageHeight = 9;
+          }
+          
+          const aspectRatio = imageWidth / imageHeight;
+          
+          // Calculate container dimensions
+          const baseSize = 200;
+          const maxSize = 350;
+          const minSize = 120;
+          
+          let containerWidth, containerHeight;
+          
+          // For landscape images (width > height), base on height
+          if (aspectRatio > 1) {
+            containerHeight = Math.min(baseSize, maxSize);
+            containerWidth = containerHeight * aspectRatio;
+            if (containerWidth > maxSize) {
+              containerWidth = maxSize;
+              containerHeight = containerWidth / aspectRatio;
+            }
+          } 
+          // For portrait images (height > width), base on width
+          else {
+            containerWidth = Math.min(baseSize, maxSize);
+            containerHeight = containerWidth / aspectRatio;
+            if (containerHeight > maxSize) {
+              containerHeight = maxSize;
+              containerWidth = containerHeight * aspectRatio;
+            }
+          }
+          
+          // Ensure minimums
+          if (containerWidth < minSize) containerWidth = minSize;
+          if (containerHeight < minSize) containerHeight = minSize;
+          
+          return (
+            <div 
+              key={i}
+              className="flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in bg-muted/20"
+              style={{ 
+                width: `${Math.round(containerWidth)}px`, 
+                height: `${Math.round(containerHeight)}px`
+              }}
+              onClick={handleImageClick(i)}
+              data-no-nav="true"
+            >
+              {m.media_type === 'photo' ? (
+                !imageErrors.has(i) ? (
+                  <img
+                    src={imageUrl}
+                    alt={`Media ${i + 1}`}
+                    width={Math.round(containerWidth)}
+                    height={Math.round(containerHeight)}
+                    className="hover:opacity-95 transition-opacity rounded-2xl block"
+                    loading="lazy"
+                    onError={() => handleImageError(i)}
+                    onLoad={() => {
+                      // Try to get natural dimensions when image loads
+                      const img = document.querySelector(`img[src="${imageUrl}"]`) as HTMLImageElement;
+                      if (img && !imageDimensions.has(i)) {
+                        setImageDimensions(prev => new Map(prev.set(i, { 
+                          width: img.naturalWidth, 
+                          height: img.naturalHeight 
+                        })));
+                      }
+                    }}
+                    style={{
+                      width: `${Math.round(containerWidth)}px`,
+                      height: `${Math.round(containerHeight)}px`,
+                      objectFit: 'cover'
+                    }}
+                  />
+                ) : (
+                  <div 
+                    className="bg-muted/50 flex items-center justify-center rounded-2xl"
+                    style={{ 
+                      width: `${Math.round(containerWidth)}px`, 
+                      height: `${Math.round(containerHeight)}px`
+                    }}
+                  >
+                    <span className="text-muted-foreground text-sm">Failed to load</span>
+                  </div>
+                )
+              ) : (
+                playingVideo === i ? (
+                  <ResponsiveVideo 
+                    src={toProxyUrl(m.media_url)} 
+                    poster={m.media_thumbnail || undefined}
+                    width={imageWidth}
+                    height={imageHeight}
+                  />
+                ) : (
+                  <VideoThumbnail
+                    src={toProxyUrl(m.media_url)}
+                    thumbnail={m.media_thumbnail}
+                    onPlay={handleVideoPlay(i)}
+                    width={imageWidth}
+                    height={imageHeight}
+                    className="w-full h-full rounded-2xl"
+                  />
+                )
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
+
+  // Fallback - shouldn't reach here
+  return null;
 });
 
 MediaGallery.displayName = 'MediaGallery';
