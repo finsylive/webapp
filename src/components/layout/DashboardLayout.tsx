@@ -9,8 +9,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { MobileNavBar } from './MobileNavBar';
-// import { FloatingActionButton } from '../ui/FloatingActionButton';
-// import { CreatePostModal } from '../posts/CreatePostModal';
 import DashboardSidebarWidgets from './DashboardSidebarWidgets';
 import { ArrowLeft } from 'lucide-react';
 
@@ -49,9 +47,9 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
                 <Image
                   src={isDarkMode ? "/logo/green_logo.svg" : "/logo/black_logo.svg"}
                   alt="ments logo"
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 rounded-xl object-contain bg-transparent transition-all duration-300 group-hover:scale-105 group-hover:rotate-3"
+                  width={50}
+                  height={50}
+                  className="rounded-xl object-contain "
                   draggable={false}
                   priority
                 />
@@ -91,18 +89,8 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
         </div>
       </header>
       
-      {/* Enhanced Floating Action Button */}
-      {/* <FloatingActionButton onClick={handleCreatePost} /> */}
-      
       {/* Mobile Navigation Bar */}
       <MobileNavBar />
-      
-      {/* Create Post Modal */}
-      {/* <CreatePostModal 
-        isOpen={showCreatePostModal} 
-        onClose={handleCloseModal} 
-        onPostCreated={handlePostCreated}
-      /> */}
       
       {/* Enhanced Main content area */}
       <div className="container mx-auto flex min-h-[calc(100vh-4rem)]">

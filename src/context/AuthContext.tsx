@@ -15,10 +15,10 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function AuthProvider({ children, initialSession = null }: { children: React.ReactNode; initialSession?: Session | null }) {
+  const [user, setUser] = useState<User | null>(initialSession?.user ?? null);
+  const [session, setSession] = useState<Session | null>(initialSession ?? null);
+  const [isLoading, setIsLoading] = useState(!initialSession);
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -41,19 +41,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         );
 
-        // Get initial session - this will trigger the auth state change listener
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setIsLoading(false);
-          return;
-        }
+        // If we already have a session from the server, skip client refetch
+        if (!initialSession) {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('Error getting session:', error);
+            setIsLoading(false);
+            return () => subscription.unsubscribe();
+          }
 
-        // Only set state if still mounted
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
+          if (mounted) {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setIsLoading(false);
+          }
+        } else {
+          // We already have session; ensure loading is false
           setIsLoading(false);
         }
 
@@ -74,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       cleanup?.then(cleanupFn => cleanupFn?.());
     };
-  }, []);
+  }, [initialSession]);
 
   const signInWithGoogle = async () => {
     try {

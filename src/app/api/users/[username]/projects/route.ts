@@ -33,10 +33,56 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       console.warn('[projects API] projects fetch error:', projError.message);
       return NextResponse.json({ data: [] });
     }
-
     return NextResponse.json({ data: projects || [] });
   } catch (e) {
     console.error('Error in projects API:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// POST /api/users/[username]/projects
+// Body: { title: string, category: string(uuid), tagline?: string, cover_url?: string, logo_url?: string, visibility?: 'public'|'private'|'unlisted' }
+export async function POST(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
+  try {
+    const { username } = await params;
+    if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
+
+    const body = await req.json().catch(() => ({}));
+    const { title, category, tagline = null, cover_url = null, logo_url = null, visibility = 'public' } = body || {};
+    if (!title || !category) {
+      return NextResponse.json({ error: 'title and category are required' }, { status: 400 });
+    }
+
+    const normUrl = (u?: string | null) => {
+      if (!u) return null;
+      const t = String(u).trim();
+      if (!t) return null;
+      return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+    };
+
+    // resolve user id
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id, username')
+      .eq('username', username)
+      .maybeSingle();
+    if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const insert = {
+      owner_id: userRow.id,
+      title,
+      category,
+      tagline,
+      cover_url: normUrl(cover_url),
+      logo_url: normUrl(logo_url),
+      visibility,
+    } as const;
+
+    const { data, error } = await supabase.from('projects').insert(insert).select('*').maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ data });
+  } catch (e) {
+    console.error('Error creating project:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

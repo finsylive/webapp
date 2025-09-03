@@ -1,16 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Base URL for Supabase public assets
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
-// Normalize storage paths like "avatars/..." to absolute public URLs
-function toPublicUrl(u?: string | null): string | null {
+// Try to produce a browser-usable URL for a storage object reference.
+// Strategy:
+// 1) If already https, return as-is.
+// 2) If looks like "bucket/path/to.obj", try to create a signed URL (works for public or private buckets).
+// 3) Fallback to public URL pattern using NEXT_PUBLIC_SUPABASE_URL.
+async function toUsableUrl(u: string | null | undefined, supabase: any): Promise<string | null> {
   if (!u) return null;
-  if (/^https?:\/\//i.test(u)) return u;
-  if (/^s3:\/\//i.test(u)) return u; // let edge proxy handle s3 scheme
-  return `${supabaseUrl}/storage/v1/object/public/${u.replace(/^\//, '')}`;
+  const s = u.trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  // If it's already a storage public path, prefix with base URL
+  if (/^\/?storage\/v1\/object\/public\//i.test(s) || /^\/storage\/v1\/object\/public\//i.test(s)) {
+    const pathOnly = s.replace(/^\/+/, '');
+    return supabaseUrl ? `${supabaseUrl}/${pathOnly}` : `/${pathOnly}`;
+  }
+  // If it's like 'public/avatars/...' treat as storage object public path
+  if (/^public\//i.test(s)) {
+    const pathOnly = s.replace(/^\/+/, '');
+    return supabaseUrl ? `${supabaseUrl}/storage/v1/object/${pathOnly}` : `/storage/v1/object/${pathOnly}`;
+  }
+  // Do not return s3:// to clients; generate a signed URL if possible.
+  const path = s.replace(/^\/+/, ''); // normalize leading slash
+  const firstSlash = path.indexOf('/');
+  if (firstSlash > 0) {
+    const bucket = path.slice(0, firstSlash);
+    const key = path.slice(firstSlash + 1);
+    try {
+      const { data, error } = await (supabase as any).storage.from(bucket).createSignedUrl(key, 60 * 60);
+      if (!error && data?.signedUrl) return data.signedUrl as string;
+    } catch {}
+    // Fallback to public URL pattern
+    if (supabaseUrl) {
+      return `${supabaseUrl}/storage/v1/object/public/${path}`;
+    }
+  }
+  return null;
 }
 
 type UserRow = {
@@ -41,6 +71,10 @@ export async function GET(
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
+    // Bind Supabase to cookies so RLS applies
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     // 1) Fetch user by username (exact, case-sensitive match as stored)
     const { data: userRow, error: userError } = await supabase
       .from('users')
@@ -58,16 +92,24 @@ export async function GET(
 
     // Normalize user payload to expose `bio` expected by client
     const u = userRow as UserRow;
+    const avatar_url = await toUsableUrl(u.avatar_url, supabase);
+    const banner_image = await toUsableUrl(u.banner_image, supabase);
     const user = {
       id: u.id,
       username: u.username,
       full_name: u.full_name,
-      avatar_url: toPublicUrl(u.avatar_url),
-      cover_url: toPublicUrl(u.banner_image) ?? null,
+      avatar_url,
+      // new field
+      banner_image: banner_image ?? null,
+      // legacy alias kept for backward compatibility
+      cover_url: banner_image ?? null,
       tagline: u.tagline,
       current_city: u.current_city,
       user_type: u.user_type,
       is_verified: u.is_verified,
+      // new field
+      about: u.about ?? null,
+      // legacy alias kept for backward compatibility
       bio: u.about ?? null,
     } as const;
 
@@ -93,28 +135,55 @@ export async function GET(
       following = 0;
     }
 
-    // 3) Work experiences (optional list, limited)
+    // 3) Work experiences with nested positions
+    type PositionRow = {
+      id: string;
+      experience_id: string;
+      position: string;
+      start_date: string | null;
+      end_date: string | null;
+      description: string | null;
+      sort_order: number | null;
+    };
     type ExperienceRow = {
       id: string;
-      title?: string | null;
-      role?: string | null;
-      company?: string | null;
-      company_name?: string | null;
-      is_current?: boolean | null;
-      start_date?: string | null;
-      end_date?: string | null;
-      description?: string | null;
-      sort_order?: number | null;
+      user_id: string;
+      company_name: string;
+      domain: string | null;
+      sort_order: number | null;
+      positions: PositionRow[];
     };
     let experiences: ExperienceRow[] = [];
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('work_experiences')
-        .select('*')
+        .select(`
+          id,
+          user_id,
+          company_name,
+          domain,
+          sort_order,
+          positions (
+            id,
+            experience_id,
+            position,
+            start_date,
+            end_date,
+            description,
+            sort_order
+          )
+        `)
         .eq('user_id', user.id)
-        .order('sort_order', { ascending: false })
-        .limit(10);
-      experiences = data || [];
+        .order('sort_order', { ascending: true })
+        .order('sort_order', { ascending: true, foreignTable: 'positions' })
+        .order('start_date', { ascending: false, foreignTable: 'positions' })
+        .limit(25);
+      if (error) {
+        console.warn('[profile API] error fetching experiences:', error.message);
+        experiences = [];
+      } else {
+        experiences = (data as any) || [];
+      }
     } catch {
       experiences = [];
     }

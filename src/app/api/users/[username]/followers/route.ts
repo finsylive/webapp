@@ -6,10 +6,13 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // GET /api/users/[username]/followers
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
+
+    const { searchParams } = new URL(req.url);
+    const viewerId = searchParams.get('viewerId');
 
     // Resolve user id by username
     const { data: userRow, error: userErr } = await supabase
@@ -46,7 +49,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 
     if (usersErr) return NextResponse.json({ error: usersErr.message }, { status: 500 });
 
-    return NextResponse.json({ data: users || [] });
+    // If there's a viewer, get their follow status for each follower
+    let followStatusMap: Record<string, boolean> = {};
+    if (viewerId && users && users.length > 0) {
+      const { data: viewerFollows, error: followErr } = await supabase
+        .from('user_follows')
+        .select('followee_id')
+        .eq('follower_id', viewerId)
+        .in('followee_id', users.map(u => u.id));
+      
+      if (!followErr && viewerFollows) {
+        followStatusMap = viewerFollows.reduce((acc, f) => {
+          acc[f.followee_id] = true;
+          return acc;
+        }, {} as Record<string, boolean>);
+      }
+    }
+
+    // Add follow status to each user
+    const usersWithFollowStatus = (users || []).map(user => ({
+      ...user,
+      is_following: followStatusMap[user.id] || false
+    }));
+
+    return NextResponse.json({ data: usersWithFollowStatus });
   } catch (e) {
     console.error('[followers API] error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
