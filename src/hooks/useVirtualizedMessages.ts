@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 interface Message {
   id: string;
@@ -120,14 +120,14 @@ export function useMessageOptimization(messages: Message[]) {
   const messageGroupInfo = useMemo(() => {
     const info: Record<string, { isGrouped: boolean; isLastInGroup: boolean }> = {};
     
-    Object.entries(groupedMessages).forEach(([date, msgs]) => {
+    Object.entries(groupedMessages).forEach(([, msgs]) => {
       msgs.forEach((message, index) => {
         const prevMessage = index > 0 ? msgs[index - 1] : null;
         const nextMessage = index < msgs.length - 1 ? msgs[index + 1] : null;
         
-        const shouldGroup = prevMessage && 
+        const shouldGroup = Boolean(prevMessage && 
           prevMessage.sender_id === message.sender_id &&
-          new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000; // 5 minutes
+          new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000); // 5 minutes
 
         const isLastInGroup = !nextMessage || 
           nextMessage.sender_id !== message.sender_id ||
@@ -135,7 +135,7 @@ export function useMessageOptimization(messages: Message[]) {
 
         info[message.id] = {
           isGrouped: shouldGroup,
-          isLastInGroup
+          isLastInGroup: Boolean(isLastInGroup)
         };
       });
     });

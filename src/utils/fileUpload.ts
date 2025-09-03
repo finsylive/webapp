@@ -49,7 +49,7 @@ export async function uploadMediaFile(file: File, isVideo: boolean = false): Pro
       console.warn('Edge function upload failed, using fallback:', uploadError);
       
       const filePath = `media/${userId}/${fileName}`;
-      const { data, error: storageError } = await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from('media')
         .upload(filePath, file, {
           contentType: file.type,

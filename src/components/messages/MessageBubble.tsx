@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreVertical, Reply, Copy, Trash2, Edit, Check, CheckCheck } from 'lucide-react';
-import { useTheme } from '@/context/theme/ThemeContext';
 import Image from 'next/image';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
 
@@ -61,9 +60,7 @@ export default function MessageBubble({
   onDelete,
   userId
 }: MessageBubbleProps) {
-  const { isDarkMode } = useTheme();
   const [showActions, setShowActions] = useState(false);
-  const [showQuickReactions, setShowQuickReactions] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +106,7 @@ export default function MessageBubble({
     } else {
       onReact(message.id, emoji);
     }
-    setShowQuickReactions(false);
+    setShowActions(false);
   };
 
   // Format timestamp

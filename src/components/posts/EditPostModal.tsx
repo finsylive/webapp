@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { X } from 'lucide-react';
 import { updatePost } from '@/api/posts';
 import { MentionDropdown } from './MentionDropdown';
-import { processMentionsInContent, notifyMentionedUsers } from '@/utils/mentions';
+import { notifyMentionedUsers } from '@/utils/mentions';
 import { extractCleanUsername } from '@/utils/username';
 
 type EditPostModalProps = {
@@ -87,7 +87,12 @@ export function EditPostModal({
   };
 
   // Handle user selection from mention dropdown
-  const handleSelectUser = (user: any) => {
+  const handleSelectUser = (user: {
+    id: string;
+    username: string;
+    full_name?: string;
+    avatar_url?: string;
+  } | null) => {
     if (!user) {
       setShowMentionDropdown(false);
       return;

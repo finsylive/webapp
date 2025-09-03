@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
       .maybeSingle();
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    const patch: any = {};
+    const patch: Record<string, unknown> = {};
     if (typeof slide_url !== 'undefined') patch.slide_url = /^https?:\/\//i.test(String(slide_url)) ? String(slide_url) : `https://${String(slide_url)}`;
     if (typeof caption !== 'undefined') patch.caption = caption;
     if (typeof slide_number !== 'undefined') patch.slide_number = slide_number;

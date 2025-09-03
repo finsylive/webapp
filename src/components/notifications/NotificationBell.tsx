@@ -84,7 +84,7 @@ export function NotificationBell() {
                 </div>
                 
                 <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>You'll receive notifications for:</p>
+                  <p>You&rsquo;ll receive notifications for:</p>
                   <ul className="space-y-1 ml-4">
                     {settings.replies && <li>• Replies to your posts</li>}
                     {settings.likes && <li>• Likes on your posts</li>}
@@ -110,11 +110,11 @@ export function NotificationBell() {
               <div className="space-y-3">
                 <div className="text-sm text-muted-foreground">
                   <p className="font-medium text-foreground mb-2">Notifications blocked</p>
-                  <p>You've blocked notifications for this site. To enable them:</p>
+                  <p>You&rsquo;ve blocked notifications for this site. To enable them:</p>
                   <ol className="mt-2 space-y-1 ml-4">
                     <li>1. Click the lock icon in your address bar</li>
-                    <li>2. Find "Notifications" settings</li>
-                    <li>3. Change to "Allow"</li>
+                    <li>2. Find &ldquo;Notifications&rdquo; settings</li>
+                    <li>3. Change to &ldquo;Allow&rdquo;</li>
                     <li>4. Refresh this page</li>
                   </ol>
                 </div>
@@ -126,7 +126,7 @@ export function NotificationBell() {
                 </p>
                 
                 <Button
-                  variant="primary"
+                  variant="default"
                   size="sm"
                   onClick={handleEnableClick}
                   disabled={isEnabling}

@@ -77,6 +77,7 @@ export interface SendMessageRequest {
   reply_to_id?: string
   message_type?: 'text' | 'image' | 'video' | 'audio' | 'file'
   media_url?: string
+  sender_id?: string // Optional for backward compatibility
 }
 
 export interface SendMessageResponse {
@@ -98,6 +99,7 @@ export interface CreateConversationResponse {
 export interface CreateCategoryRequest {
   name: string
   color?: string
+  user_id?: string // Optional for backward compatibility
 }
 
 export interface CreateCategoryResponse {
@@ -145,7 +147,7 @@ export type MessageSortOrder = 'asc' | 'desc'
 export interface MessagingError {
   code: string
   message: string
-  details?: any
+  details?: Record<string, unknown>
 }
 
 // Notification types

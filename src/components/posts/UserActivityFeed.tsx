@@ -121,9 +121,8 @@ export function UserActivityFeed({ userId, type }: Props) {
       const added = data?.length || 0;
       setOffset(prev => prev + added);
       setHasMore(Boolean(more));
-    } catch (e) {
+    } catch {
       // non-fatal
-      // console.error(e);
     } finally {
       setIsLoadingMore(false);
     }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import type { EnrichedConversation } from '@/types/messaging';
 import { cn } from '@/utils/cn';
 
@@ -60,9 +61,11 @@ export function ChatRequestApproval({
         {/* Avatar */}
         <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
           {conversation.other_avatar_url ? (
-            <img
+            <Image
               src={conversation.other_avatar_url}
               alt={conversation.other_username}
+              width={48}
+              height={48}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -94,7 +97,7 @@ export function ChatRequestApproval({
           {conversation.last_message && (
             <div className="bg-black/20 rounded-lg p-3 mb-4">
               <p className="text-sm text-gray-300 italic">
-                "{conversation.last_message}"
+&ldquo;{conversation.last_message}&rdquo;
               </p>
             </div>
           )}
@@ -161,7 +164,7 @@ export function ChatRequestApproval({
               <div className="text-sm text-blue-300">
                 <p className="font-medium mb-1">About message requests</p>
                 <p className="text-blue-200 text-xs">
-                  People you don't follow can send you message requests. 
+                  People you don&apos;t follow can send you message requests. 
                   Accepting allows them to message you normally. 
                   Declining will prevent future messages from this person.
                 </p>

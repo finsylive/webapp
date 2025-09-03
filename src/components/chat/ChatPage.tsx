@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations } from '@/hooks/useConversations';
 import { MessageBubble } from './MessageBubble';
@@ -34,7 +35,6 @@ export function ChatPage({
 
   const {
     conversations,
-    loading: conversationsLoading,
     updateConversationStatus
   } = useConversations(userId);
 
@@ -46,7 +46,7 @@ export function ChatPage({
     sendMessage,
     markAsRead,
     deleteMessage,
-    editMessage,
+    // editMessage, // TODO: Add back when edit functionality is implemented
     loadMoreMessages
   } = useMessages(
     selectedConversation?.conversation_id || '',
@@ -125,6 +125,14 @@ export function ChatPage({
     setPendingReply(message);
   }, []);
 
+  const handleEdit = useCallback((message: Message) => {
+    // TODO: Implement edit functionality - for now, this is a placeholder
+    // The actual editing would need to prompt for new content or open an edit modal
+    console.log('Edit message:', message);
+    // Example: editMessage(message.id, newContent) where newContent comes from user input
+    // When implemented, this would call: await editMessage(message.id, newContent);
+  }, []);
+
   const handleCancelReply = useCallback(() => {
     setPendingReply(null);
   }, []);
@@ -161,9 +169,11 @@ export function ChatPage({
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
             {selectedConversation.other_avatar_url ? (
-              <img
+              <Image
                 src={selectedConversation.other_avatar_url}
                 alt={selectedConversation.other_username}
+                width={40}
+                height={40}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -277,7 +287,7 @@ export function ChatPage({
               isMe={message.sender_id === userId}
               showAvatar={index === 0 || messages[index - 1].sender_id !== message.sender_id}
               onReply={handleReply}
-              onEdit={editMessage}
+              onEdit={handleEdit}
               onDelete={deleteMessage}
             />
           ))}
@@ -292,7 +302,7 @@ export function ChatPage({
           username={username}
           onSendMessage={handleSendMessage}
           onFileUpload={onFileUpload}
-          pendingReply={pendingReply}
+          pendingReply={pendingReply || undefined}
           onCancelReply={handleCancelReply}
           disabled={!canSendMessages}
           placeholder={

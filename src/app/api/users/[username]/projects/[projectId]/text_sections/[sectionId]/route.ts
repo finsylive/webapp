@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
       .maybeSingle();
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    const patch: any = {};
+    const patch: Record<string, unknown> = {};
     if (typeof heading !== 'undefined') patch.heading = heading;
     if (typeof content !== 'undefined') patch.content = content;
     if (typeof display_order !== 'undefined') patch.display_order = display_order;

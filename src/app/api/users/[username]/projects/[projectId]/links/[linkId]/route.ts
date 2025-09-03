@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
       .maybeSingle();
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    const patch: any = {};
+    const patch: Record<string, unknown> = {};
     if (typeof title !== 'undefined') patch.title = title;
     if (typeof url !== 'undefined') patch.url = /^https?:\/\//i.test(String(url)) ? String(url) : `https://${String(url)}`;
     if (typeof icon_name !== 'undefined') patch.icon_name = icon_name;

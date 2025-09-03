@@ -2,8 +2,8 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
-import { ArrowLeft, Plus, Trash2, Eye, Check, Pencil } from 'lucide-react';
+import { useCallback, useMemo, useState, useEffect, type ReactNode } from 'react';
+import { ArrowLeft, Plus, Trash2, Eye, Check } from 'lucide-react';
 import {
   SiGithub,
   SiFigma,
@@ -25,7 +25,6 @@ export default function EditPortfolioPage() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [nameSelected, setNameSelected] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +64,7 @@ export default function EditPortfolioPage() {
   const [items, setItems] = useState<PortfolioItem[]>([]);
 
   type PlatformKey = 'github' | 'figma' | 'dribbble' | 'behance' | 'linkedin' | 'youtube' | 'notion' | 'substack' | 'custom';
-  const PLATFORM_LABELS: Record<PlatformKey, string> = {
+  const PLATFORM_LABELS = useMemo<Record<PlatformKey, string>>(() => ({
     github: 'GitHub',
     figma: 'Figma',
     dribbble: 'Dribbble',
@@ -75,7 +74,7 @@ export default function EditPortfolioPage() {
     notion: 'Notion',
     substack: 'Substack',
     custom: 'Custom',
-  };
+  }), []);
   const PLATFORM_ICONS: Record<PlatformKey, ReactNode> = {
     github: <SiGithub size={20} className="text-emerald-400" />,
     figma: <SiFigma size={20} className="text-emerald-400" />,
@@ -88,9 +87,9 @@ export default function EditPortfolioPage() {
     custom: <Plus className="h-5 w-5 text-emerald-400" />,
   };
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformKey[]>([]);
-  const [platformLinks, setPlatformLinks] = useState<Record<PlatformKey, string>>({} as any);
+  const [platformLinks, setPlatformLinks] = useState<Record<PlatformKey, string>>({} as Record<PlatformKey, string>);
   const addedCount = selectedPlatforms.length;
-  const availablePlatforms = useMemo<PlatformKey[]>(() => Object.keys(PLATFORM_LABELS) as PlatformKey[], []);
+  const availablePlatforms = useMemo<PlatformKey[]>(() => Object.keys(PLATFORM_LABELS) as PlatformKey[], [PLATFORM_LABELS]);
 
   // Ensure URLs are absolute with protocol to avoid privacy/mixed-content issues
   const ensureProtocol = (url?: string | null) => {
@@ -125,7 +124,7 @@ export default function EditPortfolioPage() {
   };
 
   // shared loader that we can call on mount and on-demand
-  const applyFromItem = (first: PortfolioItem) => {
+  const applyFromItem = useCallback((first: PortfolioItem) => {
     setTitle((first.title || first.name || '').toString());
     setDescription((first.summary || first.description || '').toString());
     // prefill platforms if provided by API (expects array of strings)
@@ -156,11 +155,11 @@ export default function EditPortfolioPage() {
           }
         }
       }
-      setPlatformLinks((prev) => ({ ...prev, ...links } as any));
+      setPlatformLinks((prev) => ({ ...prev, ...links } as Record<PlatformKey, string>));
     }
-  };
+  }, [availablePlatforms]);
 
-  const loadPortfolios = async () => {
+  const loadPortfolios = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -181,7 +180,7 @@ export default function EditPortfolioPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [username, applyFromItem]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,21 +190,16 @@ export default function EditPortfolioPage() {
     };
     run();
     return () => { cancelled = true; };
-  }, [username]);
+  }, [username, loadPortfolios]);
 
-  const handleSelectName = async () => {
-    setTitle(username || '');
-    setNameSelected(true);
-    // On click, refetch all portfolios and reapply latest data
-    await loadPortfolios();
-  };
 
   const togglePlatform = (key: PlatformKey) => {
     setSelectedPlatforms((prev) => {
       if (prev[0] === key) {
         // deselect and clear link
         setPlatformLinks((pl) => {
-          const { [key]: _, ...rest } = pl;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [key]: _removedKey, ...rest } = pl;
           return rest as Record<PlatformKey, string>;
         });
         return [];
@@ -261,7 +255,6 @@ export default function EditPortfolioPage() {
                     onClick={() => {
                       setSelectedPortfolioId(it.id);
                       applyFromItem(it);
-                      setNameSelected(false);
                     }}
                     className={`px-4 py-2 rounded-full text-sm inline-flex items-center gap-2 border ${
                       active ? 'bg-emerald-500 text-black border-emerald-500' : 'text-emerald-300 border-emerald-500/40'

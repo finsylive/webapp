@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Bell, BellOff, Volume2, VolumeX, Vibrate, Check, X } from 'lucide-react';
+import { Bell, BellOff, Volume2, VolumeX, Vibrate, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useNotifications } from '@/context/NotificationContext';
 
@@ -87,7 +87,7 @@ export function NotificationSettings() {
             </Button>
           ) : permission !== 'denied' ? (
             <Button
-              variant="primary"
+              variant="default"
               size="sm"
               onClick={handleEnableNotifications}
               disabled={isEnabling}
@@ -216,8 +216,7 @@ function NotificationToggle({
   description, 
   enabled, 
   onChange, 
-  icon,
-  offIcon 
+  icon
 }: NotificationToggleProps) {
   return (
     <div className="flex items-center justify-between p-3 hover:bg-muted/30 rounded-xl transition-colors">

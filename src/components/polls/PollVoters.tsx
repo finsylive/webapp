@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Users, X, ChevronDown, ChevronUp, Eye, BarChart3 } from 'lucide-react';
 import { getPollVoters, getPollStats, type PollVoter } from '@/api/posts';
@@ -25,7 +25,15 @@ type GroupedVoters = {
 export function PollVoters({ pollId, isCreator, totalVotes }: PollVotersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [voters, setVoters] = useState<PollVoter[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<{
+    totalVotes: number;
+    uniqueVoters: number;
+    optionBreakdown: Array<{
+      option_text: string;
+      votes: number;
+      percentage: number;
+    }>;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'voters' | 'stats'>('voters');
@@ -164,7 +172,7 @@ export function PollVoters({ pollId, isCreator, totalVotes }: PollVotersProps) {
                 
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Option Breakdown</h4>
-                  {stats.optionBreakdown.map((option: any, index: number) => (
+                  {stats.optionBreakdown.map((option, index) => (
                     <div key={index} className="flex items-center justify-between text-sm">
                       <span className="truncate flex-1 mr-2">{option.option_text}</span>
                       <div className="flex items-center gap-2">

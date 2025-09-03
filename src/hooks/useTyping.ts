@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import type { TypingEvent } from '@/types/messaging';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export function useTyping(conversationId: string, userId: string, username: string) {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
 
   // Refs for cleanup and debouncing
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stopTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,6 +61,32 @@ export function useTyping(conversationId: string, userId: string, username: stri
     };
   }, [conversationId, userId]);
 
+  const stopTyping = useCallback(() => {
+    if (!conversationId || !isTyping) return;
+
+    setIsTyping(false);
+
+    // Send typing stop event
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: {
+          conversation_id: conversationId,
+          user_id: userId,
+          username: username,
+          is_typing: false
+        } as TypingEvent
+      });
+    }
+
+    // Clear the auto-stop timeout
+    if (stopTypingTimeoutRef.current) {
+      clearTimeout(stopTypingTimeoutRef.current);
+      stopTypingTimeoutRef.current = null;
+    }
+  }, [conversationId, userId, username, isTyping]);
+
   const startTyping = useCallback(() => {
     if (!conversationId || isTyping) return;
 
@@ -87,33 +114,7 @@ export function useTyping(conversationId: string, userId: string, username: stri
     stopTypingTimeoutRef.current = setTimeout(() => {
       stopTyping();
     }, 2000);
-  }, [conversationId, userId, username, isTyping]);
-
-  const stopTyping = useCallback(() => {
-    if (!conversationId || !isTyping) return;
-
-    setIsTyping(false);
-
-    // Send typing stop event
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: {
-          conversation_id: conversationId,
-          user_id: userId,
-          username: username,
-          is_typing: false
-        } as TypingEvent
-      });
-    }
-
-    // Clear the auto-stop timeout
-    if (stopTypingTimeoutRef.current) {
-      clearTimeout(stopTypingTimeoutRef.current);
-      stopTypingTimeoutRef.current = null;
-    }
-  }, [conversationId, userId, username, isTyping]);
+  }, [conversationId, userId, username, isTyping, stopTyping]);
 
   const handleTextChange = useCallback((text: string) => {
     if (!text.trim()) {
@@ -143,12 +144,15 @@ export function useTyping(conversationId: string, userId: string, username: stri
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const typingTimeout = typingTimeoutRef.current;
+    const stopTypingTimeout = stopTypingTimeoutRef.current;
+    
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
       }
-      if (stopTypingTimeoutRef.current) {
-        clearTimeout(stopTypingTimeoutRef.current);
+      if (stopTypingTimeout) {
+        clearTimeout(stopTypingTimeout);
       }
     };
   }, []);

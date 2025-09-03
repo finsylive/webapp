@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     
     if (session?.user) {
       // Check if user exists in our database
-      const { data: existingUser, error: fetchError } = await supabase
+      const { data: existingUser } = await supabase
         .from('users')
         .select('*')
         .eq('email', session.user.email)

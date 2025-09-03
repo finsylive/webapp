@@ -20,6 +20,15 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
     url?: string | null;
     created_at?: string | null;
     visibility?: string | null;
+    image_url?: string | null;
+    thumbnail?: string | null;
+    thumbnail_url?: string | null;
+    logo_url?: string | null;
+    cover_url?: string | null;
+  };
+
+  type ProjectResponse = {
+    data: ProjectItem | null;
   };
 
   const [item, setItem] = useState<ProjectItem | null>(null);
@@ -47,7 +56,7 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
         ]);
         const pjson = await resProfile.json().catch(() => null);
         if (!cancelled) {
-          setItem((projResp as any)?.data ?? null);
+          setItem((projResp as ProjectResponse)?.data ?? null);
           if (pjson && pjson.data) setProfile(pjson.data);
         }
       } catch (e: unknown) {
@@ -70,13 +79,12 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
 
   const imageUrl = useMemo(() => {
     if (!item) return null as string | null;
-    const anyItem = item as any;
     return (
-      anyItem.image_url ||
-      anyItem.thumbnail ||
-      anyItem.thumbnail_url ||
-      anyItem.logo_url ||
-      anyItem.cover_url ||
+      item.image_url ||
+      item.thumbnail ||
+      item.thumbnail_url ||
+      item.logo_url ||
+      item.cover_url ||
       null
     );
   }, [item]);

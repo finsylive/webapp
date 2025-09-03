@@ -37,7 +37,6 @@ export function MessageInput({
 
   const {
     inputValue,
-    setInputValue,
     typingMessage,
     handleInputChange,
     handleSend

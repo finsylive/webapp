@@ -3,24 +3,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-type Position = {
+// Type for the database query result which has work_experiences as an array
+type DatabasePositionRow = {
   id: string;
   experience_id: string;
-  position: string; // Changed from 'title' to 'position' to match schema
+  position: string;
   start_date: string | null;
   end_date: string | null;
   description: string | null;
   sort_order: number;
-  work_experiences: { // Changed from 'work_experience' to match Supabase naming
+  work_experiences: {
     id: string;
     company: string | null;
     company_name: string | null;
     role: string | null;
     user_id: string;
-  };
+  }[];
 };
 
 export async function GET(
@@ -84,7 +82,7 @@ export async function GET(
     }
 
     // Transform the data to match expected format (keeping backward compatibility)
-    const formattedPositions = (positions || []).map((position: any) => ({
+    const formattedPositions = (positions || []).map((position: DatabasePositionRow) => ({
       id: position.id,
       experience_id: position.experience_id,
       title: position.position, // Map 'position' field to 'title' for backward compatibility
@@ -93,7 +91,7 @@ export async function GET(
       end_date: position.end_date,
       description: position.description,
       sort_order: position.sort_order,
-      work_experience: position.work_experiences // Map to singular for backward compatibility
+      work_experience: position.work_experiences?.[0] || null // Take the first (and should be only) work experience
     }));
 
     return NextResponse.json({

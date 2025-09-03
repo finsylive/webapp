@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Base URL for Supabase public assets
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -10,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 // 1) If already https, return as-is.
 // 2) If looks like "bucket/path/to.obj", try to create a signed URL (works for public or private buckets).
 // 3) Fallback to public URL pattern using NEXT_PUBLIC_SUPABASE_URL.
-async function toUsableUrl(u: string | null | undefined, supabase: any): Promise<string | null> {
+async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClient): Promise<string | null> {
   if (!u) return null;
   const s = u.trim();
   if (!s) return null;
@@ -32,7 +33,7 @@ async function toUsableUrl(u: string | null | undefined, supabase: any): Promise
     const bucket = path.slice(0, firstSlash);
     const key = path.slice(firstSlash + 1);
     try {
-      const { data, error } = await (supabase as any).storage.from(bucket).createSignedUrl(key, 60 * 60);
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60);
       if (!error && data?.signedUrl) return data.signedUrl as string;
     } catch {}
     // Fallback to public URL pattern
@@ -182,7 +183,7 @@ export async function GET(
         console.warn('[profile API] error fetching experiences:', error.message);
         experiences = [];
       } else {
-        experiences = (data as any) || [];
+        experiences = (data as ExperienceRow[]) || [];
       }
     } catch {
       experiences = [];

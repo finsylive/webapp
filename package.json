@@ -18,6 +18,7 @@
     "date-fns": "^3.6.0",
     "framer-motion": "^12.15.0",
     "lucide-react": "^0.511.0",
+    "minimatch": "^5.1.6",
     "next": "15.1.8",
     "next-pwa": "^5.6.0",
     "pg": "^8.16.3",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/minimatch": "^6.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

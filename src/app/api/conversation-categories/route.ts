@@ -47,9 +47,10 @@ export async function GET(req: NextRequest) {
     } else {
       return NextResponse.json({ error: 'Missing conversationId or userId' }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching conversation categories:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -120,9 +121,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(data, { status: 201 });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error assigning category:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -138,7 +140,7 @@ export async function PATCH(req: NextRequest) {
       .eq('id', id)
       .select('*')
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
     return NextResponse.json(data);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
@@ -156,7 +158,7 @@ export async function DELETE(req: NextRequest) {
       .from('conversation_categories')
       .delete()
       .eq('id', id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';

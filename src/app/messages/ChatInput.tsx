@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Paperclip, Smile, X, Image, FileText, Mic, MicOff } from 'lucide-react';
+import { Send, Paperclip, Smile, X, Image as ImageIcon, FileText, Mic, MicOff } from 'lucide-react';
 import { useTheme } from '@/context/theme/ThemeContext';
 
 interface ChatInputProps {
@@ -173,7 +173,13 @@ export default function ChatInput({
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       
       // Send the message
-      const messagePayload: any = {
+      const messagePayload: {
+        conversation_id: string;
+        sender_id: string;
+        content: string;
+        reply_to_id?: string;
+        media_url?: string;
+      } = {
         conversation_id: conversationId,
         sender_id: userId,
         content: content.trim()
@@ -331,7 +337,7 @@ export default function ChatInput({
                       : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
-                  <Image className="h-4 w-4 text-blue-500" />
+                  <ImageIcon className="h-4 w-4 text-blue-500" />
                   <span>Photo</span>
                 </button>
                 <button

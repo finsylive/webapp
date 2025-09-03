@@ -34,7 +34,7 @@ export default function FollowersPage({ params }: { params: Promise<{ username?:
   const [error, setError] = useState<string | null>(null);
   const [followPending, setFollowPending] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
+  const [, setRetryCount] = useState(0);
   
   const { user: viewer } = useAuth();
   const viewerId = viewer?.id ?? null;
@@ -152,7 +152,7 @@ export default function FollowersPage({ params }: { params: Promise<{ username?:
     } finally {
       setFollowPending(prev => ({ ...prev, [user.id]: false }));
     }
-  }, [viewerId]);
+  }, [viewerId, followPending]);
 
   // Retry handler
   const handleRetry = useCallback(() => {
@@ -323,14 +323,14 @@ export default function FollowersPage({ params }: { params: Promise<{ username?:
               <Users className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
               <div className="text-muted-foreground text-sm mb-2">No followers yet</div>
               <div className="text-muted-foreground/70 text-xs">
-                When people follow @{username}, they'll appear here
+                When people follow @{username}, they&apos;ll appear here
               </div>
             </div>
           ) : !hasResults && showSearchResults ? (
             <div className="text-center py-12">
               <Search className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
               <div className="text-muted-foreground text-sm mb-2">
-                No followers found matching "{searchQuery}"
+                No followers found matching &quot;{searchQuery}&quot;
               </div>
               <Button 
                 onClick={() => setSearchQuery('')} 

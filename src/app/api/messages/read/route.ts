@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest) {
     const { data, error } = await query.select('id, is_read');
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
     }
 
     return NextResponse.json({ 
@@ -64,9 +64,10 @@ export async function PATCH(req: NextRequest) {
       updated_messages: data 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error marking messages as read:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -109,8 +110,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting unread count:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

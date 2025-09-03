@@ -29,7 +29,13 @@ interface NotificationContextType {
   isSupported: boolean;
   requestPermission: () => Promise<NotificationPermission>;
   updateSettings: (settings: Partial<NotificationSettings>) => void;
-  sendNotification: (type: NotificationType, options: any) => Promise<void>;
+  sendNotification: (type: NotificationType, options: {
+    title: string;
+    body?: string;
+    icon?: string;
+    tag?: string;
+    data?: Record<string, unknown>;
+  }) => Promise<void>;
   testNotification: () => Promise<void>;
   enableNotifications: () => Promise<boolean>;
   disableNotifications: () => void;
@@ -79,9 +85,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [updateSettings]);
 
   // Send a notification
-  const sendNotification = useCallback(async (type: NotificationType, options: any) => {
+  const sendNotification = useCallback(async (type: NotificationType, options: {
+    title: string;
+    body?: string;
+    icon?: string;
+    tag?: string;
+    data?: Record<string, unknown>;
+  }) => {
     if (!settings.enabled || permission !== 'granted') return;
-    await showNotification(type, options);
+    await showNotification(type, {
+      ...options,
+      body: options.body || '' // Provide default empty string if body is undefined
+    });
   }, [settings.enabled, permission]);
 
   const value: NotificationContextType = {

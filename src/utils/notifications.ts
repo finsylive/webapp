@@ -5,6 +5,12 @@
 
 export type NotificationType = 'reply' | 'like' | 'vote' | 'mention' | 'follow' | 'system';
 
+export interface NotificationAction {
+  action: string;
+  title: string;
+  icon?: string;
+}
+
 export interface NotificationOptions {
   title: string;
   body: string;
@@ -13,7 +19,7 @@ export interface NotificationOptions {
   tag?: string;
   requireInteraction?: boolean;
   silent?: boolean;
-  data?: any;
+  data?: Record<string, unknown>;
   actions?: NotificationAction[];
   image?: string;
   vibrate?: number[];
@@ -117,7 +123,7 @@ export async function showNotification(
       notification.onclick = (event) => {
         event.preventDefault();
         window.focus();
-        if (options.data?.url) {
+        if (options.data?.url && typeof options.data.url === 'string') {
           window.location.href = options.data.url;
         }
         notification.close();
@@ -205,7 +211,16 @@ export function getNotificationSettings() {
 /**
  * Save notification settings to localStorage
  */
-export function saveNotificationSettings(settings: any): void {
+export function saveNotificationSettings(settings: {
+  enabled: boolean;
+  replies: boolean;
+  likes: boolean;
+  votes: boolean;
+  mentions: boolean;
+  follows: boolean;
+  sound: boolean;
+  vibrate: boolean;
+}): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem('notificationSettings', JSON.stringify(settings));
 }

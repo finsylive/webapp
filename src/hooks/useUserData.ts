@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 
@@ -26,40 +26,40 @@ export function useUserData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchUserData() {
-      if (!user?.id) {
-        setUserData(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        setUserData(data);
-      } catch (err) {
-        console.error('Error fetching user data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch user data');
-        setUserData(null);
-      } finally {
-        setLoading(false);
-      }
+  const fetchUserData = useCallback(async () => {
+    if (!user?.id) {
+      setUserData(null);
+      setLoading(false);
+      return;
     }
 
-    fetchUserData();
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setUserData(data);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch user data');
+      setUserData(null);
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id]);
 
-  return { userData, loading, error, refetch: () => fetchUserData() };
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
+  return { userData, loading, error, refetch: fetchUserData };
 }

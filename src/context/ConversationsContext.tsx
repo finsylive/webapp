@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 interface Conversation {
@@ -46,7 +46,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -62,9 +62,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -76,9 +76,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
-  };
+  }, [user?.id]);
 
-  const fetchConversationCategories = async () => {
+  const fetchConversationCategories = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -88,7 +88,10 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
         
         // Transform the data into a map of conversation_id -> [category_ids]
         const mappings: Record<string, string[]> = {};
-        data.forEach((item: any) => {
+        data.forEach((item: {
+          conversation_id: string;
+          category_id: string;
+        }) => {
           if (!mappings[item.conversation_id]) {
             mappings[item.conversation_id] = [];
           }
@@ -100,7 +103,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error fetching conversation categories:', error);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -118,7 +121,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     };
     
     fetchAllData();
-  }, [user?.id]);
+  }, [user?.id, fetchCategories, fetchConversationCategories, fetchConversations]);
 
   // Filter conversations by search query and active category
   const filteredConversations = conversations.filter(conv => {

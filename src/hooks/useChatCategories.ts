@@ -154,7 +154,11 @@ export function useChatCategories(userId: string) {
       const response = await fetch(`/api/conversation-categories?conversationId=${conversationId}`);
       const assignments = await response.json();
       
-      const assignment = assignments.find((a: any) => a.category_id === categoryId);
+      const assignment = assignments.find((a: {
+        id: string;
+        category_id: string;
+        conversation_id: string;
+      }) => a.category_id === categoryId);
       if (!assignment) {
         throw new Error('Assignment not found');
       }

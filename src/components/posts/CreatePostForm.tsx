@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { createPost } from '@/api/posts';
 import { Image as ImageIcon, Send, X, VideoIcon, Upload, BarChart2, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
-import { compressMediaBatch, type CompressedResult } from '@/utils/mediaCompressor';
+import { type CompressedResult } from '@/utils/mediaCompressor';
 import { MentionDropdown } from './MentionDropdown';
-import { processMentionsInContent, notifyMentionedUsers } from '@/utils/mentions';
+import { notifyMentionedUsers } from '@/utils/mentions';
 import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
 import { toProxyUrl } from '@/utils/imageUtils';
@@ -182,7 +182,12 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
   };
 
   // Handle user selection from mention dropdown
-  const handleSelectUser = (user: any) => {
+  const handleSelectUser = (user: {
+    id: string;
+    username: string;
+    full_name?: string;
+    avatar_url?: string;
+  } | null) => {
     if (!user) {
       setShowMentionDropdown(false);
       return;

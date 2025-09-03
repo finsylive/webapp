@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 
-interface NotificationPermission {
+interface NotificationState {
   permission: NotificationPermission | 'default';
   supported: boolean;
 }
@@ -11,7 +11,7 @@ interface NotificationOptions {
   icon?: string;
   badge?: string;
   tag?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   actions?: Array<{
     action: string;
     title: string;
@@ -20,7 +20,7 @@ interface NotificationOptions {
 }
 
 export function useNotifications() {
-  const [permission, setPermission] = useState<NotificationPermission>({
+  const [permission, setPermission] = useState<NotificationState>({
     permission: 'default',
     supported: false
   });
@@ -78,7 +78,6 @@ export function useNotifications() {
         data: options.data,
         requireInteraction: true, // Keep notification visible until user interacts
         silent: false,
-        renotify: true, // Allow multiple notifications with same tag
       });
 
       // Handle notification click
@@ -87,7 +86,7 @@ export function useNotifications() {
         window.focus();
         
         // Handle custom data if provided
-        if (options.data?.url) {
+        if (options.data?.url && typeof options.data.url === 'string') {
           window.location.href = options.data.url;
         }
         
@@ -170,7 +169,11 @@ export function useMessageNotifications(userId: string, isAppActive: boolean = t
   }, [permission, requestPermission]);
 
   const handleNewMessage = useCallback((
-    message: any,
+    message: {
+      id: string;
+      sender_id: string;
+      content: string;
+    },
     senderName: string,
     conversationId: string,
     senderAvatar?: string

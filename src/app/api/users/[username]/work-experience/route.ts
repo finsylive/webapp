@@ -2,6 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
+type Position = {
+  id: string;
+  experience_id: string;
+  position: string;
+  start_date: string | null;
+  end_date: string | null;
+  description: string | null;
+  sort_order: number | null;
+};
+
+type WorkExperience = {
+  id: string;
+  user_id: string;
+  company_name: string;
+  domain: string | null;
+  sort_order: number | null;
+  positions: Position[];
+};
+
 // GET /api/users/[username]/work-experience
 export async function GET(
   req: NextRequest,
@@ -65,12 +84,12 @@ export async function GET(
     }
 
     // Normalize payload
-    const experiences = (data || []).map((we: any) => ({
+    const experiences = (data || []).map((we: WorkExperience) => ({
       id: we.id,
       company_name: we.company_name,
       domain: we.domain,
       sort_order: we.sort_order,
-      positions: (we.positions || []).map((p: any) => ({
+      positions: (we.positions || []).map((p: Position) => ({
         id: p.id,
         experience_id: p.experience_id,
         position: p.position,

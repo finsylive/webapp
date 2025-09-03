@@ -8,8 +8,7 @@ import TypingIndicator from '@/components/messages/TypingIndicator';
 import MessageSkeleton from '@/components/messages/MessageSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtimeMessages } from '../useRealtimeMessages';
-import { useTheme } from '@/context/theme/ThemeContext';
-import { ArrowLeft, Phone, Video, MoreVertical, Search, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Phone, MoreVertical, Search, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabase';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
@@ -46,7 +45,7 @@ export default function ConversationPage() {
   const { conversationId } = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const { isDarkMode } = useTheme();
+  // Removed unused variable isDarkMode from useTheme
   const userId = user?.id;
   
   // State
@@ -57,8 +56,7 @@ export default function ConversationPage() {
   const [otherUser, setOtherUser] = useState<OtherUserProfile | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-  const [lastSeen, setLastSeen] = useState<string | null>(null);
+  // Removed unused state variables isOnline, setIsOnline, lastSeen, setLastSeen
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -446,9 +444,9 @@ export default function ConversationPage() {
                       
                       // Check if this message should be grouped with the previous one
                       const prevMessage = index > 0 ? msgs[index - 1] : null;
-                      const shouldGroup = prevMessage && 
+                      const shouldGroup = Boolean(prevMessage && 
                         prevMessage.sender_id === message.sender_id &&
-                        new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000; // 5 minutes
+                        new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000); // 5 minutes
 
                       const isLastInGroup = !msgs[index + 1] || 
                         msgs[index + 1].sender_id !== message.sender_id ||
@@ -463,8 +461,8 @@ export default function ConversationPage() {
                           isOwn={isOwn}
                           isGrouped={shouldGroup}
                           parentMessage={parentMessage}
-                          senderAvatar={otherUser?.avatar_url}
-                          senderName={otherUser?.full_name || otherUser?.username}
+                          senderAvatar={otherUser?.avatar_url || undefined}
+                          senderName={otherUser?.full_name || otherUser?.username || undefined}
                           senderIsVerified={otherUser?.is_verified}
                           reactions={groupedReactions}
                           myReaction={myReaction}
@@ -486,8 +484,8 @@ export default function ConversationPage() {
               {/* Typing Indicator */}
               <TypingIndicator 
                 isTyping={isTyping} 
-                senderName={otherUser?.full_name || otherUser?.username}
-                senderAvatar={otherUser?.avatar_url}
+                senderName={otherUser?.full_name || otherUser?.username || undefined}
+                senderAvatar={otherUser?.avatar_url || undefined}
               />
               
               <div ref={messagesEndRef} />

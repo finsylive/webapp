@@ -18,6 +18,16 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
     url?: string | null;
     created_at?: string | null;
     visibility?: string | null;
+    image_url?: string | null;
+    thumbnail?: string | null;
+    thumbnail_url?: string | null;
+    logo_url?: string | null;
+    cover_url?: string | null;
+    category?: string | null;
+  };
+
+  type ProjectsResponse = {
+    data: ProjectItem[];
   };
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +47,7 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
         ]);
         const pjson = await resProfile.json().catch(() => null);
         if (!cancelled) {
-          setItems((projectsResp as any)?.data ?? []);
+          setItems((projectsResp as ProjectsResponse)?.data ?? []);
           if (pjson && pjson.data) setProfile(pjson.data);
         }
       } catch (e: unknown) {
@@ -69,7 +79,7 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
       setRefreshing(true);
       setError(null);
       const resp = await listProjects(username);
-      setItems((resp as any)?.data ?? []);
+      setItems((resp as ProjectsResponse)?.data ?? []);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to refresh');
     } finally {
@@ -136,8 +146,8 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
                 const dateStr = date ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
                 const visibility = (p.visibility || 'public').toLowerCase();
                 const viewHref = `/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(p.id)}`;
-                const imgUrl = (p as any).image_url || (p as any).thumbnail || (p as any).thumbnail_url || (p as any).logo_url || (p as any).cover_url || null;
-                const category = (p as any).category as string | undefined;
+                const imgUrl = p.image_url || p.thumbnail || p.thumbnail_url || p.logo_url || p.cover_url || null;
+                const category = p.category;
                 return (
                   <li key={p.id} className="relative rounded-2xl border border-emerald-500/20 bg-card/60 overflow-hidden">
                     <Link href={viewHref} className="absolute inset-0" aria-label="Open project" />

@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     if (!hasAny) return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
 
     const normUrl = (u?: string | null) => {
-      if (typeof u === 'undefined') return undefined as any;
+      if (typeof u === 'undefined') return undefined;
       if (!u) return null;
       const t = String(u).trim();
       if (!t) return null;
@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
       .maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const patch: any = {};
+    const patch: Record<string, unknown> = {};
     if (typeof title !== 'undefined') patch.title = title;
     if (typeof category !== 'undefined') patch.category = category;
     if (typeof tagline !== 'undefined') patch.tagline = tagline;

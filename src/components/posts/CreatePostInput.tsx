@@ -3,13 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import { Image as ImageIcon, Search, X, Type as TypeIcon, BarChart2, VideoIcon, Upload, Plus, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Search, X, Type as TypeIcon, BarChart2, VideoIcon, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { createPost, createPollPost, type CreatePollData } from '@/api/posts';
 import { supabase } from '@/utils/supabase';
-import { compressMediaBatch, type CompressedResult } from '@/utils/mediaCompressor';
+import { type CompressedResult } from '@/utils/mediaCompressor';
 import { MentionDropdown } from './MentionDropdown';
-import { processMentionsInContent, extractMentions, notifyMentionedUsers } from '@/utils/mentions';
+import { notifyMentionedUsers } from '@/utils/mentions';
 import { extractCleanUsername } from '@/utils/username';
 import { toProxyUrl } from '@/utils/imageUtils';
 
@@ -239,7 +239,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   const [selectedEnvironment, setSelectedEnvironment] = useState<EnvironmentItem | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [compressedResults, setCompressedResults] = useState<CompressedResult[]>([]);
+  const [, setCompressedResults] = useState<CompressedResult[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ isCompressing: boolean; currentFile: string; progress: number }>({ isCompressing: false, currentFile: '', progress: 0 });
   const [pollData, setPollData] = useState<CreatePollData>({ question: '', options: ['', ''] });
@@ -630,7 +630,12 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   };
 
   // Handle user selection from mention dropdown
-  const handleSelectUser = (user: any) => {
+  const handleSelectUser = (user: {
+    id: string;
+    username: string;
+    full_name?: string;
+    avatar_url?: string;
+  } | null) => {
     if (!user) {
       setShowMentionDropdown(false);
       return;

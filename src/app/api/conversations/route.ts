@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { 
-  EnrichedConversation, 
   CreateConversationRequest, 
-  CreateConversationResponse,
-  ConversationSearchParams 
+  CreateConversationResponse
 } from '@/types/messaging';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -15,9 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
-  const categoryId = searchParams.get('categoryId');
-  const hasUnread = searchParams.get('hasUnread') === 'true';
-  const status = searchParams.get('status') as 'pending' | 'approved' | 'rejected' | null;
+  // Removed unused variables categoryId, hasUnread, status
   const limit = parseInt(searchParams.get('limit') || '20');
 
   if (!userId) {
@@ -63,7 +59,7 @@ export async function GET(req: NextRequest) {
     if (usersError) throw usersError;
 
     // Create a map for quick user lookup
-    const userMap = new Map();
+    const userMap = new Map<string, Record<string, unknown>>();
     usersData?.forEach(user => {
       userMap.set(user.id, user);
     });
@@ -101,9 +97,9 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(conversations);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching conversations:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
 
@@ -190,9 +186,9 @@ export async function POST(req: NextRequest) {
       status: was_created ? 201 : 200 
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating conversation:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
 

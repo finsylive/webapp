@@ -119,7 +119,7 @@ export function isOlderThan(timestamp: string | Date, hours: number): boolean {
   return differenceInHours(now, date) > hours;
 }
 
-export function groupMessagesByDate(messages: Array<{ created_at: string; [key: string]: any }>) {
+export function groupMessagesByDate(messages: Array<{ created_at: string; [key: string]: unknown }>) {
   const groups: { [key: string]: typeof messages } = {};
   
   messages.forEach(message => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { compressImage } from '@/utils/imageCompression';
 import { useAuth } from '@/context/AuthContext';
@@ -40,12 +40,12 @@ export default function EditProfileForm() {
 
   const isLocalUrl = (u?: string | null) => !!u && (/^blob:/i.test(u) || /^data:/i.test(u));
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const asPublic = (u?: string | null) => {
+  const asPublic = useCallback((u?: string | null) => {
     if (!u) return null;
     if (/^https?:\/\//i.test(u) || /^s3:\/\//i.test(u) || isLocalUrl(u)) return u;
     // treat as storage object path
     return `${supabaseUrl}/storage/v1/object/public/${u.replace(/^\//, '')}`;
-  };
+  }, [supabaseUrl]);
 
   // Try Edge Function first (same pattern as post media): base64 JSON via supabase.functions.invoke
   const uploadToEdge = async (blob: Blob, type: 'avatar' | 'cover'): Promise<string> => {
@@ -98,7 +98,7 @@ export default function EditProfileForm() {
   const uploadWithFallback = async (blob: Blob, type: 'avatar' | 'cover') => {
     try {
       return await uploadToEdge(blob, type);
-    } catch (e) {
+    } catch {
       // Fallback to storage if edge fails for any reason
       return await uploadToStorage(blob, type);
     }
@@ -136,7 +136,7 @@ export default function EditProfileForm() {
     };
     load();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, asPublic]);
 
   const dirty = useMemo(() => {
     if (!initial) return true;
@@ -228,7 +228,7 @@ export default function EditProfileForm() {
         username: username.trim(),
         tagline: tagline.trim(),
         about: bio.trim(),
-      } as any;
+      };
       if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
       if (newBannerUrl !== undefined) payload.banner_image = newBannerUrl;
 
@@ -252,8 +252,8 @@ export default function EditProfileForm() {
       if (latest) {
         setInitial(latest as ProfileShape);
       }
-    } catch (e: any) {
-      setError(e?.message || 'Failed to save');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
     }

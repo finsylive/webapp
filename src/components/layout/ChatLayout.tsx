@@ -1,11 +1,9 @@
 "use client";
 
 import { ReactNode, useState, useEffect } from 'react';
-import { useTheme } from '@/context/theme/ThemeContext';
 import { MessageCircle, Settings, User, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
 import { ConversationsProvider } from '@/context/ConversationsContext';
 import { useUserData } from '@/hooks/useUserData';
@@ -37,8 +35,6 @@ const HubIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export function ChatLayout({ children, conversationsList, showConversations = true }: ChatLayoutProps) {
-  const { isDarkMode } = useTheme();
-  const { user } = useAuth();
   const { userData, loading } = useUserData();
   const pathname = usePathname();
   const [profileHref, setProfileHref] = useState('/profile');

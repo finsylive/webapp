@@ -41,16 +41,19 @@ export async function compressImage(file: File, opts: CompressOptions = {}): Pro
     (canvas as HTMLCanvasElement).width = targetW;
     (canvas as HTMLCanvasElement).height = targetH;
   }
-  const ctx = (canvas as any).getContext('2d', { alpha: true, desynchronized: true });
+  const ctx = (canvas as HTMLCanvasElement | OffscreenCanvas).getContext('2d', { alpha: true, desynchronized: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!ctx) {
+    throw new Error('Failed to get 2D context from canvas');
+  }
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(bitmap, 0, 0, targetW, targetH);
 
   // Avoid blocking main thread too long by yielding
   await new Promise(requestAnimationFrame);
 
-  const blob: Blob = await (canvas as any).convertToBlob
-    ? (canvas as any).convertToBlob({ type: mimeType, quality })
-    : new Promise<Blob>((resolve) => (canvas as HTMLCanvasElement).toBlob((b) => resolve(b as Blob), mimeType, quality));
+  const blob: Blob = await ((canvas as OffscreenCanvas).convertToBlob
+    ? (canvas as OffscreenCanvas).convertToBlob({ type: mimeType, quality })
+    : new Promise<Blob>((resolve) => (canvas as HTMLCanvasElement).toBlob((b) => resolve(b as Blob), mimeType, quality)));
 
   bitmap.close?.();
   return blob;

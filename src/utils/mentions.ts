@@ -13,7 +13,7 @@ export function extractMentions(content: string): string[] {
   return [...new Set(mentions)]; // Remove duplicates
 }
 
-export function processMentionsInContent(content: string, mentions: Map<string, string>): string {
+export function processMentionsInContent(content: string): string {
   // Keep mentions as simple @username format in the database
   // The mentions Map contains username -> userId mapping, but we only store @username
   return content; // Return content as-is since @username is already the desired format
@@ -74,7 +74,7 @@ export async function notifyMentionedUsers(
       }
     } catch (error) {
       console.error(`❌ Failed to notify user ${userId}:`, error);
-      return { userId, success: false, error: error.message };
+      return { userId, success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });
   

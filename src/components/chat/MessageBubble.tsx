@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import type { Message } from '@/types/messaging';
 import { cn } from '@/utils/cn';
@@ -24,7 +25,6 @@ export function MessageBubble({
   onReply,
   onEdit,
   onDelete,
-  onReact,
   className
 }: MessageBubbleProps) {
   const formatTime = (timestamp: string) => {
@@ -73,9 +73,11 @@ export function MessageBubble({
           <div className="space-y-2">
             {message.media_url && (
               <div className="relative overflow-hidden rounded-lg max-w-sm">
-                <img
+                <Image
                   src={message.media_url}
                   alt="Shared image"
+                  width={300}
+                  height={300}
                   className="w-full h-auto object-cover"
                   style={{ maxHeight: '300px' }}
                 />
@@ -164,9 +166,11 @@ export function MessageBubble({
     return (
       <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
         {message.sender?.avatar_url ? (
-          <img
+          <Image
             src={message.sender.avatar_url}
             alt={message.sender.username}
+            width={32}
+            height={32}
             className="w-8 h-8 rounded-full object-cover"
           />
         ) : (

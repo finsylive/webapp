@@ -4,7 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound, useParams } from 'next/navigation';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -84,7 +84,7 @@ export default function PublicProfilePage() {
 
   const [data, setData] = useState<ProfileData>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [followPending, setFollowPending] = useState(false);
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'replies'>('about');
@@ -98,18 +98,18 @@ export default function PublicProfilePage() {
   };
 
   // Check if cache entry is valid
-  const isCacheValid = (cacheEntry: any) => {
+  const isCacheValid = (cacheEntry: { expiry: number }) => {
     return Date.now() < cacheEntry.expiry;
   };
 
   // Get data from cache
-  const getFromCache = (cacheKey: string) => {
+  const getFromCache = useCallback((cacheKey: string) => {
     const cacheEntry = profileCache.get(cacheKey);
     if (cacheEntry && isCacheValid(cacheEntry)) {
       return cacheEntry.data;
     }
     return null;
-  };
+  }, []);
 
   // Set data in cache
   const setInCache = (cacheKey: string, data: ProfileData) => {
@@ -196,7 +196,7 @@ export default function PublicProfilePage() {
         abortControllerRef.current.abort();
       }
     };
-  }, [username, viewerId]);
+  }, [username, viewerId, getFromCache]);
 
   const handleToggleFollow = async () => {
     if (!viewerId || !data?.user?.id) return;
@@ -233,7 +233,7 @@ export default function PublicProfilePage() {
       const cacheKey = getCacheKey(username, viewerId);
       profileCache.delete(cacheKey);
       
-    } catch (error) {
+    } catch {
       // Revert optimistic update on error
       setData((prev) => {
         if (!prev) return prev;
@@ -439,7 +439,7 @@ export default function PublicProfilePage() {
                             {/* Icon with glow bottom-right */}
                             <div className="absolute right-4 bottom-12 h-12 w-12 rounded-lg bg-teal-400/10 ring-1 ring-teal-400/30 flex items-center justify-center">
                               <div className="absolute inset-0 rounded-lg blur-lg bg-teal-400/20" />
-                              <img src="/icons/project.svg" alt="Portfolio" className="relative h-8 w-8" />
+                              <Image src="/icons/project.svg" alt="Portfolio" className="relative h-8 w-8" width={32} height={32} />
                             </div>
                             {/* Label directly below icon */}
                             <h3 className={`absolute right-4 bottom-2 text-2xl font-semibold ${isDarkMode ? 'text-teal-300' : 'text-teal-700'}`}>Portfolio</h3>

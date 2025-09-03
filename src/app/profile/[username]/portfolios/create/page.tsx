@@ -39,7 +39,7 @@ export default function CreatePortfolioPage() {
     | 'substack'
     | 'custom';
 
-  const PLATFORM_LABELS: Record<PlatformKey, string> = {
+  const PLATFORM_LABELS = useMemo<Record<PlatformKey, string>>(() => ({
     github: 'GitHub',
     figma: 'Figma',
     dribbble: 'Dribbble',
@@ -49,7 +49,7 @@ export default function CreatePortfolioPage() {
     notion: 'Notion',
     substack: 'Substack',
     custom: 'Custom',
-  };
+  }), []);
 
   // Ensure URLs are absolute with protocol to avoid privacy/mixed-content issues
   const ensureProtocol = (url?: string | null) => {
@@ -73,17 +73,18 @@ export default function CreatePortfolioPage() {
 
   const availablePlatforms = useMemo<PlatformKey[]>(
     () => Object.keys(PLATFORM_LABELS) as PlatformKey[],
-    []
+    [PLATFORM_LABELS]
   );
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformKey[]>([]);
-  const [platformLinks, setPlatformLinks] = useState<Record<PlatformKey, string>>({} as any);
+  const [platformLinks, setPlatformLinks] = useState<Record<PlatformKey, string>>({} as Record<PlatformKey, string>);
   const addedCount = selectedPlatforms.length;
 
   const togglePlatform = (key: PlatformKey) => {
     setSelectedPlatforms((prev) => {
       if (prev[0] === key) {
         setPlatformLinks((pl) => {
-          const { [key]: _, ...rest } = pl;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [key]: _removedKey, ...rest } = pl;
           return rest as Record<PlatformKey, string>;
         });
         return [];
@@ -141,7 +142,7 @@ export default function CreatePortfolioPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [username]);
 
   return (
     <DashboardLayout>

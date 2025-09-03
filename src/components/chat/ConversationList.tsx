@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
-import type { EnrichedConversation, ChatCategory, ConversationFilter } from '@/types/messaging';
+import type { EnrichedConversation, ConversationFilter } from '@/types/messaging';
 import { useConversations } from '@/hooks/useConversations';
 import { useChatCategories } from '@/hooks/useChatCategories';
 import { cn } from '@/utils/cn';
@@ -168,9 +169,11 @@ export function ConversationList({
         <div className="relative flex-shrink-0">
           <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
             {conversation.other_avatar_url ? (
-              <img
+              <Image
                 src={conversation.other_avatar_url}
                 alt={conversation.other_username}
+                width={48}
+                height={48}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -318,7 +321,7 @@ export function ConversationList({
             ) : activeFilter === 'unread' ? (
               <div>
                 <p>No unread messages</p>
-                <p className="text-sm">You're all caught up!</p>
+                <p className="text-sm">You&rsquo;re all caught up!</p>
               </div>
             ) : (
               <div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Clock, Smile, Heart, ThumbsUp, Laugh, Angry, Surprise } from 'lucide-react';
+import { Search, Clock, Smile, Heart, ThumbsUp, Laugh, Package } from 'lucide-react';
 import { useTheme } from '@/context/theme/ThemeContext';
 
 interface EmojiPickerProps {
@@ -57,7 +57,7 @@ const EMOJI_CATEGORIES = {
   },
   objects: {
     name: 'Objects',
-    icon: Surprise,
+    icon: Package,
     emojis: [
       '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
       '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🎣', '🤿', '🎽',
@@ -117,7 +117,7 @@ export default function EmojiPicker({ onEmojiSelect, onClose, className = '' }: 
 
     // Search through all categories
     const allEmojis = Object.values(EMOJI_CATEGORIES).flatMap(cat => cat.emojis);
-    return allEmojis.filter(emoji => {
+    return allEmojis.filter(() => {
       // This is a simple search - in a real app, you might want to search by emoji names/keywords
       return true; // For now, show all emojis when searching
     });

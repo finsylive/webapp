@@ -1,17 +1,13 @@
 "use client";
 
 import React from 'react';
-import { useTheme } from '@/context/theme/ThemeContext';
-import { Search, Edit, MoreVertical, Pin, Archive, Menu, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Search, Edit, MoreVertical, Menu, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
 import { useConversations } from '@/context/ConversationsContext';
 
 export const ConversationsList = React.memo(function ConversationsList() {
-  const { isDarkMode } = useTheme();
-  const pathname = usePathname();
   const {
     loading,
     categories,

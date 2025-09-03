@@ -1,10 +1,9 @@
 "use client";
 
-import { useTheme } from '@/context/theme/ThemeContext';
 import { MessageCircle } from 'lucide-react';
 
 export default function MessagesPage() {
-  const { isDarkMode } = useTheme();
+  // Removed unused isDarkMode from useTheme
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-transparent">

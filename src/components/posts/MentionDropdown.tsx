@@ -16,7 +16,7 @@ type User = {
 
 type MentionDropdownProps = {
   searchTerm: string;
-  onSelectUser: (user: User) => void;
+  onSelectUser: (user: User | null) => void;
   position: { top: number; left: number };
   isVisible: boolean;
 };
@@ -86,7 +86,7 @@ export function MentionDropdown({ searchTerm, onSelectUser, position, isVisible 
         onSelectUser(users[selectedIndex]);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onSelectUser(null as any);
+        onSelectUser(null);
       }
     };
 

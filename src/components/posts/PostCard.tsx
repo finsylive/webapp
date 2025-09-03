@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow, differenceInMinutes, differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, differenceInYears } from 'date-fns';
-import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Clock, Play, Pause } from 'lucide-react';
+import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createPortal } from 'react-dom';
 import { Post, likePost, unlikePost, votePollOption, checkUserLikedPost, checkUserPollVotes, deletePost } from '@/api/posts';
@@ -20,10 +20,7 @@ type PostCardProps = {
 };
 
 // Constants
-const IMAGE_ASPECT = '4 / 5';
 const VIDEO_ASPECT = '16 / 9';
-const SWIPE_THRESHOLD = 40;
-const SWIPE_TIME_THRESHOLD = 400;
 const CONTENT_TRUNCATE_LENGTH = 280;
 
 // Memoized tag styling function with proper dependencies
@@ -39,6 +36,9 @@ const getTagStyling = (tag: string) => {
   }
   return 'bg-gradient-to-r from-slate-500/10 to-slate-600/10 text-slate-700 dark:text-slate-300 border border-slate-500/20 hover:border-slate-500/30 shadow-sm';
 };
+
+// Import optimized proxy URL function
+import { toProxyUrl } from '@/utils/imageUtils';
 
 // Memoized time formatter with proper dependencies
 const formatTimeAgoShort = (date: Date): string => {
@@ -58,9 +58,6 @@ const formatTimeAgoShort = (date: Date): string => {
   return 'now';
 };
 
-// Import optimized proxy URL function
-import { toProxyUrl } from '@/utils/imageUtils';
-
 // Memoized Google avatar check with proper dependencies
 const isGoogleAvatar = (url?: string | null): boolean => {
   if (!url) return false;
@@ -74,7 +71,6 @@ const isGoogleAvatar = (url?: string | null): boolean => {
 
 // Enhanced Video Thumbnail component with lazy loading optimization
 const VideoThumbnail = memo(({ 
-  src, 
   thumbnail, 
   onPlay, 
   width, 
@@ -303,41 +299,7 @@ const MediaGallery = memo(({ items, onOpen }: {
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Map<number, {width: number, height: number}>>(new Map());
 
-  const handleImageError = useCallback((index: number) => {
-    setImageErrors(prev => new Set([...prev, index]));
-  }, []);
-
-  // Load image to get natural dimensions
-  const loadImageDimensions = useCallback((src: string, index: number) => {
-    if (imageDimensions.has(index)) return; // Already loaded
-
-    const img = new window.Image();
-    img.onload = () => {
-      setImageDimensions(prev => new Map(prev.set(index, { width: img.naturalWidth, height: img.naturalHeight })));
-    };
-    img.onerror = () => {
-      handleImageError(index);
-    };
-    img.src = src;
-  }, [imageDimensions, handleImageError]);
-
-  // Click handlers
-  const handleImageClick = useMemo(() => 
-    (index: number) => (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onOpen?.(index);
-    }, [onOpen]
-  );
-
-  const handleVideoPlay = useMemo(() =>
-    (index: number) => () => {
-      setPlayingVideo(index);
-    }, []
-  );
-
-  if (!items || total === 0) return null;
-
-  // Horizontal scrolling line layout for all media counts
+  // Move hooks to before any conditional logic to fix React hooks rules violation
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -377,6 +339,40 @@ const MediaGallery = memo(({ items, onOpen }: {
       container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   }, []);
+
+  const handleImageError = useCallback((index: number) => {
+    setImageErrors(prev => new Set([...prev, index]));
+  }, []);
+
+  // Load image to get natural dimensions
+  const loadImageDimensions = useCallback((src: string, index: number) => {
+    if (imageDimensions.has(index)) return; // Already loaded
+
+    const img = new window.Image();
+    img.onload = () => {
+      setImageDimensions(prev => new Map(prev.set(index, { width: img.naturalWidth, height: img.naturalHeight })));
+    };
+    img.onerror = () => {
+      handleImageError(index);
+    };
+    img.src = src;
+  }, [imageDimensions, handleImageError]);
+
+  // Click handlers
+  const handleImageClick = useMemo(() => 
+    (index: number) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onOpen?.(index);
+    }, [onOpen]
+  );
+
+  const handleVideoPlay = useMemo(() =>
+    (index: number) => () => {
+      setPlayingVideo(index);
+    }, []
+  );
+
+  if (!items || total === 0) return null;
 
   return (
     <div className="relative w-full">
@@ -480,13 +476,12 @@ const MediaGallery = memo(({ items, onOpen }: {
             >
               {m.media_type === 'photo' ? (
                 !imageErrors.has(i) ? (
-                  <img
+                  <Image
                     src={imageUrl}
                     alt={`Media ${i + 1}`}
                     width={Math.round(containerWidth)}
                     height={Math.round(containerHeight)}
-                    className="hover:opacity-95 transition-opacity rounded-2xl block"
-                    loading="lazy"
+                    className="hover:opacity-95 transition-opacity rounded-2xl"
                     onError={() => handleImageError(i)}
                     onLoad={() => {
                       // Try to get natural dimensions when image loads
@@ -503,6 +498,8 @@ const MediaGallery = memo(({ items, onOpen }: {
                       height: `${Math.round(containerHeight)}px`,
                       objectFit: 'cover'
                     }}
+                    sizes={`${Math.round(containerWidth)}px`}
+                    priority={i === 0}
                   />
                 ) : (
                   <div 

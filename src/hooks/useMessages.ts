@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import type { Message, PaginatedMessages, SendMessageRequest } from '@/types/messaging';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export function useMessages(conversationId: string, userId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -11,7 +12,7 @@ export function useMessages(conversationId: string, userId: string) {
   const [sending, setSending] = useState(false);
 
   // Keep track of the subscription to avoid duplicates
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const fetchMessages = useCallback(async (beforeMessageId?: string) => {
     if (!conversationId) return;
@@ -36,11 +37,13 @@ export function useMessages(conversationId: string, userId: string) {
       }
 
       const response = await fetch(`/api/messages?${params}`);
-      const data: PaginatedMessages = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch messages');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch messages');
       }
+
+      const data: PaginatedMessages = await response.json();
 
       if (isLoadingMore) {
         // Prepend older messages
@@ -71,6 +74,42 @@ export function useMessages(conversationId: string, userId: string) {
       fetchMessages(oldestMessage.id);
     }
   }, [fetchMessages, hasMore, loadingMore, messages]);
+
+  const markAsRead = useCallback(async (messageIds?: string[]) => {
+    if (!conversationId) return;
+
+    try {
+      const response = await fetch('/api/messages/read', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          message_ids: messageIds
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to mark messages as read');
+      }
+
+      // Update local state
+      setMessages(prev => prev.map(msg => {
+        if (msg.sender_id !== userId && (!messageIds || messageIds.includes(msg.id))) {
+          return { ...msg, is_read: true, read_at: new Date().toISOString() };
+        }
+        return msg;
+      }));
+
+      return data;
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    }
+  }, [conversationId, userId]);
 
   // Real-time subscription for new messages
   useEffect(() => {
@@ -133,7 +172,7 @@ export function useMessages(conversationId: string, userId: string) {
         channelRef.current = null;
       }
     };
-  }, [conversationId, userId]);
+  }, [conversationId, userId, fetchMessages, markAsRead]);
 
   const sendMessage = useCallback(async (request: Omit<SendMessageRequest, 'conversation_id'>) => {
     if (!conversationId || !request.content.trim()) return;
@@ -168,42 +207,6 @@ export function useMessages(conversationId: string, userId: string) {
       throw err;
     } finally {
       setSending(false);
-    }
-  }, [conversationId, userId]);
-
-  const markAsRead = useCallback(async (messageIds?: string[]) => {
-    if (!conversationId) return;
-
-    try {
-      const response = await fetch('/api/messages/read', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId,
-        },
-        body: JSON.stringify({
-          conversation_id: conversationId,
-          message_ids: messageIds
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to mark messages as read');
-      }
-
-      // Update local state
-      setMessages(prev => prev.map(msg => {
-        if (msg.sender_id !== userId && (!messageIds || messageIds.includes(msg.id))) {
-          return { ...msg, is_read: true, read_at: new Date().toISOString() };
-        }
-        return msg;
-      }));
-
-      return data;
-    } catch (err) {
-      console.error('Error marking messages as read:', err);
     }
   }, [conversationId, userId]);
 

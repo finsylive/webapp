@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Hash, X, ImageIcon, VideoIcon, Upload, Plus, Trash2 } from 'lucide-react';
+import { Hash, X, VideoIcon, Upload, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { compressMediaBatch, type CompressedResult } from '@/utils/mediaCompressor';
+import { type CompressedResult } from '@/utils/mediaCompressor';
 import Image from 'next/image';
 import { MentionDropdown } from './MentionDropdown';
-import { processMentionsInContent, extractMentions, notifyMentionedUsers } from '@/utils/mentions';
-import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
 
 type CreatePostModalProps = {
@@ -21,10 +19,10 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
   const [content, setContent] = useState('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [compressedResults, setCompressedResults] = useState<CompressedResult[]>([]);
+  const [, setCompressedResults] = useState<CompressedResult[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ isCompressing: boolean; currentFile: string; progress: number }>({ isCompressing: false, currentFile: '', progress: 0 });
-  const [postType, setPostType] = useState<'text' | 'media' | 'poll'>('text');
+  const [postType] = useState<'text' | 'media' | 'poll'>('text');
   const [pollData, setPollData] = useState<{ question: string; options: string[] }>({ question: '', options: ['', ''] });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -181,7 +179,12 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
   };
 
   // Handle user selection from mention dropdown
-  const handleSelectUser = (user: any) => {
+  const handleSelectUser = (user: {
+    id: string;
+    username: string;
+    full_name?: string;
+    avatar_url?: string;
+  } | null) => {
     if (!user) {
       setShowMentionDropdown(false);
       return;

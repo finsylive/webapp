@@ -5,10 +5,29 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+type PlatformKey = 'github' | 'figma' | 'dribbble' | 'behance' | 'linkedin' | 'youtube' | 'notion' | 'substack' | 'custom';
+
+type PlatformLinkRow = { 
+  portfolio_id: string;
+  platform: PlatformKey; 
+  link?: string | null; 
+};
+
+type Portfolio = {
+  id: string;
+  user_id: string;
+  title?: string | null;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+  platforms?: PlatformKey[];
+  platforms_links?: PlatformLinkRow[];
+};
+
 // GET /api/users/[username]/portfolios
-export async function GET(_req: NextRequest, { params }: { params: { username: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
-    const { username } = params;
+    const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
     // resolve user id
@@ -35,9 +54,9 @@ export async function GET(_req: NextRequest, { params }: { params: { username: s
     }
 
     // Try to enrich with platforms from a related table if it exists
-    let enriched = portfolios || [];
+    let enriched: Portfolio[] = portfolios || [];
     try {
-      const ids = (portfolios || []).map((p: any) => p.id).filter(Boolean);
+      const ids = (portfolios || []).map((p: Portfolio) => p.id).filter(Boolean);
       if (ids.length > 0) {
         const { data: platRows, error: platErr } = await supabase
           .from('portfolio_platforms')
@@ -45,14 +64,14 @@ export async function GET(_req: NextRequest, { params }: { params: { username: s
           .in('portfolio_id', ids);
 
         if (!platErr && platRows) {
-          const byPid: Record<string, { platform: string; link?: string | null }[]> = {};
-          for (const r of platRows as any[]) {
+          const byPid: Record<string, PlatformLinkRow[]> = {};
+          for (const r of platRows as PlatformLinkRow[]) {
             const arr = byPid[r.portfolio_id] || (byPid[r.portfolio_id] = []);
-            arr.push({ platform: r.platform, link: r.link });
+            arr.push({ portfolio_id: r.portfolio_id, platform: r.platform, link: r.link });
           }
-          enriched = enriched.map((p: any) => ({
+          enriched = enriched.map((p: Portfolio) => ({
             ...p,
-            platforms: (byPid[p.id]?.map((x) => x.platform) || null),
+            platforms: (byPid[p.id]?.map((x) => x.platform as PlatformKey) || null),
             platforms_links: (byPid[p.id] || null),
           }));
         }
@@ -71,9 +90,9 @@ export async function GET(_req: NextRequest, { params }: { params: { username: s
 
 // POST /api/users/[username]/portfolios
 // Upserts the user's latest portfolio and replaces its platforms
-export async function POST(req: NextRequest, { params }: { params: { username: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
-    const { username } = params;
+    const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
     const body = await req.json().catch(() => ({}));
@@ -130,9 +149,12 @@ export async function POST(req: NextRequest, { params }: { params: { username: s
     }
 
     // normalize platforms
-    const norm = (platformsRaw as any[]).map((p) => {
+    const norm = (platformsRaw as unknown[]).map((p) => {
       if (typeof p === 'string') return { platform: p, link: null };
-      if (p && typeof p === 'object') return { platform: String(p.platform || ''), link: p.link ? String(p.link) : null };
+      if (p && typeof p === 'object') {
+        const obj = p as Record<string, unknown>;
+        return { platform: String(obj.platform || ''), link: obj.link ? String(obj.link) : null };
+      }
       return null;
     }).filter(Boolean) as { platform: string; link: string | null }[];
 
@@ -174,9 +196,9 @@ export async function POST(req: NextRequest, { params }: { params: { username: s
 
 // DELETE /api/users/[username]/portfolios?id=PORTFOLIO_ID (optional id)
 // Deletes the specified portfolio; if no id provided, deletes the latest for the user
-export async function DELETE(req: NextRequest, { params }: { params: { username: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
-    const { username } = params;
+    const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
     const { searchParams } = new URL(req.url);

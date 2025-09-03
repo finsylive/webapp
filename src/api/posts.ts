@@ -2,7 +2,7 @@
 
 import { supabase } from '@/utils/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
-import { notifyReply, notifyLike, notifyPollVote } from '@/utils/notifications';
+import { notifyReply } from '@/utils/notifications';
 import { extractMentions, notifyMentionedUsers } from '@/utils/mentions';
 
 export type PostMedia = {
@@ -214,7 +214,7 @@ export async function fetchPosts(
     }
 
     // Process RPC result if available
-    const postsWithCounts = data?.map((post: any) => ({
+    const postsWithCounts = data?.map((post: Record<string, unknown>) => ({
       ...post,
       likes: post.likes_count || 0,
       replies: post.replies_count || 0,
@@ -225,7 +225,7 @@ export async function fetchPosts(
     
   } catch (err) {
     console.error('Error in fetchPosts:', err);
-    return { data: null, error: err as any };
+    return { data: null, error: err as PostgrestError };
   }
 }
 
@@ -292,7 +292,7 @@ export async function fetchPostById(postId: string): Promise<PostResponse> {
     return { data: postWithCounts, error: null };
   } catch (err) {
     console.error('Error in fetchPostById:', err);
-    return { data: null, error: err as any };
+    return { data: null, error: err as PostgrestError };
   }
 }
 
@@ -884,7 +884,8 @@ export async function getPollVoters(
     }
 
     // Check if requester is the poll creator
-    if (pollData?.posts?.author_id !== requesterId) {
+    const post = Array.isArray(pollData?.posts) ? pollData.posts[0] : pollData?.posts;
+    if (post?.author_id !== requesterId) {
       return { 
         voters: [], 
         error: {
@@ -925,20 +926,30 @@ export async function getPollVoters(
     }
 
     // Transform the data
-    const voters: PollVoter[] = votes?.map(vote => ({
-      id: vote.id,
-      user_id: vote.user_id,
-      option_id: vote.poll_option_id,
-      option_text: vote.post_poll_options?.option_text || '',
-      created_at: vote.created_at,
-      user: {
-        id: vote.users?.id || '',
-        username: vote.users?.username || '',
-        full_name: vote.users?.full_name,
-        avatar_url: vote.users?.avatar_url,
-        is_verified: vote.users?.is_verified || false
-      }
-    })) || [];
+    const voters: PollVoter[] = votes?.map(vote => {
+      // Handle the case where post_poll_options could be array or single object
+      const pollOption = Array.isArray(vote.post_poll_options) 
+        ? vote.post_poll_options[0] 
+        : vote.post_poll_options;
+      
+      // Handle the case where users could be array or single object  
+      const user = Array.isArray(vote.users) ? vote.users[0] : vote.users;
+
+      return {
+        id: vote.id,
+        user_id: vote.user_id,
+        option_id: vote.poll_option_id,
+        option_text: pollOption?.option_text || '',
+        created_at: vote.created_at,
+        user: {
+          id: user?.id || '',
+          username: user?.username || '',
+          full_name: user?.full_name,
+          avatar_url: user?.avatar_url,
+          is_verified: user?.is_verified || false
+        }
+      };
+    }) || [];
 
     return { voters, error: null };
   } catch (error) {
@@ -993,7 +1004,8 @@ export async function getPollStats(
     }
 
     // Check if requester is the poll creator
-    if (pollData?.posts?.author_id !== requesterId) {
+    const post = Array.isArray(pollData?.posts) ? pollData.posts[0] : pollData?.posts;
+    if (post?.author_id !== requesterId) {
       return { 
         stats: null, 
         error: {

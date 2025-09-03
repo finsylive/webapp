@@ -4,7 +4,6 @@ import type {
   Message, 
   SendMessageRequest, 
   SendMessageResponse,
-  MessagePaginationParams,
   PaginatedMessages 
 } from '@/types/messaging';
 
@@ -108,9 +107,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching messages:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -128,7 +128,7 @@ export async function DELETE(req: NextRequest) {
         .delete()
         .eq('message_id', message_id)
         .eq('user_id', user_id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
       return NextResponse.json({ success: true });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown error';
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
         .from('message_reactions')
         .upsert([{ message_id, user_id, reaction }], { onConflict: 'user_id,message_id' })
         .select();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
       return NextResponse.json(data && data[0] ? data[0] : null);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Internal server error';
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('Message insert error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Database error' }, { status: 500 });
     }
 
     // Fetch sender details
@@ -264,8 +264,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending message:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
