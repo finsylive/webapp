@@ -2,9 +2,12 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
+import Image from 'next/image';
 import { use, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, RefreshCcw, Calendar, Rocket, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, RefreshCcw, BadgeCheck } from 'lucide-react';
 import { listProjects } from '@/api/projects';
+import { ProjectCard, ProjectCardSkeleton } from '@/components/projects/ProjectCard';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 export default function UserProjectsPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
@@ -34,6 +37,8 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<{ user: { avatar_url?: string | null; full_name?: string | null; username: string; is_verified?: boolean | null }; counts?: { projects?: number } } | null>(null);
+  const [environments, setEnvironments] = useState<Array<{ id: string; name: string }>>([]);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,14 +46,19 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
       try {
         setLoading(true);
         setError(null);
-        const [projectsResp, resProfile] = await Promise.all([
+        const [projectsResp, resProfile, envRes] = await Promise.all([
           listProjects(username),
           fetch(`/api/users/${encodeURIComponent(username)}/profile`),
+          fetch('/api/environments').then(r=>r.ok?r.json():[]).catch(()=>[]),
         ]);
         const pjson = await resProfile.json().catch(() => null);
         if (!cancelled) {
           setItems((projectsResp as ProjectsResponse)?.data ?? []);
           if (pjson && pjson.data) setProfile(pjson.data);
+          try {
+            const envList = Array.isArray(envRes) ? envRes : [];
+            setEnvironments(envList.map((e:any)=>({ id: e.id, name: e.name })));
+          } catch {}
         }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to load projects';
@@ -66,6 +76,7 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
     return `${c} Project${c === 1 ? '' : 's'}`;
   }, [profile?.counts?.projects, items.length]);
 
+  // kept here if needed elsewhere in the page later
   const ensureProtocol = (url?: string | null) => {
     if (!url) return null;
     const t = url.trim();
@@ -106,10 +117,9 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
 
           {/* Profile Row */}
           <div className="flex items-center gap-4 mb-6">
-            {profile?.user?.avatar_url ? (
-              <div className="h-12 w-12 rounded-full overflow-hidden border border-emerald-500/30 bg-black/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={profile.user.avatar_url} alt={profile.user.full_name || profile.user.username} className="h-full w-full object-cover" />
+            {profile?.user?.avatar_url && !avatarError ? (
+              <div className="relative h-12 w-12 rounded-full overflow-hidden border border-emerald-500/30 bg-black/20">
+                <Image src={toProxyUrl(profile.user.avatar_url)} alt={profile.user.full_name || profile.user.username} fill className="object-cover" sizes="48px" onError={() => setAvatarError(true)} />
               </div>
             ) : (
               <div className="h-12 w-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 font-semibold">
@@ -133,66 +143,21 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
 
           {/* Content */}
           {loading ? (
-            <div className="text-sm text-muted-foreground">Loading...</div>
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ProjectCardSkeleton key={i} />
+              ))}
+            </ul>
           ) : error ? (
             <div className="text-sm text-red-400">{error}</div>
           ) : items.length === 0 ? (
             <div className="text-sm text-muted-foreground">No projects yet.</div>
           ) : (
-            <ul className="grid grid-cols-1 gap-5">
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {items.map((p) => {
-                const href = ensureProtocol(p.url);
-                const date = p.created_at ? new Date(p.created_at) : null;
-                const dateStr = date ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-                const visibility = (p.visibility || 'public').toLowerCase();
-                const viewHref = `/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(p.id)}`;
-                const imgUrl = p.image_url || p.thumbnail || p.thumbnail_url || p.logo_url || p.cover_url || null;
-                const category = p.category;
+                const envName = environments.find(e=> e.id === (p.category || ''))?.name;
                 return (
-                  <li key={p.id} className="relative rounded-2xl border border-emerald-500/20 bg-card/60 overflow-hidden">
-                    <Link href={viewHref} className="absolute inset-0" aria-label="Open project" />
-                    <div className="p-5">
-                      <div className="flex items-start justify-between">
-                        {/* Image or icon tile */}
-                        {imgUrl ? (
-                          <div className="h-20 w-20 rounded-xl overflow-hidden border border-emerald-500/30 mr-4 bg-white/5 p-1 flex items-center justify-center">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={imgUrl as string} alt={(p.title || p.name || 'project').toString()} className="h-full w-full object-contain" />
-                          </div>
-                        ) : (
-                          <div className="h-20 w-20 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center text-emerald-400 mr-4">
-                            <Rocket className="h-8 w-8" />
-                          </div>
-                        )}
-                        <div className="ml-auto flex items-center gap-2">
-                          {category && (
-                            <span className="text-xs rounded-full border border-emerald-500/40 text-emerald-300 px-2 py-0.5">{category}</span>
-                          )}
-                          {p.status && (
-                            <span className="text-xs rounded-full border border-emerald-500/40 text-emerald-300 px-2 py-0.5">{p.status}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="text-xl font-semibold">{p.title || p.name || 'Untitled'}</div>
-                        {(p.tagline || p.description) && (
-                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{p.tagline || p.description}</p>
-                        )}
-                      </div>
-                      <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>{dateStr}</span>
-                        </div>
-                        <span className={`text-xs rounded-full px-2 py-0.5 border ${visibility === 'public' ? 'border-emerald-500/40 text-emerald-300' : 'border-yellow-500/40 text-yellow-300'}`}>
-                          {visibility}
-                        </span>
-                      </div>
-                      {href && (
-                        <a href={href} target="_blank" rel="noreferrer" className="relative mt-3 inline-block text-sm text-primary hover:underline">Visit</a>
-                      )}
-                    </div>
-                  </li>
+                  <ProjectCard key={p.id} item={p} username={username} categoryName={envName} />
                 );
               })}
             </ul>

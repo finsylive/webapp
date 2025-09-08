@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { notFound, useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil } from 'lucide-react';
+import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { toProxyUrl } from '@/utils/imageUtils';
@@ -487,7 +487,19 @@ export default function PublicProfilePage() {
                           <Building2 className="h-5 w-5 text-emerald-600" />
                           Experience
                         </h2>
+                        {/* Add Experience button (only for owner) */}
+                        {viewerId && data?.user?.id && viewerId === data.user.id && (
+                          <Link
+                            href={`/profile/${encodeURIComponent(username)}/experiences/edit`}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/40 text-emerald-300 hover:bg-white/5 text-sm"
+                            title="Add or edit experiences"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add Experience
+                          </Link>
+                        )}
                       </div>
+
                       <div className="space-y-6">
                         {loading ? (
                           <p className="text-gray-500">Loading...</p>

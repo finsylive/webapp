@@ -59,9 +59,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       .maybeSingle();
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    const normUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
+    const normUrl = (u: string) => {
+      const t = String(u).trim();
+      if (/^s3:\/\//i.test(t)) return t; // keep s3 scheme as-is
+      if (/^https?:\/\//i.test(t)) return t; // keep http(s) as-is
+      return t; // leave raw value without forcing https
+    };
 
-    const insert = { project_id: projectId, slide_url: normUrl(String(slide_url).trim()), caption, slide_number } as const;
+    const insert = { project_id: projectId, slide_url: normUrl(slide_url), caption, slide_number } as const;
     const { data, error } = await supabase.from('project_slides').insert(insert).select('*').maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ data });
