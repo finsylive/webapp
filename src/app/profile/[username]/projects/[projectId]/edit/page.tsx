@@ -46,8 +46,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
 
   const [project, setProject] = useState<Project | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -135,7 +133,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       }
     };
 
-    const popHandler = (e: PopStateEvent) => {
+    const popHandler = () => {
       if (shouldBlock()) {
         const ok = window.confirm('You have unsaved changes or uploads in progress. Leave this page?');
         if (!ok) {
@@ -180,13 +178,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
     const img: HTMLImageElement = await new Promise((resolve, reject) => {
       const im = document.createElement('img');
       im.onload = () => resolve(im);
-      im.onerror = reject as any;
+      im.onerror = () => reject(new Error('Failed to load image'));
       im.src = dataUrl;
     });
     const srcW = img.naturalWidth || img.width;
     const srcH = img.naturalHeight || img.height;
     const targetAspect = aspectW / aspectH;
-    const srcAspect = srcW / srcH;
+    // const srcAspect = srcW / srcH; // not used
     // compute crop rect
     let cropW = srcW;
     let cropH = Math.round(srcW / targetAspect);
@@ -219,8 +217,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
     let cancelled = false;
     const run = async () => {
       try {
-        setLoading(true);
-        setError(null);
         const [projRes, slidesRes, linksRes, sectionsRes, envRes] = await Promise.all([
           getProject(username, projectId),
           listProjectSlides(username, projectId).catch(() => ({ data: [] as ProjectSlide[] })),
@@ -232,22 +228,30 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         const p = (projRes as { data: Project }).data;
         setProject(p);
         setTitle(p?.title || "");
-        setTagline((p as any)?.tagline || "");
-        setCategory((p as any)?.category || "");
+        setTagline(p?.tagline ?? "");
+        setCategory((p?.category as unknown as string) ?? "");
         setVisibility(p?.visibility || "public");
-        setCoverUrl((p as any)?.cover_url || null);
-        setLogoUrl((p as any)?.logo_url || null);
-        setSlides((slidesRes as any).data || []);
-        setLinks((linksRes as any).data || []);
-        setSections((sectionsRes as any).data || []);
+        setCoverUrl(p?.cover_url ?? null);
+        setLogoUrl(p?.logo_url ?? null);
+        setSlides((slidesRes as { data: ProjectSlide[] }).data || []);
+        setLinks((linksRes as { data: ProjectLink[] }).data || []);
+        setSections((sectionsRes as { data: ProjectTextSection[] }).data || []);
         try {
           const envList = Array.isArray(envRes) ? envRes : [];
-          setEnvironments(envList.map((e:any)=>({ id: e.id, name: e.name })));
+          setEnvironments(
+            envList
+              .filter((e: unknown): e is { id: string; name: string } => {
+                if (typeof e !== 'object' || e === null) return false;
+                const maybe = e as { id?: unknown; name?: unknown };
+                return typeof maybe.id === 'string' && typeof maybe.name === 'string';
+              })
+              .map((e) => ({ id: e.id, name: e.name }))
+          );
         } catch {}
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load project");
+      } catch {
+        // keep silent for now; optional to surface a toast
       } finally {
-        if (!cancelled) setLoading(false);
+        // no-op
       }
     };
     if (username && projectId) run();
@@ -283,7 +287,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       title,
       tagline: tagline || null,
       // keep existing category if user cleared selection accidentally
-      category: (category && category.trim()) ? (category as any) : (project.category as any),
+      category: (category && category.trim()) ? (category as unknown as Project['category']) : (project.category as Project['category']),
       visibility,
       cover_url: coverUrl || null,
       logo_url: logoUrl || null,
@@ -297,19 +301,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         visibility,
         cover_url: coverUrl || null,
         logo_url: logoUrl || null,
-      } as any;
+      };
       if (category && category.trim()) {
-        (patch as any).category = category as any;
+        patch.category = category as unknown as Project['category'];
       }
-      const res = await updateProject(username, projectId, patch as any);
-      if ((res as any)?.data) {
-        setProject((res as any).data);
+      const res = await updateProject(username, projectId, patch);
+      const updated = (res as { data?: Project }).data;
+      if (updated) {
+        setProject(updated);
       }
       setLastSavedAt(Date.now());
       showToast('success', 'Project saved');
-    } catch (e: any) {
+    } catch (e: unknown) {
       setProject(prev);
-      showToast('error', e?.message || 'Failed to save');
+      showToast('error', e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -329,8 +334,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         const res = await addProjectSlide(username, projectId, { slide_url: cleanUrl, slide_number: nextNumber });
         setSlides((prev) => [...prev, res.data]);
         showToast('success', 'Slide added');
-      } catch (e: any) {
-        showToast('error', e?.message || 'Failed to add slide');
+      } catch (e: unknown) {
+        showToast('error', e instanceof Error ? e.message : 'Failed to add slide');
       } finally {
         setUploadingCount((c)=>Math.max(0,c-1));
       }
@@ -346,8 +351,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
           setSlides((prev) => prev.filter((s) => s.id !== id));
           setConfirmModal({ open: false, message: '' });
           showToast('success', 'Slide deleted');
-        } catch (e: any) {
-          showToast('error', e?.message || 'Failed to delete slide');
+        } catch (e: unknown) {
+          showToast('error', e instanceof Error ? e.message : 'Failed to delete slide');
         }
       }
     });
@@ -362,8 +367,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       setLinks((prev) => [...prev, res.data]);
       setLinkModal({ open: false, title: '', url: '' });
       showToast('success', 'Link added');
-    } catch (e: any) {
-      showToast('error', e?.message || 'Failed to add link');
+    } catch (e: unknown) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to add link');
     }
   };
   const onDeleteLink = async (id: string) => {
@@ -376,8 +381,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
           setLinks((prev) => prev.filter((l) => l.id !== id));
           setConfirmModal({ open: false, message: '' });
           showToast('success', 'Link deleted');
-        } catch (e: any) {
-          showToast('error', e?.message || 'Failed to delete link');
+        } catch (e: unknown) {
+          showToast('error', e instanceof Error ? e.message : 'Failed to delete link');
         }
       }
     });
@@ -399,8 +404,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
         showToast('success', 'Section added');
       }
       setSectionModal({ open: false, heading: '', content: '' });
-    } catch (e: any) {
-      showToast('error', e?.message || 'Failed to save section');
+    } catch (e: unknown) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to save section');
     }
   };
   const onDeleteSection = async (id: string) => {
@@ -413,8 +418,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
           setSections((prev) => prev.filter((s) => s.id !== id));
           setConfirmModal({ open: false, message: '' });
           showToast('success', 'Section deleted');
-        } catch (e: any) {
-          showToast('error', e?.message || 'Failed to delete section');
+        } catch (e: unknown) {
+          showToast('error', e instanceof Error ? e.message : 'Failed to delete section');
         }
       }
     });
@@ -433,7 +438,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
       await Promise.all(
         reordered.map((s) => updateProjectTextSection(username, projectId, s.id, { display_order: s.display_order }))
       );
-    } catch (e) {
+    } catch {
       // ignore for now, UI already updated
     }
   };
@@ -490,8 +495,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
                       if (!uploaded.url) throw new Error(uploaded.error || 'Upload failed');
                       setCoverUrl(normalizeMediaUrl(uploaded.url));
                       showToast('success', 'Cover updated');
-                    } catch (e: any) {
-                      showToast('error', e?.message || 'Failed to upload cover');
+                    } catch (e: unknown) {
+                      showToast('error', e instanceof Error ? e.message : 'Failed to upload cover');
                     } finally {
                       setUploadingCount((c)=>Math.max(0,c-1));
                     }
@@ -512,8 +517,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
                       if (!uploaded.url) throw new Error(uploaded.error || 'Upload failed');
                       setLogoUrl(normalizeMediaUrl(uploaded.url));
                       showToast('success', 'Logo updated');
-                    } catch (e: any) {
-                      showToast('error', e?.message || 'Failed to upload logo');
+                    } catch (e: unknown) {
+                      showToast('error', e instanceof Error ? e.message : 'Failed to upload logo');
                     } finally {
                       setUploadingCount((c)=>Math.max(0,c-1));
                     }
@@ -577,7 +582,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
                 <select
                   value={visibility}
                   onChange={(e) => {
-                    const val = e.target.value as any;
+                    const val = e.target.value as Project['visibility'];
                     setVisibility(val);
                   }}
                   className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
@@ -645,7 +650,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
                       try {
                         await Promise.all(reNumbered.map(sl => updateProjectSlide(username, projectId, sl.id, { slide_number: sl.slide_number })));
                         showToast('success','Order updated');
-                      } catch (e) {
+                      } catch {
                         showToast('error','Failed to persist order');
                       }
                     }}
@@ -670,8 +675,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ username
                               const res = await addProjectSlide(username, projectId, { slide_url: cleanUrl, slide_number: s.slide_number || (i+1) });
                               setSlides((prev) => prev.map(sl => sl.id === s.id ? res.data : sl));
                               showToast('success', 'Slide replaced');
-                            } catch (e: any) {
-                              showToast('error', e?.message || 'Failed to replace slide');
+                            } catch (e: unknown) {
+                              showToast('error', e instanceof Error ? e.message : 'Failed to replace slide');
                             } finally {
                               setUploadingCount((c)=>Math.max(0,c-1));
                             }

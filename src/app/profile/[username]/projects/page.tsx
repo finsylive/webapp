@@ -57,7 +57,15 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
           if (pjson && pjson.data) setProfile(pjson.data);
           try {
             const envList = Array.isArray(envRes) ? envRes : [];
-            setEnvironments(envList.map((e:any)=>({ id: e.id, name: e.name })));
+            setEnvironments(
+              envList
+                .filter((e: unknown): e is { id: string; name: string } => {
+                  if (typeof e !== 'object' || e === null) return false;
+                  const maybe = e as { id?: unknown; name?: unknown };
+                  return typeof maybe.id === 'string' && typeof maybe.name === 'string';
+                })
+                .map((e) => ({ id: e.id, name: e.name }))
+            );
           } catch {}
         }
       } catch (e: unknown) {
@@ -76,13 +84,7 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
     return `${c} Project${c === 1 ? '' : 's'}`;
   }, [profile?.counts?.projects, items.length]);
 
-  // kept here if needed elsewhere in the page later
-  const ensureProtocol = (url?: string | null) => {
-    if (!url) return null;
-    const t = url.trim();
-    if (!t) return null;
-    return /^https?:\/\//i.test(t) ? t : `https://${t}`;
-  };
+  // removed unused helper ensureProtocol
 
   const refetch = async () => {
     if (refreshing) return;

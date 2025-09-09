@@ -111,7 +111,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     };
 
     const visSet = new Set(['public','private','unlisted']);
-    const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+    const isUuid = (s: unknown): s is string => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
     if (typeof title !== 'undefined' && String(title).trim().length === 0) {
       return NextResponse.json({ error: 'title cannot be empty' }, { status: 400 });
     }

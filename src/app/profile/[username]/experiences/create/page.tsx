@@ -23,7 +23,6 @@ export default function CreateExperiencePage() {
   const router = useRouter();
 
   const [experiences, setExperiences] = useState<ExperienceItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
@@ -37,32 +36,42 @@ export default function CreateExperiencePage() {
   const [isCurrent, setIsCurrent] = useState(false);
   const [endDate, setEndDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 2600);
+  };
 
   useEffect(() => {
     const load = async () => {
       try {
-        setLoading(true);
         const res = await fetch(`/api/users/${encodeURIComponent(username)}/work-experience`);
         if (!res.ok) throw new Error('Failed to load experiences');
         const json = await res.json();
-        const list: ExperienceItem[] = (json?.data?.experiences || []).map((e: any) => ({ id: e.id, company_name: e.company_name }));
+        const list: ExperienceItem[] = (json?.data?.experiences || []).map((e: { id: string; company_name: string }) => ({ id: e.id, company_name: e.company_name }));
         setExperiences(list);
         setExperienceId(list[0]?.id || '');
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load experiences');
-      } finally {
-        setLoading(false);
       }
     };
     if (username) void load();
   }, [username]);
 
-  const canSubmit = useMemo(() => {
-    const hasCompany = mode === 'existing' ? !!experienceId : companyName.trim().length > 0;
-    const hasPosition = position.trim().length > 0;
-    const hasStart = !!startDate;
-    return hasCompany && hasPosition && hasStart && !submitting;
-  }, [mode, experienceId, companyName, position, startDate, submitting]);
+  const errors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (mode === 'existing') {
+      if (!experienceId) e.experienceId = 'Please choose a company.';
+    } else {
+      if (!companyName.trim()) e.companyName = 'Company name is required.';
+    }
+    if (!position.trim()) e.position = 'Position is required.';
+    if (!startDate) e.startDate = 'Start date is required.';
+    if (!isCurrent && endDate && startDate && endDate < startDate) e.endDate = 'End date cannot be before start date.';
+    return e;
+  }, [mode, experienceId, companyName, position, startDate, endDate, isCurrent]);
+
+  const canSubmit = useMemo(() => Object.keys(errors).length === 0 && !submitting, [errors, submitting]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -94,10 +103,11 @@ export default function CreateExperiencePage() {
       });
       if (!res.ok) throw new Error('Failed to add position');
 
-      // Go back to edit experiences page
-      router.push(`/profile/${encodeURIComponent(username)}/experiences/edit`);
+      showToast('success', 'Position added');
+      // Small delay so toast is visible
+      setTimeout(() => router.push(`/profile/${encodeURIComponent(username)}/experiences/edit`), 400);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save');
+      showToast('error', e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSubmitting(false);
     }
@@ -148,10 +158,11 @@ export default function CreateExperiencePage() {
                   <input
                     type="text"
                     placeholder="Company Name"
-                    className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
+                    className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.companyName ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'} mb-1`}
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                   />
+                  {errors.companyName && <p className="text-xs text-red-400 mb-2">{errors.companyName}</p>}
                   <input
                     type="text"
                     placeholder="Domain"
@@ -161,6 +172,7 @@ export default function CreateExperiencePage() {
                   />
                 </>
               )}
+              {errors.experienceId && mode === 'existing' && <p className="text-xs text-red-400 mt-1">{errors.experienceId}</p>}
             </div>
 
             <hr className="my-6 border-border" />
@@ -171,10 +183,11 @@ export default function CreateExperiencePage() {
               <input
                 type="text"
                 placeholder="Position"
-                className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
+                className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.position ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'} mb-1`}
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
               />
+              {errors.position && <p className="text-xs text-red-400 mb-2">{errors.position}</p>}
               <textarea
                 placeholder="Description"
                 rows={5}
@@ -191,10 +204,11 @@ export default function CreateExperiencePage() {
                 <input
                   type="date"
                   placeholder="Start Date"
-                  className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.startDate ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'}`}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
+                {errors.startDate && <p className="text-xs text-red-400 -mt-1">{errors.startDate}</p>}
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={isCurrent} onChange={(e) => { setIsCurrent(e.target.checked); if (e.target.checked) setEndDate(''); }} />
                   I currently work here
@@ -202,11 +216,12 @@ export default function CreateExperiencePage() {
                 <input
                   type="date"
                   placeholder="End Date"
-                  className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                  className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.endDate ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'} disabled:opacity-50`}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   disabled={isCurrent}
                 />
+                {errors.endDate && <p className="text-xs text-red-400 -mt-1">{errors.endDate}</p>}
               </div>
             </div>
 
@@ -228,6 +243,13 @@ export default function CreateExperiencePage() {
                 <Check className="h-4 w-4" /> Save
               </button>
             </div>
+          
+            {/* Toast */}
+            {toast && (
+              <div className={`fixed right-4 bottom-4 z-50 px-4 py-3 rounded-lg border shadow-lg ${toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400/50 text-black' : 'bg-red-600/90 border-red-400/50 text-white'}`}>
+                {toast.message}
+              </div>
+            )}
           </div>
         </div>
       </div>

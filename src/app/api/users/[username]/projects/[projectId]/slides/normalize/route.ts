@@ -55,7 +55,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     const changed = results.filter(Boolean);
 
     return NextResponse.json({ ok: true, updated: changed }, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('[slides normalize POST] exception', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

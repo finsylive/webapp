@@ -72,9 +72,8 @@ export async function GET(
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    // Bind Supabase to cookies so RLS applies
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    // Bind Supabase to cookies so RLS applies (Next.js 15: pass cookies function directly)
+    const supabase = createRouteHandlerClient({ cookies });
 
     // 1) Fetch user by username (exact, case-sensitive match as stored)
     const { data: userRow, error: userError } = await supabase

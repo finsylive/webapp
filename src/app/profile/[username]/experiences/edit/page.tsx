@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Reorder } from 'framer-motion';
-import { ArrowLeft, Plus, Trash2, GripVertical, Building2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, GripVertical, Building2, Pencil } from 'lucide-react';
 
 // Types aligned with our API at /api/users/[username]/work-experience
 
@@ -38,19 +38,8 @@ export default function EditExperiencesPage() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({
-    mode: 'existing' as 'existing' | 'new',
-    experienceId: '' as string,
-    companyName: '',
-    domain: '',
-    position: '',
-    description: '',
-    startDate: '',
-    isCurrent: false,
-    endDate: '',
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Removed unused local form state and submitting flag
 
   const loadExperiences = async () => {
     try {
@@ -65,6 +54,27 @@ export default function EditExperiencesPage() {
       setError(e instanceof Error ? e.message : 'Failed to load experiences');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteExperience = async (id: string) => {
+    if (!username) return;
+    // optimistic UI
+    const prev = items;
+    setDeletingId(id);
+    setItems((cur) => cur.filter((x) => x.id !== id));
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(username)}/work-experience?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setSavedAt(Date.now());
+    } catch (e) {
+      // revert on failure
+      setItems(prev);
+      console.error(e);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -105,74 +115,9 @@ export default function EditExperiencesPage() {
     };
   }, [items, username]);
 
-  const resetForm = () => {
-    setForm({
-      mode: 'existing',
-      experienceId: items[0]?.id || '',
-      companyName: '',
-      domain: '',
-      position: '',
-      description: '',
-      startDate: '',
-      isCurrent: false,
-      endDate: '',
-    });
-  };
+  // Removed unused resetForm helper
 
-  const handleSubmitAdd = async () => {
-    if (submitting) return;
-    try {
-      setSubmitting(true);
-      // Validate
-      if (form.mode === 'existing' && !form.experienceId) {
-        alert('Please choose a company');
-        return;
-      }
-      if (form.mode === 'new' && !form.companyName.trim()) {
-        alert('Please enter company name');
-        return;
-      }
-      if (!form.position.trim()) {
-        alert('Please enter position');
-        return;
-      }
-
-      let experienceId = form.experienceId;
-      if (form.mode === 'new') {
-        const resExp = await fetch(`/api/users/${encodeURIComponent(username)}/work-experience`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyName: form.companyName.trim(), domain: form.domain.trim() || null }),
-        });
-        if (!resExp.ok) throw new Error('Failed to create company');
-        const expJson = await resExp.json();
-        experienceId = expJson?.data?.id;
-      }
-
-      const payload = {
-        experienceId,
-        position: form.position.trim(),
-        description: form.description.trim() || null,
-        startDate: form.startDate || null,
-        endDate: form.isCurrent ? null : (form.endDate || null),
-      };
-      const resPos = await fetch(`/api/users/${encodeURIComponent(username)}/positions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!resPos.ok) throw new Error('Failed to add position');
-
-      await loadExperiences();
-      setAddOpen(false);
-      resetForm();
-    } catch (e) {
-      console.error(e);
-      alert(e instanceof Error ? e.message : 'Failed to add position');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // Removed unused handleSubmitAdd function to satisfy lints
 
   return (
     <DashboardLayout>
@@ -237,11 +182,19 @@ export default function EditExperiencesPage() {
                         <GripVertical className="h-4 w-4" />
                         Drag to reorder
                       </div>
+                      <Link
+                        href={`/profile/${encodeURIComponent(username)}/experiences/${encodeURIComponent(exp.id)}/edit`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-sm"
+                        title="Edit this experience"
+                      >
+                        <Pencil className="h-4 w-4" /> Edit
+                      </Link>
                       <button
                         type="button"
-                        className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground"
+                        className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground disabled:opacity-40"
                         title="Delete experience"
-                        onClick={() => alert('Delete action can be wired up next.')}
+                        onClick={() => deleteExperience(exp.id)}
+                        disabled={deletingId === exp.id}
                       >
                         <Trash2 className="h-5 w-5" />
                       </button>
@@ -251,13 +204,18 @@ export default function EditExperiencesPage() {
                   {/* Positions */}
                   <div className="mt-3">
                     <div className="text-sm text-muted-foreground mb-1">Positions</div>
-                    <ul className="space-y-1">
+                    <ul className="space-y-2">
                       {(exp.positions || []).map((p) => (
-                        <li key={p.id} className="flex items-center gap-2">
-                          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                          <span className="text-sm">
-                            {p.position}
-                          </span>
+                        <li key={p.id} className="flex items-start gap-2">
+                          <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                          <div className="text-sm">
+                            <div className="font-medium">{p.position}</div>
+                            {p.description && (
+                              <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                {p.description}
+                              </div>
+                            )}
+                          </div>
                         </li>
                       ))}
                       {(!exp.positions || exp.positions.length === 0) && (

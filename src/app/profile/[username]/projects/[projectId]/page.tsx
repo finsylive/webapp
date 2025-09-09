@@ -18,6 +18,7 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
     tagline?: string | null;
     description?: string | null;
     category?: string | null;
+    category_id?: string | null;
     status?: string | null;
     url?: string | null;
     created_at?: string | null;
@@ -100,7 +101,15 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
           setSections((sectionsResp as { data: ProjectTextSection[] })?.data || []);
           try {
             const envList = Array.isArray(envRes) ? envRes : [];
-            setEnvironments(envList.map((e:any)=>({ id: e.id, name: e.name })));
+            setEnvironments(
+              envList
+                .filter((e: unknown): e is { id: string; name: string } => {
+                  if (typeof e !== 'object' || e === null) return false;
+                  const maybe = e as { id?: unknown; name?: unknown };
+                  return typeof maybe.id === 'string' && typeof maybe.name === 'string';
+                })
+                .map((e) => ({ id: e.id, name: e.name }))
+            );
           } catch {}
         }
       } catch (e: unknown) {
@@ -234,9 +243,9 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
                         {item.tagline || item.description}
                       </p>
                     ) : null}
-                    {(item.category || (item as any)?.category_id) && (
+                    {(item.category || item.category_id) && (
                       <div className="mt-1 text-emerald-400 text-sm">
-                        {environments.find(e=> e.id === (item.category || (item as any)?.category_id))?.name || item.category}
+                        {environments.find(e=> e.id === (item.category || item.category_id || ''))?.name || item.category}
                       </div>
                     )}
                     {item.url && (

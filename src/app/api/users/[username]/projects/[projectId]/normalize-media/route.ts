@@ -53,7 +53,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     if (updErr) return NextResponse.json({ error: updErr.message }, { status: 400 });
 
     return NextResponse.json({ ok: true, updated: true, patch });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('[projects normalize-media POST] exception', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
