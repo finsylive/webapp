@@ -34,14 +34,7 @@ const HomePage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin mb-6 shadow-lg"></div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-            <p className="text-foreground text-xl font-medium">Loading your experience</p>
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-500"></div>
-          </div>
-        </div>
+        <div className="w-12 h-12 rounded-full border-4 border-primary/70 border-t-transparent animate-spin shadow-lg" aria-label="Loading" />
       </div>
     );
   }

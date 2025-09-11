@@ -37,6 +37,7 @@ export const Sidebar = React.memo(function Sidebar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<{avatar_url?: string | null, full_name?: string, username?: string} | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,15 +159,6 @@ export const Sidebar = React.memo(function Sidebar() {
     setIsDropdownOpen(prev => !prev);
   }, []);
 
-  const handleDropdownItemClick = useCallback((action: () => void) => {
-    return (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDropdownOpen(false);
-      action();
-    };
-  }, []);
-
   // Handle click outside dropdown
   useEffect(() => {
     if (!isDropdownOpen) return;
@@ -233,11 +225,26 @@ export const Sidebar = React.memo(function Sidebar() {
                   </Link>
                   <div className="h-px bg-border/60 my-1" />
                   <button 
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 hover:text-red-500 transition-colors text-left"
-                    onClick={handleDropdownItemClick(signOut)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 hover:text-red-500 transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsSigningOut(true);
+                      try {
+                        await signOut();
+                      } finally {
+                        setIsSigningOut(false);
+                      }
+                    }}
+                    disabled={isSigningOut}
                   >
                     <LogOut className="h-4 w-4 opacity-80" />
-                    <span>Sign out</span>
+                    <span className="flex-1">{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
+                    {isSigningOut && (
+                      <span className="ml-2 inline-flex items-center">
+                        <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>

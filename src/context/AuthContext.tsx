@@ -110,6 +110,12 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
       // Clear state immediately for better UX
       setSession(null);
       setUser(null);
+
+      // Redirect to login (home) page after sign out
+      if (typeof window !== 'undefined') {
+        // Replace history entry to prevent navigating back into authed pages
+        window.location.replace('/');
+      }
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {

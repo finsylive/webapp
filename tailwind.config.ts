@@ -5,6 +5,8 @@ export default {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    // Exclude API routes from scanning to prevent Tailwind from tracking non-UI files
+    "!./src/app/api/**",
   ],
   theme: {
     extend: {
