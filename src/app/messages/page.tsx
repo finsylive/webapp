@@ -4,7 +4,6 @@ import { MessageCircle } from 'lucide-react';
 
 export default function MessagesPage() {
   // Removed unused isDarkMode from useTheme
-
   return (
     <div className="flex flex-col items-center justify-center h-full bg-transparent">
       <div className="w-24 h-24 rounded-full mb-6 flex items-center justify-center border-2 border-dashed border-border/50 bg-card/50 backdrop-blur-sm">
