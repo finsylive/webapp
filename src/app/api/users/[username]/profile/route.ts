@@ -69,7 +69,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const viewerId = searchParams.get('viewerId');
     const { username: rawUsername } = await params;
-    const username = (rawUsername || '').trim().toLowerCase();
+    const username = (rawUsername || '').trim();
 
     if (!username) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
@@ -80,11 +80,11 @@ export async function GET(
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // 1) Fetch user by username (exact, case-sensitive match as stored)
+    // 1) Fetch user by username (case-insensitive)
     const { data: userRow, error: userError } = await supabase
       .from('users')
       .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, user_type, is_verified, about')
-      .eq('username', username)
+      .ilike('username', username)
       .maybeSingle();
 
     if (userError) {

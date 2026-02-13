@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Post, fetchPosts } from '@/api/posts';
 import { PostCard } from './PostCard';
+import { FeedSuggestions } from '@/components/feed/FeedSuggestions';
+import { TrendingPosts } from '@/components/feed/TrendingPosts';
+import { useFeedRecommendations } from '@/hooks/useFeedRecommendations';
 
 type PostListProps = {
   environmentId: string;
@@ -17,6 +20,7 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const { suggestedUsers, trendingPosts, isLoading: recsLoading, followUser } = useFeedRecommendations();
 
   useEffect(() => {
     const loadInitial = async () => {
@@ -158,8 +162,22 @@ export function PostList({ environmentId, refreshTrigger = 0 }: PostListProps) {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+      {posts.map((post, index) => (
+        <div key={post.id}>
+          <PostCard post={post} />
+          {/* Suggested users after the 3rd post */}
+          {index === 2 && posts.length >= 3 && (
+            <div className="mt-6">
+              <FeedSuggestions users={suggestedUsers} isLoading={recsLoading} onFollow={followUser} />
+            </div>
+          )}
+          {/* Trending posts after the 8th post */}
+          {index === 7 && posts.length >= 8 && (
+            <div className="mt-6">
+              <TrendingPosts posts={trendingPosts} isLoading={recsLoading} />
+            </div>
+          )}
+        </div>
       ))}
       {/* Sentinel for infinite scroll */}
       {hasMore && (

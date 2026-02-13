@@ -7,6 +7,7 @@ import { use, useEffect, useMemo, useState, useCallback } from 'react';
 import { ArrowLeft, Pencil, Rocket, Calendar, ExternalLink, Trash2, BadgeCheck, Images, ZoomIn } from 'lucide-react';
 import { getProject, deleteProject as apiDeleteProject, listProjectSlides, listProjectTextSections, type ProjectSlide, type ProjectTextSection } from '@/api/projects';
 import { toProxyUrl } from '@/utils/imageUtils';
+import { useUserData } from '@/hooks/useUserData';
 
 export default function ProjectViewPage({ params }: { params: Promise<{ username: string; projectId: string }> }) {
   const { username, projectId } = use(params);
@@ -46,6 +47,8 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
   const [environments, setEnvironments] = useState<Array<{ id: string; name: string }>>([]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const { userData } = useUserData();
+  const isOwner = userData?.username?.toLowerCase() === username?.toLowerCase();
 
   // Lightbox controls (defined after slides state)
   const openLightbox = useCallback((idx: number) => {
@@ -171,11 +174,13 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
             <Link href={`/profile/${encodeURIComponent(username)}/projects`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-5 w-5 mr-1" /> Back
             </Link>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Link href={`/profile/${encodeURIComponent(username)}/projects`} className="p-2 rounded-lg hover:bg-white/5" title="Edit Project">
-                <Pencil className="h-5 w-5" />
-              </Link>
-            </div>
+            {isOwner && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Link href={`/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}/edit`} className="p-2 rounded-lg hover:bg-white/5" title="Edit Project">
+                  <Pencil className="h-5 w-5" />
+                </Link>
+              </div>
+            )}
           </div>
 
           {loading ? (
@@ -209,11 +214,13 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
                     <ArrowLeft className="h-5 w-5" />
                   </Link>
                 </div>
-                <div className="absolute top-3 right-3 flex gap-2">
-                  <Link href={`/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}/edit`} className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-black/50 hover:bg-black/60 border border-white/10 text-white/90" title="Edit">
-                    <Pencil className="h-5 w-5" />
-                  </Link>
-                </div>
+                {isOwner && (
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <Link href={`/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}/edit`} className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-black/50 hover:bg-black/60 border border-white/10 text-white/90" title="Edit">
+                      <Pencil className="h-5 w-5" />
+                    </Link>
+                  </div>
+                )}
 
                 {/* Title chip */}
                 <div className="absolute left-3 bottom-3">
@@ -372,17 +379,19 @@ export default function ProjectViewPage({ params }: { params: Promise<{ username
               </div>
 
               {/* Owner actions */}
-              <div className="rounded-2xl bg-card/60 border border-border p-4">
-                <div className="text-sm font-medium mb-3">Owner Actions</div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Link href={`/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}/edit`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 px-4 py-2 text-sm">
-                    <Pencil className="h-4 w-4" /> Edit Project
-                  </Link>
-                  <button onClick={onDelete} disabled={deleting} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 text-red-300 hover:bg-red-500/10 px-4 py-2 text-sm disabled:opacity-60">
-                    <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting…' : 'Delete Project'}
-                  </button>
+              {isOwner && (
+                <div className="rounded-2xl bg-card/60 border border-border p-4">
+                  <div className="text-sm font-medium mb-3">Owner Actions</div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Link href={`/profile/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}/edit`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 px-4 py-2 text-sm">
+                      <Pencil className="h-4 w-4" /> Edit Project
+                    </Link>
+                    <button onClick={onDelete} disabled={deleting} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 text-red-300 hover:bg-red-500/10 px-4 py-2 text-sm disabled:opacity-60">
+                      <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting…' : 'Delete Project'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

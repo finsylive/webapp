@@ -557,7 +557,7 @@ export default function PublicProfilePage() {
                     <div className="grid grid-cols-2 gap-4">
                       {/* Portfolio */}
                       <Link
-                        href={`/profile/${encodeURIComponent(username)}/portfolios/edit`}
+                        href={isOwnProfile ? `/profile/${encodeURIComponent(username)}/portfolios/edit` : `/profile/${encodeURIComponent(username)}/portfolios`}
                         className={`group relative overflow-hidden rounded-xl border ${
                           isDarkMode ? 'border-teal-500/30 hover:border-teal-500/50' : 'border-teal-300 hover:border-teal-400'
                         } bg-card/50 p-5 transition-all hover:shadow-md`}

@@ -13,6 +13,9 @@ export async function createAuthClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: {
+        name: 'sb-web-auth',
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();

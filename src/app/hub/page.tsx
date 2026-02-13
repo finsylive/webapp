@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 // Local util: determine if a competition has ended
 function isEnded(c: { deadline?: string | null }) {
@@ -27,6 +27,31 @@ type CompetitionItem = {
   banner_image_url?: string | null;
 };
 
+type JobItem = {
+  id: string;
+  title: string;
+  company: string;
+  description?: string | null;
+  location?: string | null;
+  salary_range?: string | null;
+  job_type: string;
+  deadline?: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+type GigItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  budget?: string | null;
+  duration?: string | null;
+  skills_required?: string[];
+  deadline?: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
 // Resolve a banner URL that might be a storage path
 function resolveBannerUrl(raw?: string | null): string | null {
   if (!raw) return null;
@@ -40,11 +65,13 @@ function resolveBannerUrl(raw?: string | null): string | null {
       return toProxyUrl(`https://${bucket}.s3.amazonaws.com/${key}`);
     }
   }
+  // Supabase Storage public URLs — use directly (no proxy needed)
+  if (raw.includes('/storage/v1/object/public/')) return raw;
   if (raw.startsWith('http')) return toProxyUrl(raw);
   // Treat as storage path in the 'media' bucket by default
   try {
     const { data } = supabase.storage.from('media').getPublicUrl(raw);
-    if (data?.publicUrl) return toProxyUrl(data.publicUrl);
+    if (data?.publicUrl) return data.publicUrl;
   } catch {}
   return null;
 }
@@ -210,56 +237,174 @@ const CompetitionRowCard = ({ c }: { c: CompetitionItem }) => {
   );
 };
 
+const jobTypeLabels: Record<string, string> = {
+  'full-time': 'Full-time',
+  'part-time': 'Part-time',
+  'contract': 'Contract',
+  'remote': 'Remote',
+  'internship': 'Internship',
+};
+
+const JobRowCard = ({ job }: { job: JobItem }) => {
+  const ended = isEnded(job);
+  return (
+    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 transition">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-base md:text-lg font-semibold text-white truncate">{job.title}</h4>
+            {ended ? (
+              <span className="text-[11px] md:text-xs font-semibold text-rose-300 bg-rose-400/10 border border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Closed</span>
+            ) : (
+              <span className="text-[11px] md:text-xs font-semibold text-emerald-300 bg-emerald-400/10 border border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Open</span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">{job.company}</p>
+          {job.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{job.description}</p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="text-[11px] md:text-xs font-semibold text-blue-300 bg-blue-400/10 border border-blue-400/30 px-2.5 py-0.5 rounded-full">
+              {jobTypeLabels[job.job_type] || job.job_type}
+            </span>
+            {job.location && <Stat icon={MapPin}>{job.location}</Stat>}
+            {job.salary_range && <Stat icon={DollarSign}>{job.salary_range}</Stat>}
+            {job.deadline && (
+              <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(job.deadline), 'dd MMM, yyyy')}</Stat>
+            )}
+          </div>
+        </div>
+        <button className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-500 active:scale-95 transition">
+          Apply
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const GigRowCard = ({ gig }: { gig: GigItem }) => {
+  const ended = isEnded(gig);
+  return (
+    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 transition">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-base md:text-lg font-semibold text-white truncate">{gig.title}</h4>
+            {ended ? (
+              <span className="text-[11px] md:text-xs font-semibold text-rose-300 bg-rose-400/10 border border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Closed</span>
+            ) : (
+              <span className="text-[11px] md:text-xs font-semibold text-emerald-300 bg-emerald-400/10 border border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Open</span>
+            )}
+          </div>
+          {gig.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{gig.description}</p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {gig.budget && <Stat icon={DollarSign}>{gig.budget}</Stat>}
+            {gig.duration && <Stat icon={Clock}>{gig.duration}</Stat>}
+            {gig.deadline && (
+              <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(gig.deadline), 'dd MMM, yyyy')}</Stat>
+            )}
+          </div>
+          {gig.skills_required && gig.skills_required.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {gig.skills_required.map((skill) => (
+                <span
+                  key={skill}
+                  className="text-[11px] font-medium text-purple-300 bg-purple-400/10 border border-purple-400/30 px-2 py-0.5 rounded-full"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-500 active:scale-95 transition">
+          Apply
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function HubPage() {
   const [tab, setTab] = useState<TabKey>('competitions');
   const [loading, setLoading] = useState(true);
   const [featured, setFeatured] = useState<CompetitionItem[]>([]);
   const [list, setList] = useState<CompetitionItem[]>([]);
+  const [jobs, setJobs] = useState<JobItem[]>([]);
+  const [gigs, setGigs] = useState<GigItem[]>([]);
 
   useEffect(() => {
-    const run = async () => {
+    if (tab === 'competitions') {
       setLoading(true);
-      try {
-        // Try upcoming by deadline first
-        const fRes = await fetch(`/api/competitions?activeOnly=true&orderBy=deadline&ascending=true&limit=1`, { cache: 'no-store' });
-        const fJson = await fRes.json();
-        const upcoming = Array.isArray(fJson.data) ? fJson.data : [];
-        if (upcoming.length > 0) {
-          setFeatured(upcoming);
-        } else {
-          const latestRes = await fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=1`, { cache: 'no-store' });
-          const latestJson = await latestRes.json();
-          setFeatured(Array.isArray(latestJson.data) ? latestJson.data : []);
-        }
+      (async () => {
+        try {
+          const fRes = await fetch(`/api/competitions?activeOnly=true&orderBy=deadline&ascending=true&limit=1`, { cache: 'no-store' });
+          const fJson = await fRes.json();
+          const upcoming = Array.isArray(fJson.data) ? fJson.data : [];
+          if (upcoming.length > 0) {
+            setFeatured(upcoming);
+          } else {
+            const latestRes = await fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=1`, { cache: 'no-store' });
+            const latestJson = await latestRes.json();
+            setFeatured(Array.isArray(latestJson.data) ? latestJson.data : []);
+          }
 
-        const listRes = await fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=20`, { cache: 'no-store' });
-        const listJson = await listRes.json();
-        setList(Array.isArray(listJson.data) ? listJson.data : []);
-      } catch (e) {
-        console.error('Failed to load competitions', e);
-        setFeatured([]);
-        setList([]);
-      }
-      setLoading(false);
-    };
-    if (tab === 'competitions') run();
-    return () => {};
+          const listRes = await fetch(`/api/competitions?orderBy=created_at&ascending=false&limit=20`, { cache: 'no-store' });
+          const listJson = await listRes.json();
+          setList(Array.isArray(listJson.data) ? listJson.data : []);
+        } catch (e) {
+          console.error('Failed to load competitions', e);
+          setFeatured([]);
+          setList([]);
+        }
+        setLoading(false);
+      })();
+    } else if (tab === 'jobs') {
+      setLoading(true);
+      (async () => {
+        try {
+          const res = await fetch(`/api/jobs?activeOnly=true&orderBy=created_at&ascending=false&limit=20`, { cache: 'no-store' });
+          const json = await res.json();
+          setJobs(Array.isArray(json.data) ? json.data : []);
+        } catch (e) {
+          console.error('Failed to load jobs', e);
+          setJobs([]);
+        }
+        setLoading(false);
+      })();
+    } else if (tab === 'gigs') {
+      setLoading(true);
+      (async () => {
+        try {
+          const res = await fetch(`/api/gigs?activeOnly=true&orderBy=created_at&ascending=false&limit=20`, { cache: 'no-store' });
+          const json = await res.json();
+          setGigs(Array.isArray(json.data) ? json.data : []);
+        } catch (e) {
+          console.error('Failed to load gigs', e);
+          setGigs([]);
+        }
+        setLoading(false);
+      })();
+    }
   }, [tab]);
+
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
-        {/* Tabs header (brand removed) */}
+        {/* Tabs header */}
         <div className="flex items-center justify-end">
           <PillTabs active={tab} onChange={setTab} />
         </div>
 
         {/* Section title */}
         <h2 className="mt-6 text-2xl md:text-3xl font-extrabold text-white">{tab === 'competitions' ? 'Competitions' : tab === 'jobs' ? 'Jobs' : 'Gigs'}</h2>
-        {tab === 'competitions' && (
-          <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-emerald-300/40 via-emerald-400/30 to-transparent w-40" />
-        )}
+        <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-emerald-300/40 via-emerald-400/30 to-transparent w-40" />
 
-        {/* Content per tab */}
+        {/* Competitions tab */}
         {tab === 'competitions' && (
           <div className="mt-6 space-y-6">
             <MonthlyCompetitionCard />
@@ -295,13 +440,40 @@ export default function HubPage() {
           </div>
         )}
 
-        {tab !== 'competitions' && (
-          <div className="mt-10 text-center text-muted-foreground">
-            Content for “{tab}” is coming soon.
+        {/* Jobs tab */}
+        {tab === 'jobs' && (
+          <div className="mt-6 grid gap-4">
+            {loading ? (
+              <>
+                <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+              </>
+            ) : jobs.length === 0 ? (
+              <div className="mt-10 text-center text-muted-foreground">No jobs posted yet.</div>
+            ) : (
+              jobs.map(job => <JobRowCard key={job.id} job={job} />)
+            )}
+          </div>
+        )}
+
+        {/* Gigs tab */}
+        {tab === 'gigs' && (
+          <div className="mt-6 grid gap-4">
+            {loading ? (
+              <>
+                <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+              </>
+            ) : gigs.length === 0 ? (
+              <div className="mt-10 text-center text-muted-foreground">No gigs posted yet.</div>
+            ) : (
+              gigs.map(gig => <GigRowCard key={gig.id} gig={gig} />)
+            )}
           </div>
         )}
       </div>
     </DashboardLayout>
   );
 }
-
