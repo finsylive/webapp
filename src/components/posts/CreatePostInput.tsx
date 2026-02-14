@@ -813,8 +813,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             )}
           </div>
           <div className="flex-1">
-            <label className="text-xs font-semibold text-gray-300 mb-1 block">Select Environment</label>
-            <div className="rounded-2xl border border-[#1e2a24] bg-transparent p-3">
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Select Environment</label>
+            <div className="rounded-2xl border border-border bg-transparent p-3">
               {/* Search */}
               <div className="relative mb-2">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -825,7 +825,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                   value={envQuery}
                   onChange={(e) => setEnvQuery(e.target.value)}
                   placeholder="Search environments"
-                  className="h-9 w-full pl-8 pr-3 text-sm rounded-xl border border-[#1e2a24] bg-[#0f1713] focus:outline-none focus:ring-2 focus:ring-emerald-600/30"
+                  className="h-9 w-full pl-8 pr-3 text-sm rounded-xl border border-border bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               {/* Chips */}
@@ -833,7 +833,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                 {envLoading && (
                   <>
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="h-9 w-24 rounded-2xl bg-[#0f1713] border border-[#1e2a24] animate-pulse" />
+                      <div key={i} className="h-9 w-24 rounded-2xl bg-muted/50 border border-border animate-pulse" />
                     ))}
                   </>
                 )}
@@ -844,22 +844,22 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                       key={env.id}
                       type="button"
                       onClick={() => { setSelectedEnvironment(env); setEnvironmentId(env.id); }}
-                      className={`flex items-center gap-2 px-3 h-9 rounded-2xl border whitespace-nowrap transition ${selected ? 'bg-emerald-700/20 border-emerald-500/40 text-emerald-100 ring-2 ring-emerald-600/30' : 'bg-[#0f1713] border-[#1e2a24] text-gray-200 hover:bg-[#14211b]'}`}
+                      className={`flex items-center gap-2 px-3 h-9 rounded-2xl border whitespace-nowrap transition ${selected ? 'bg-primary/15 border-primary/40 text-primary ring-2 ring-primary/30' : 'bg-muted/50 border-border text-foreground hover:bg-muted'}`}
                     >
                       {env.picture ? (
                         <Image src={env.picture} alt={env.name} width={20} height={20} unoptimized className="h-5 w-5 rounded-full object-cover" />
                       ) : (
-                        <div className="h-5 w-5 rounded-full bg-[#233028] flex items-center justify-center text-[10px]">{env.name.charAt(0).toUpperCase()}</div>
+                        <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[10px]">{env.name.charAt(0).toUpperCase()}</div>
                       )}
                       <span className="text-xs font-semibold md:text-sm">{env.name}</span>
                     </button>
                   );
                 })}
                 {!envLoading && environments.length > 0 && (environments.filter(env => env.name.toLowerCase().includes(envQuery.toLowerCase())).length === 0) && (
-                  <p className="text-xs text-gray-400">No environments match your search.</p>
+                  <p className="text-xs text-muted-foreground">No environments match your search.</p>
                 )}
                 {!envLoading && environments.length === 0 && (
-                  <p className="text-xs text-gray-400">No environments available.</p>
+                  <p className="text-xs text-muted-foreground">No environments available.</p>
                 )}
               </div>
               {error && (
@@ -871,14 +871,14 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
 
         {/* Post Type chips */}
         <div>
-          <h3 className="text-sm font-semibold text-gray-200 mb-2">Post Type</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Post Type</h3>
           <div className="grid grid-cols-3 gap-3">
             <button
               type="button"
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
                 postType === 'text'
-                  ? 'bg-emerald-700/30 border-emerald-500/40 text-emerald-200'
-                  : 'bg-[#141c18] border-[#233028] text-gray-300'
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('text')}
             >
@@ -889,8 +889,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               type="button"
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
                 postType === 'media'
-                  ? 'bg-emerald-700/30 border-emerald-500/40 text-emerald-200'
-                  : 'bg-[#141c18] border-[#233028] text-gray-300'
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('media')}
             >
@@ -901,8 +901,8 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               type="button"
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
                 postType === 'poll'
-                  ? 'bg-emerald-700/30 border-emerald-500/40 text-emerald-200'
-                  : 'bg-[#141c18] border-[#233028] text-gray-300'
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('poll')}
             >
@@ -910,16 +910,16 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               <span className="text-sm font-semibold">Poll</span>
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-400">Create interactive polls for your community.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Create interactive polls for your community.</p>
         </div>
 
         {/* Content section */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-200">Content</h3>
+            <h3 className="text-sm font-semibold text-foreground">Content</h3>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500">Press @ to mention</span>
-              <span className="text-xs text-gray-400">{content.length}/{MAX_CONTENT}</span>
+              <span className="text-xs text-muted-foreground">Press @ to mention</span>
+              <span className="text-xs text-muted-foreground">{content.length}/{MAX_CONTENT}</span>
             </div>
           </div>
           <div className="relative">
@@ -928,7 +928,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               value={content}
               onChange={handleContentChange}
               placeholder="What's on your mind? Type @ to mention someone"
-              className="w-full rounded-xl bg-[#101815] border border-[#1e2a24] focus:outline-none focus:ring-2 focus:ring-emerald-600/40 text-card-foreground placeholder:text-muted-foreground min-h-[140px] p-3"
+              className="w-full rounded-xl bg-muted/30 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground min-h-[140px] p-3"
               spellCheck="false"
               autoComplete="off"
             />
@@ -944,7 +944,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         {/* Media section */}
         {(postType === 'media' || imagePreviews.length > 0) && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-200 mb-2">Media</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Media</h3>
           <input
             type="file"
             ref={fileInputRef}
@@ -958,33 +958,33 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isSubmitting || isUploading || compressionProgress.isCompressing}
-            className="w-full rounded-2xl border border-[#1e2a24] bg-[#0f1b15] hover:bg-[#13211b] transition-colors p-6 flex flex-col items-center justify-center text-gray-300"
+            className="w-full rounded-2xl border border-border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors p-6 flex flex-col items-center justify-center text-muted-foreground"
           >
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-emerald-600/15 border border-emerald-500/30 mb-2">
+            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 border border-primary/30 mb-2">
               {isUploading || compressionProgress.isCompressing ? (
-                <div className="h-5 w-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                <ImageIcon className="h-6 w-6 text-emerald-300" />
+                <ImageIcon className="h-6 w-6 text-primary" />
               )}
             </div>
             
             {compressionProgress.isCompressing ? (
               <div className="text-center">
-                <div className="text-sm font-medium text-emerald-300">Processing Media...</div>
-                <div className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{compressionProgress.currentFile}</div>
-                <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
-                  <div 
-                    className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" 
+                <div className="text-sm font-medium text-primary">Processing Media...</div>
+                <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{compressionProgress.currentFile}</div>
+                <div className="w-full bg-muted rounded-full h-1.5 mt-2">
+                  <div
+                    className="bg-primary h-1.5 rounded-full transition-all duration-300"
                     style={{ width: `${compressionProgress.progress}%` }}
                   ></div>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">{compressionProgress.progress}% complete</div>
+                <div className="text-xs text-muted-foreground mt-1">{compressionProgress.progress}% complete</div>
               </div>
             ) : (
               <>
                 <div className="text-sm font-medium">Add Photos & Videos</div>
-                <div className="text-xs text-gray-400 mt-1">Images and videos will be optimized automatically</div>
-                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                <div className="text-xs text-muted-foreground mt-1">Images and videos will be optimized automatically</div>
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <ImageIcon className="h-3 w-3" />
                     <span>Photos</span>
@@ -1127,25 +1127,25 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         {/* Poll section */}
         {postType === 'poll' && (
           <div>
-            <h3 className="text-sm font-semibold text-gray-200 mb-2">Poll Setup</h3>
-            <div className="rounded-2xl border border-[#1e2a24] bg-[#0f1b15] p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground mb-2">Poll Setup</h3>
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
               {/* Poll Question */}
               <div>
-                <label className="text-xs font-semibold text-gray-300 mb-2 block">Poll Question</label>
+                <label className="text-xs font-semibold text-muted-foreground mb-2 block">Poll Question</label>
                 <input
                   type="text"
                   value={pollData.question}
                   onChange={(e) => updatePollQuestion(e.target.value)}
                   placeholder="Ask a question..."
-                  className="w-full rounded-xl bg-[#101815] border border-[#1e2a24] focus:outline-none focus:ring-2 focus:ring-emerald-600/40 text-card-foreground placeholder:text-muted-foreground p-3"
+                  className="w-full rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground p-3"
                   maxLength={200}
                 />
-                <div className="text-xs text-gray-500 mt-1">{pollData.question.length}/200</div>
+                <div className="text-xs text-muted-foreground mt-1">{pollData.question.length}/200</div>
               </div>
 
               {/* Poll Options */}
               <div>
-                <label className="text-xs font-semibold text-gray-300 mb-2 block">Poll Options</label>
+                <label className="text-xs font-semibold text-muted-foreground mb-2 block">Poll Options</label>
                 <div className="space-y-2">
                   {pollData.options.map((option, index) => (
                     <div key={index} className="flex items-center gap-2">
@@ -1155,10 +1155,10 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                           value={option}
                           onChange={(e) => updatePollOption(index, e.target.value)}
                           placeholder={`Option ${index + 1}`}
-                          className="w-full rounded-lg bg-[#141c18] border border-[#233028] focus:outline-none focus:ring-2 focus:ring-emerald-600/40 text-card-foreground placeholder:text-muted-foreground p-2.5 pr-10"
+                          className="w-full rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground p-2.5 pr-10"
                           maxLength={100}
                         />
-                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
                           {option.length}/100
                         </div>
                       </div>
@@ -1166,7 +1166,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                         <button
                           type="button"
                           onClick={() => removePollOption(index)}
-                          className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                          className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
                           aria-label="Remove option"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1181,14 +1181,14 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                   <button
                     type="button"
                     onClick={addPollOption}
-                    className="mt-2 flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                    className="mt-2 flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     Add Option (max 6)
                   </button>
                 )}
                 
-                <div className="text-xs text-gray-500 mt-2">
+                <div className="text-xs text-muted-foreground mt-2">
                   {pollData.options.filter(opt => opt.trim()).length} of {pollData.options.length} options filled
                 </div>
               </div>

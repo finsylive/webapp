@@ -1053,7 +1053,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
       {/* Environment Badge - Full width below user info */}
       {post.environment && (
         <div
-          className="flex items-center gap-3 text-sm bg-[#1C1F26] px-4 py-2 rounded-xl border border-[#2A2E38] w-fit hover:bg-[#222733] transition-colors cursor-pointer"
+          className="flex items-center gap-3 text-sm bg-muted/60 dark:bg-[#1C1F26] px-4 py-2 rounded-xl border border-border dark:border-[#2A2E38] w-fit hover:bg-muted dark:hover:bg-[#222733] transition-colors cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
             if (post.environment?.id) {
@@ -1065,7 +1065,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
           data-no-nav="true"
         >
           {post.environment.picture && !uiState.envImageError ? (
-            <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-[#3C4049]">
+            <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-border dark:ring-[#3C4049]">
               <Image
                 src={toProxyUrl(post.environment.picture, { width: 24, quality: 82 })}
                 alt={post.environment.name}
@@ -1080,7 +1080,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
           ) : (
             <Users className="h-5 w-5 text-gray-400" />
           )}
-          <span className="text-white font-semibold">{post.environment.name}</span>
+          <span className="text-foreground font-semibold">{post.environment.name}</span>
         </div>
       )}
     </div>
@@ -1106,7 +1106,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
   return (
     <article
-      className="group relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:bg-card/80 hover:border-border/80 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5 hover:-translate-y-1"
+      className="group relative bg-card border border-border rounded-3xl p-6 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-black/5 dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/50 dark:hover:bg-card/80 dark:hover:border-border/80 dark:hover:shadow-white/5 hover:-translate-y-1"
       onClick={onCardClick}
       role="button"
       tabIndex={0}
@@ -1135,7 +1135,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
             </Button>
             {uiState.isMenuOpen && (
               <div 
-                className="absolute right-0 mt-2 w-56 rounded-xl bg-popover text-popover-foreground border border-border/60 shadow-xl z-20 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                className="absolute right-0 mt-2 w-56 rounded-xl bg-popover text-popover-foreground border border-border shadow-xl z-20 overflow-hidden animate-in fade-in-0 zoom-in-95"
                 role="menu"
               >
                 <div className="py-1">
@@ -1225,7 +1225,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
         
         {/* Media */}
         {post.media && post.media.length > 0 && (
-          <div className="mb-5 rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border/20 p-2">
+          <div className="mb-5 rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-2">
             <MediaGallery
               items={post.media}
               onOpen={openLightbox}
@@ -1235,7 +1235,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
 
         {/* Poll */}
         {post.poll && (
-          <div className="mb-5 rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border/50 p-5 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="mb-5 rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 dark:from-card dark:to-card/50 border border-border p-5" onClick={(e) => e.stopPropagation()}>
             <div className="font-bold mb-4 text-foreground text-lg">{post.poll.question}</div>
             <div className="space-y-3">
               {post.poll.options?.map(option => {
@@ -1251,7 +1251,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 relative overflow-hidden ${
                         isSelected
                           ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10 transform scale-[1.02]' 
-                          : 'bg-muted/30 border-border/30 hover:bg-muted/50 hover:border-border/50 hover:scale-[1.01]'
+                          : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/40 hover:scale-[1.01]'
                       } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                       ${isCurrentlyVoting ? 'ring-2 ring-primary/30 animate-pulse' : ''}`}
                       onClick={() => handlePollVote(option.id)}
@@ -1293,7 +1293,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
               })}
             </div>
             {pollState.hasUserVoted && (
-              <div className="mt-4 pt-3 border-t border-border/30">
+              <div className="mt-4 pt-3 border-t border-border">
                 <p className="text-muted-foreground text-sm text-center">
                   {totalPollVotes} total vote{totalPollVotes !== 1 ? 's' : ''}
                 </p>
@@ -1309,7 +1309,7 @@ export const PostCard = memo(({ post, onReply, onLike }: PostCardProps) => {
         )}
         
         {/* Interaction buttons */}
-        <footer className="flex items-center justify-between pt-4 border-t border-border/30">
+        <footer className="flex items-center justify-between pt-4 border-t border-border">
           <Button 
             variant="ghost" 
             size="sm" 

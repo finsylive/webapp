@@ -210,21 +210,21 @@ export default function CompetitionDetailsPage() {
         {/* Stats & CTA */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border ${ended ? 'text-amber-300 bg-amber-400/10 border-amber-400/30' : 'text-emerald-300 bg-emerald-400/10 border-emerald-400/30'}`}>
+            <span className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border ${ended ? 'text-amber-600 dark:text-amber-300 bg-amber-400/10 border-amber-500/30 dark:border-amber-400/30' : 'text-emerald-700 dark:text-emerald-600 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30 dark:border-emerald-400/30'}`}>
               {ended ? 'Ended' : 'Open'}
             </span>
             {comp?.prize_pool && (
               <span className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-card/70 border border-border/60">
-                <Trophy className="h-4 w-4 text-emerald-300" />
-                <span className="text-emerald-300 font-bold">{comp.prize_pool}</span>
+                <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                <span className="text-emerald-600 dark:text-emerald-300 font-bold">{comp.prize_pool}</span>
               </span>
             )}
             <span className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-card/70 border border-border/60">
-              <Users className="h-4 w-4 text-emerald-300" />
+              <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
               <span>Participants: {participants}</span>
             </span>
             <span className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-card/70 border border-border/60">
-              <Clock className="h-4 w-4 text-emerald-300" />
+              <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
               <span>{comp?.deadline ? format(new Date(comp.deadline), 'dd MMM, yyyy') : 'No deadline'}</span>
             </span>
           </div>
@@ -234,13 +234,13 @@ export default function CompetitionDetailsPage() {
                 href={comp.external_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-500/90 hover:bg-emerald-500 text-white font-semibold px-5 py-3 transition active:scale-95 border border-emerald-400/40"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white font-semibold px-5 py-3 transition active:scale-95 border border-emerald-400/40"
               >
                 Join Competition
               </a>
             ) : (
               <button
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-500/90 hover:bg-emerald-500 text-white font-semibold px-5 py-3 transition active:scale-95 border border-emerald-400/40"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white font-semibold px-5 py-3 transition active:scale-95 border border-emerald-400/40"
                 disabled
                 title="Joining via internal projects coming soon"
               >

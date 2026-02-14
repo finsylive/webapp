@@ -135,9 +135,9 @@ export const Sidebar = React.memo(function Sidebar() {
         }`}
       >
         <div className={`${
-          isActive 
-            ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white' 
-            : '[&_svg]:text-current text-current group-hover:[&_img]:brightness-0 group-hover:[&_img]:invert group-hover:[&_svg]:text-white group-hover:text-white'
+          isActive
+            ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
+            : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
         }`}>
           <Icon className="h-5 w-5" />
         </div>
@@ -253,7 +253,7 @@ export const Sidebar = React.memo(function Sidebar() {
             {/* User Profile Button */}
             <button 
               onClick={toggleDropdown}
-              className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/50 hover:from-muted/70 hover:to-muted/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border hover:from-muted/70 hover:to-muted/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <div className="relative">
                 {userProfile?.avatar_url ? (
@@ -380,9 +380,9 @@ export function MobileSidebar() {
             }`}
           >
             <div className={`${
-              isActive 
-                ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white' 
-                : '[&_svg]:text-current text-current group-hover:[&_img]:brightness-0 group-hover:[&_img]:invert group-hover:[&_svg]:text-white group-hover:text-white'
+              isActive
+                ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
+                : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
             }`}>
               <item.icon className="h-4 w-4" />
             </div>

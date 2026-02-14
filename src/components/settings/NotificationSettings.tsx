@@ -157,7 +157,7 @@ export function NotificationSettings() {
           </div>
 
           {/* Additional Settings */}
-          <div className="space-y-4 pt-4 border-t border-border/30">
+          <div className="space-y-4 pt-4 border-t border-border">
             <h3 className="font-semibold text-foreground">Preferences</h3>
             
             <NotificationToggle

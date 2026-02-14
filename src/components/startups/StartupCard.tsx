@@ -72,7 +72,7 @@ export function StartupCard({ startup }: { startup: StartupProfile }) {
         )}
 
         {/* Footer */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/30">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
           {startup.founders && startup.founders.length > 0 && (
             <span className="flex items-center gap-1">
               <Users className="h-3.5 w-3.5" />

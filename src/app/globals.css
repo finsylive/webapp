@@ -260,7 +260,7 @@
 
 :root {
   /* Base colors */
-  --background: 0 0% 100%;
+  --background: 220 14% 96%;
   --foreground: 240 10% 3.9%;
   --card: 0 0% 100%;
   --card-foreground: 240 10% 3.9%;
@@ -352,7 +352,7 @@ body {
 /* Custom styles for ments-inspired design */
 @layer components {
   .post-card {
-    @apply backdrop-blur-xl bg-card/80 border border-border rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-card/90 hover:scale-[1.01] hover:border-border/50 min-w-0;
+    @apply backdrop-blur-xl bg-card/80 border border-border rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-card/90 hover:scale-[1.01] hover:border-border min-w-0;
   }
   
   .tag-badge {
