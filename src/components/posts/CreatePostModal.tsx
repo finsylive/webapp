@@ -321,14 +321,14 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
               <div className="flex items-center gap-3">
                 <div className="h-4 w-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-emerald-300">Processing Media</div>
+                  <div className="text-xs font-medium text-primary">Processing Media</div>
                   <div className="text-xs text-muted-foreground truncate">{compressionProgress.currentFile}</div>
                 </div>
                 <div className="text-xs text-muted-foreground">{compressionProgress.progress}%</div>
               </div>
               <div className="mt-2 w-full bg-muted rounded-full h-1">
                 <div 
-                  className="bg-emerald-500 h-1 rounded-full transition-all duration-300" 
+                  className="bg-primary h-1 rounded-full transition-all duration-300" 
                   style={{ width: `${compressionProgress.progress}%` }}
                 ></div>
               </div>
