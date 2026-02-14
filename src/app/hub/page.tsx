@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Wrench } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 // Local util: determine if a competition has ended
 function isEnded(c: { deadline?: string | null }) {
@@ -183,7 +183,7 @@ function resolveBannerUrl(raw?: string | null): string | null {
   try {
     const { data } = supabase.storage.from('media').getPublicUrl(raw);
     if (data?.publicUrl) return data.publicUrl;
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -307,7 +307,7 @@ const CompetitionRowCard = ({ c }: { c: CompetitionItem }) => {
           return url ? (
             <Image src={url} alt={c.title} fill className="object-cover" sizes="160px" />
           ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
           );
         })()}
       </div>
@@ -633,11 +633,10 @@ export default function HubPage() {
             {/* Category filter pills */}
             <div className="flex flex-wrap gap-2">
               <button
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                  resourceFilter === 'All'
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === 'All'
                     ? 'bg-primary/15 text-primary border border-primary/30'
                     : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                }`}
+                  }`}
                 onClick={() => setResourceFilter('All')}
               >
                 All
@@ -645,11 +644,10 @@ export default function HubPage() {
               {RESOURCE_CATEGORIES.map(cat => (
                 <button
                   key={cat}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                    resourceFilter === cat
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${resourceFilter === cat
                       ? 'bg-primary/15 text-primary border border-primary/30'
                       : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
-                  }`}
+                    }`}
                   onClick={() => setResourceFilter(cat)}
                 >
                   {cat}

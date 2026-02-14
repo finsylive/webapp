@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Base URL for Supabase public assets
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
 // Try to produce a browser-usable URL for a storage object reference.
 // Handles: https URLs, s3:// URLs, Supabase storage paths, bucket/key paths.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClient): Promise<string | null> {
   if (!u) return null;
   const s = u.trim();
@@ -37,7 +39,7 @@ async function toUsableUrl(u: string | null | undefined, supabase: SupabaseClien
     try {
       const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60);
       if (!error && data?.signedUrl) return data.signedUrl as string;
-    } catch {}
+    } catch { }
     if (supabaseUrl) {
       return `${supabaseUrl}/storage/v1/object/public/${path}`;
     }
@@ -58,7 +60,7 @@ type UserRow = {
   about: string | null;
 };
 
-export const dynamic = 'force-dynamic';
+
 
 // GET /api/users/[username]/profile?viewerId=...
 export async function GET(
@@ -75,10 +77,7 @@ export async function GET(
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = await createAuthClient();
 
     // 1) Fetch user by username (case-insensitive)
     const { data: userRow, error: userError } = await supabase
@@ -118,147 +117,111 @@ export async function GET(
       bio: u.about ?? null,
     } as const;
 
-    // 2) Followers/Following counts (graceful if table missing)
-    let followers = 0;
-    let following = 0;
-    try {
-      const { count: followersCount } = await supabase
-        .from('user_follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('followee_id', user.id);
+    // 2-5) Fetch ALL supplementary data in parallel for performance
+    const isOwnerViewing = viewerId === user.id;
 
-      const { count: followingCount } = await supabase
-        .from('user_follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('follower_id', user.id);
+    const [
+      followersResult,
+      followingResult,
+      experiencesResult,
+      projectsResult,
+      portfoliosResult,
+      startupsResult,
+      followCheckResult,
+    ] = await Promise.all([
+      // Followers count
+      (async () => {
+        try {
+          const r = await supabase
+            .from('user_follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('followee_id', user.id);
+          return r.count || 0;
+        } catch { return 0; }
+      })(),
+      // Following count
+      (async () => {
+        try {
+          const r = await supabase
+            .from('user_follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', user.id);
+          return r.count || 0;
+        } catch { return 0; }
+      })(),
+      // Work experiences with nested positions
+      (async () => {
+        try {
+          const r = await supabase
+            .from('work_experiences')
+            .select(`
+              id, user_id, company_name, domain, sort_order,
+              positions (id, experience_id, position, start_date, end_date, description, sort_order)
+            `)
+            .eq('user_id', user.id)
+            .order('sort_order', { ascending: true })
+            .order('sort_order', { ascending: true, foreignTable: 'positions' })
+            .order('start_date', { ascending: false, foreignTable: 'positions' })
+            .limit(25);
+          return r.data || [];
+        } catch { return []; }
+      })(),
+      // Projects count
+      (async () => {
+        try {
+          const r = await supabase
+            .from('projects')
+            .select('*', { count: 'exact', head: true })
+            .eq('owner_id', user.id);
+          return r.count || 0;
+        } catch { return 0; }
+      })(),
+      // Portfolios count
+      (async () => {
+        try {
+          const r = await supabase
+            .from('portfolios')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+          return r.count || 0;
+        } catch { return 0; }
+      })(),
+      // Startups
+      (async () => {
+        try {
+          let query = supabase
+            .from('startup_profiles')
+            .select('id, brand_name, stage, is_actively_raising')
+            .eq('owner_id', user.id);
+          if (!isOwnerViewing) query = query.eq('is_published', true);
+          const { data } = await query.order('created_at', { ascending: false }).limit(10);
+          return data || [];
+        } catch { return []; }
+      })(),
+      // Follow check
+      (async () => {
+        if (!viewerId || viewerId === user.id) return false;
+        try {
+          const r = await supabase
+            .from('user_follows')
+            .select('follower_id')
+            .eq('follower_id', viewerId)
+            .eq('followee_id', user.id)
+            .limit(1);
+          return !r.error && r.data && r.data.length > 0;
+        } catch { return false; }
+      })(),
+    ]);
 
-      followers = followersCount || 0;
-      following = followingCount || 0;
-    } catch {
-      // Ignore missing table or permission errors; keep zeros
-      followers = 0;
-      following = 0;
-    }
-
-    // 3) Work experiences with nested positions
-    type PositionRow = {
-      id: string;
-      experience_id: string;
-      position: string;
-      start_date: string | null;
-      end_date: string | null;
-      description: string | null;
-      sort_order: number | null;
-    };
-    type ExperienceRow = {
-      id: string;
-      user_id: string;
-      company_name: string;
-      domain: string | null;
-      sort_order: number | null;
-      positions: PositionRow[];
-    };
-    let experiences: ExperienceRow[] = [];
-    try {
-      const { data, error } = await supabase
-        .from('work_experiences')
-        .select(`
-          id,
-          user_id,
-          company_name,
-          domain,
-          sort_order,
-          positions (
-            id,
-            experience_id,
-            position,
-            start_date,
-            end_date,
-            description,
-            sort_order
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('sort_order', { ascending: true })
-        .order('sort_order', { ascending: true, foreignTable: 'positions' })
-        .order('start_date', { ascending: false, foreignTable: 'positions' })
-        .limit(25);
-      if (error) {
-        console.warn('[profile API] error fetching experiences:', error.message);
-        experiences = [];
-      } else {
-        experiences = (data as ExperienceRow[]) || [];
-      }
-    } catch {
-      experiences = [];
-    }
-
-    // 4) Projects and portfolios (counts only here)
-    let projectsCount = 0;
-    let portfoliosCount = 0;
-    try {
-      const { count: pCount } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact', head: true })
-        .eq('owner_id', user.id);
-      projectsCount = pCount || 0;
-    } catch {
-      projectsCount = 0;
-    }
-
-    try {
-      const { count: pfCount } = await supabase
-        .from('portfolios')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      portfoliosCount = pfCount || 0;
-    } catch {
-      portfoliosCount = 0;
-    }
-
-    // 4c) Startups owned by this user
-    // Show all startups (including unpublished) if the viewer is the owner
+    const followers = followersResult as number;
+    const following = followingResult as number;
+    const experiences = experiencesResult;
+    const projectsCount = projectsResult as number;
+    const portfoliosCount = portfoliosResult as number;
     type StartupBrief = { id: string; brand_name: string; stage: string | null; is_actively_raising: boolean | null };
-    let startups: StartupBrief[] = [];
-    let startupsCount = 0;
-    try {
-      const isOwnerViewing = viewerId === user.id;
-      let query = supabase
-        .from('startup_profiles')
-        .select('id, brand_name, stage, is_actively_raising')
-        .eq('owner_id', user.id);
-      if (!isOwnerViewing) {
-        query = query.eq('is_published', true);
-      }
-      const { data: sData, error: sErr } = await query
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (!sErr && sData) {
-        startups = sData as StartupBrief[];
-        startupsCount = sData.length;
-      }
-    } catch {
-      startups = [];
-      startupsCount = 0;
-    }
-
-    // 5) Whether the viewer follows this user
-    let is_following = false;
-    if (viewerId && viewerId !== user.id) {
-      try {
-        const { data, error } = await supabase
-          .from('user_follows')
-          .select('follower_id')
-          .eq('follower_id', viewerId)
-          .eq('followee_id', user.id)
-          .limit(1);
-        if (!error && data && data.length > 0) {
-          is_following = true;
-        }
-      } catch {
-        is_following = false;
-      }
-    }
+    const startups = startupsResult as StartupBrief[];
+    const startupsCount = startups.length;
+    const is_following = followCheckResult as boolean;
 
     return NextResponse.json({
       data: {

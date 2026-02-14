@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/users/[username]/followers
 export async function GET(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
     const { searchParams } = new URL(req.url);
     const viewerId = searchParams.get('viewerId');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     // Resolve user id by username
     const { data: userRow, error: userErr } = await supabase
@@ -26,12 +25,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
 
     const userId = userRow.id as string;
 
-    // Get follower IDs
+    // Get follower IDs with pagination
     const { data: rels, error: relErr } = await supabase
       .from('user_follows')
       .select('follower_id')
       .eq('followee_id', userId)
-      .limit(2000);
+      .range(offset, offset + limit - 1);
 
     if (relErr) return NextResponse.json({ error: relErr.message }, { status: 500 });
 
@@ -57,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
         .select('followee_id')
         .eq('follower_id', viewerId)
         .in('followee_id', users.map(u => u.id));
-      
+
       if (!followErr && viewerFollows) {
         followStatusMap = viewerFollows.reduce((acc, f) => {
           acc[f.followee_id] = true;

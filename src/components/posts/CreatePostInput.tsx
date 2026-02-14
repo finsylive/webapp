@@ -1051,7 +1051,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               {selectedImages[hoverPreview.index]?.type?.startsWith('video/') ? (
                 <video src={imagePreviews[hoverPreview.index]} className="w-full h-full object-cover" muted />
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={imagePreviews[hoverPreview.index]} className="w-full h-full object-cover" alt="hover preview" />
               )}
             </div>

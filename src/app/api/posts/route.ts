@@ -1,8 +1,6 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { fetchPosts } from '@/api/posts';
-
-export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
@@ -11,17 +9,17 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const environmentId = searchParams.get('environmentId') || undefined;
 
-    const supabase = createAdminClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const supabase = await createAuthClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    const { data: posts, error } = await fetchPosts(environmentId || session.user.id, {
+    const { data: posts, error } = await fetchPosts(environmentId || user.id, {
       limit,
       offset
     });

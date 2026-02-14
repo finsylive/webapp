@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/users/[username]/projects
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
@@ -44,6 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 // Body: { title: string, category: string(uuid), tagline?: string, cover_url?: string, logo_url?: string, visibility?: 'public'|'private'|'unlisted' }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 

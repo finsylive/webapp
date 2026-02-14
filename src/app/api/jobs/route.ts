@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function GET(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get('activeOnly') === 'true';
     const limit = Number(searchParams.get('limit') || '20');

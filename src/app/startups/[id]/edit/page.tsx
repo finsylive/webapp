@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Step1BasicIdentity } from '@/components/startups/Step1BasicIdentity';
@@ -19,7 +19,6 @@ import Link from 'next/link';
 export default function EditStartupPage() {
   const { user } = useAuth();
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
 
   const [loading, setLoading] = useState(true);

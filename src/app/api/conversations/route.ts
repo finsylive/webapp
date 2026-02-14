@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     // Get basic conversation data first
     const { data: conversationData, error } = await supabase
       .from('conversations')
-      .select('*')
+      .select('id, user1_id, user2_id, last_message, updated_at, status, created_at')
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order('updated_at', { ascending: false })
       .limit(limit);
@@ -56,6 +56,22 @@ export async function GET(req: NextRequest) {
       userMap.set(user.id, user);
     });
 
+    // Batch fetch unread counts for all conversations
+    const conversationIds = conversationData.map(c => c.id);
+    const unreadByConv = new Map<string, number>();
+    if (conversationIds.length > 0) {
+      const { data: unreadMessages } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', userId)
+        .eq('is_read', false);
+
+      for (const msg of (unreadMessages || [])) {
+        unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) || 0) + 1);
+      }
+    }
+
     // Transform to match expected format
     const conversations = conversationData.map(conv => {
       const isUser1 = conv.user1_id === userId;
@@ -73,7 +89,7 @@ export async function GET(req: NextRequest) {
         other_is_verified: otherUser.is_verified || false,
         last_message: conv.last_message,
         updated_at: conv.updated_at,
-        unread_count: 0, // TODO: Calculate unread count
+        unread_count: unreadByConv.get(conv.id) || 0,
         status: conv.status || 'approved',
         user1_id: conv.user1_id,
         user2_id: conv.user2_id,
@@ -188,10 +204,21 @@ export async function POST(req: NextRequest) {
 // PATCH: Update conversation (e.g., last_message, status)
 export async function PATCH(req: NextRequest) {
   const supabase = await createAuthClient();
+  const user_id = req.headers.get('x-user-id');
+  if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   const body = await req.json();
   const { id, last_message, status } = body;
   if (!id) {
     return NextResponse.json({ error: 'Missing conversation id' }, { status: 400 });
+  }
+  // Verify ownership: user must be a participant
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select('user1_id, user2_id')
+    .eq('id', id)
+    .single();
+  if (!conv || (conv.user1_id !== user_id && conv.user2_id !== user_id)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
   const updates: Partial<{ last_message: string; status: string | number; updated_at: string }> = {
     updated_at: new Date().toISOString(),
@@ -213,10 +240,21 @@ export async function PATCH(req: NextRequest) {
 // DELETE: Remove a conversation by id
 export async function DELETE(req: NextRequest) {
   const supabase = await createAuthClient();
+  const user_id = req.headers.get('x-user-id');
+  if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) {
     return NextResponse.json({ error: 'Missing conversation id' }, { status: 400 });
+  }
+  // Verify ownership: user must be a participant
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select('user1_id, user2_id')
+    .eq('id', id)
+    .single();
+  if (!conv || (conv.user1_id !== user_id && conv.user2_id !== user_id)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
   const { error } = await supabase
     .from('conversations')

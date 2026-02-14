@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Escape special PostgREST filter characters in user input
+function sanitizePattern(input: string): string {
+  return input.replace(/[%_\\().,*]/g, '\\$&');
+}
 
 export async function GET(request: Request) {
   try {
+    const supabase = await createAuthClient();
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
 
@@ -17,10 +19,11 @@ export async function GET(request: Request) {
       );
     }
 
+    const safe = sanitizePattern(query);
     const { data, error } = await supabase
       .from('users')
       .select('id, username, full_name, avatar_url, tagline, current_city, user_type, is_verified')
-      .or(`username.ilike.%${query}%,full_name.ilike.%${query}%,tagline.ilike.%${query}%`)
+      .or(`username.ilike.%${safe}%,full_name.ilike.%${safe}%,tagline.ilike.%${safe}%`)
       .order('is_verified', { ascending: false })
       .order('full_name', { ascending: true })
       .limit(25);

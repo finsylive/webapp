@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
 
       // Fire-and-forget push notification via edge function (best effort)
       try {
-        fetch('https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/push-on-follow', {
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-follow`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
           },
           body: JSON.stringify({ followerId, followeeId: targetUserId }),
           // do not await; errors are non-fatal
-        }).catch(() => {});
+        }).catch(() => { });
       } catch {
         // ignore
       }

@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 type PlatformKey = 'github' | 'figma' | 'dribbble' | 'behance' | 'linkedin' | 'youtube' | 'notion' | 'substack' | 'custom';
 
-type PlatformLinkRow = { 
+type PlatformLinkRow = {
   portfolio_id: string;
-  platform: PlatformKey; 
-  link?: string | null; 
+  platform: PlatformKey;
+  link?: string | null;
 };
 
 type Portfolio = {
@@ -27,6 +23,7 @@ type Portfolio = {
 // GET /api/users/[username]/portfolios
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
@@ -92,6 +89,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 // Upserts the user's latest portfolio and replaces its platforms
 export async function POST(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
@@ -198,6 +196,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
 // Deletes the specified portfolio; if no id provided, deletes the latest for the user
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { username } = await params;
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 

@@ -60,7 +60,7 @@ function ReplyPostCard({ post, onReply }: { post: PostWithReplies, onReply?: () 
       <div className="border-l-2 border-gray-200 pl-4">
         <div className="mt-2 flex items-start gap-3 rounded-2xl bg-muted/10 border border-border/60 px-4 py-3 text-muted-foreground">
           {post.author?.avatar_url && !avatarError ? (
-            // eslint-disable-next-line @next/next/no-img-element
+             
             <img
               src={toImageProxy(post.author.avatar_url)}
               alt={handle}
@@ -379,7 +379,7 @@ export default function PostPage() {
                     {selectedMedia[i]?.type.startsWith('video/') ? (
                       <video src={src} className="w-full h-full object-cover" muted />
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
+                       
                       <img src={src} alt="preview" className="w-full h-full object-cover" />
                     )}
                     <button type="button" onClick={() => { setSelectedMedia(prev => prev.filter((_, idx) => idx !== i)); setMediaPreviews(prev => prev.filter((_, idx) => idx !== i)); URL.revokeObjectURL(src); }} className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 text-xs">×</button>

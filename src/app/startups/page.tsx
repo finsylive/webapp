@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupCard } from '@/components/startups/StartupCard';
@@ -27,7 +27,6 @@ export default function StartupsPage() {
 
 function StartupsPageContent() {
   const { user } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [startups, setStartups] = useState<StartupProfile[]>([]);

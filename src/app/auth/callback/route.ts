@@ -1,7 +1,7 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { NextRequest, NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
+
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       // Check if user exists in our database
       const { data: existingUser } = await supabase
         .from('users')
-        .select('*')
+        .select('id, username, email')
         .eq('email', session.user.email)
         .single();
 
@@ -35,8 +35,9 @@ export async function GET(request: NextRequest) {
         let username = baseUsername;
         let counter = 1;
         let isUnique = false;
+        const MAX_ATTEMPTS = 20;
 
-        while (!isUnique) {
+        while (!isUnique && counter <= MAX_ATTEMPTS) {
           const { data: usernameCheck } = await supabase
             .from('users')
             .select('username')
@@ -49,6 +50,11 @@ export async function GET(request: NextRequest) {
             username = `${baseUsername}${counter}`;
             counter++;
           }
+        }
+
+        if (!isUnique) {
+          // Fallback: append random suffix
+          username = `${baseUsername}_${Date.now().toString(36).slice(-5)}`;
         }
 
         const { error: insertError } = await supabase

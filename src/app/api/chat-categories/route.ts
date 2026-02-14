@@ -1,67 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import type { 
-  ChatCategory, 
-  CreateCategoryRequest, 
-  CreateCategoryResponse 
+import { createAuthClient } from '@/utils/supabase-server';
+import type {
+  ChatCategory,
+  CreateCategoryRequest,
+  CreateCategoryResponse
 } from '@/types/messaging';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // GET /api/chat-categories?userId=... - Get categories with unread counts
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
-  
+
   if (!userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
   }
 
   try {
+    const supabase = await createAuthClient();
+
     // Get categories
     const { data: categories, error } = await supabase
       .from('chat_categories')
-      .select('*')
+      .select('id, user_id, name, color, created_at, updated_at')
       .eq('user_id', userId)
       .order('name', { ascending: true });
 
     if (error) throw error;
 
-    // Enhance categories with conversation counts and unread counts
-    const enhancedCategories = await Promise.all(
-      categories.map(async (category) => {
-        // Get conversations in this category
-        const { data: categoryConversations } = await supabase
-          .from('conversation_categories')
-          .select('conversation_id')
-          .eq('category_id', category.id);
+    if (!categories || categories.length === 0) {
+      return NextResponse.json([]);
+    }
 
-        const conversationIds = categoryConversations?.map(cc => cc.conversation_id) || [];
+    // Batch: get ALL conversation-category mappings for this user's categories
+    const categoryIds = categories.map(c => c.id);
+    const { data: allMappings } = await supabase
+      .from('conversation_categories')
+      .select('category_id, conversation_id')
+      .in('category_id', categoryIds);
 
-        let unreadCount = 0;
-        if (conversationIds.length > 0) {
-          // Get unread messages for conversations in this category
-          const { data: unreadMessages } = await supabase
-            .from('messages')
-            .select('id', { count: 'exact' })
-            .in('conversation_id', conversationIds)
-            .neq('sender_id', userId)
-            .eq('is_read', false);
+    // Build category -> conversationIds map
+    const catConvMap = new Map<string, string[]>();
+    for (const m of (allMappings || [])) {
+      const arr = catConvMap.get(m.category_id) || [];
+      arr.push(m.conversation_id);
+      catConvMap.set(m.category_id, arr);
+    }
 
-          unreadCount = unreadMessages?.length || 0;
-        }
+    // Batch: get unread counts for ALL conversations across all categories
+    const allConvIds = [...new Set((allMappings || []).map(m => m.conversation_id))];
+    const unreadByConv = new Map<string, number>();
+    if (allConvIds.length > 0) {
+      const { data: unreadMessages } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', allConvIds)
+        .neq('sender_id', userId)
+        .eq('is_read', false);
 
-        const enhancedCategory: ChatCategory = {
-          ...category,
-          conversation_ids: conversationIds,
-          unread_count: unreadCount
-        };
+      for (const msg of (unreadMessages || [])) {
+        unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) || 0) + 1);
+      }
+    }
 
-        return enhancedCategory;
-      })
-    );
+    // Assemble enhanced categories — no extra queries needed
+    const enhancedCategories: ChatCategory[] = categories.map(category => {
+      const conversationIds = catConvMap.get(category.id) || [];
+      const unreadCount = conversationIds.reduce((sum, cid) => sum + (unreadByConv.get(cid) || 0), 0);
+      return {
+        ...category,
+        conversation_ids: conversationIds,
+        unread_count: unreadCount
+      };
+    });
 
     return NextResponse.json(enhancedCategories);
   } catch (error: unknown) {
@@ -74,19 +84,15 @@ export async function GET(req: NextRequest) {
 // POST /api/chat-categories
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const body: CreateCategoryRequest = await req.json();
     const { name, color } = body;
-    
-    // Get user from headers (set by middleware) or body (fallback)
-    let user_id = req.headers.get('x-user-id');
-    if (!user_id && body.user_id) {
-      user_id = body.user_id; // Fallback for backward compatibility
-    }
-    
+
+    const user_id = req.headers.get('x-user-id');
     if (!user_id) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    
+
     if (!name) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 });
     }
@@ -110,7 +116,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         color: color || null
       })
-      .select('*')
+      .select('id, user_id, name, color, created_at, updated_at')
       .single();
 
     if (error) throw error;
@@ -134,14 +140,18 @@ export async function POST(req: NextRequest) {
 // PATCH /api/chat-categories
 export async function PATCH(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const body = await req.json();
     const { id, name, color } = body;
+    const user_id = req.headers.get('x-user-id');
+    if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { data, error } = await supabase
       .from('chat_categories')
       .update({ name, color })
       .eq('id', id)
-      .select('*')
+      .eq('user_id', user_id)
+      .select('id, user_id, name, color, created_at')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
@@ -154,13 +164,17 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/chat-categories
 export async function DELETE(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const user_id = req.headers.get('x-user-id');
+    if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { error } = await supabase
       .from('chat_categories')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {

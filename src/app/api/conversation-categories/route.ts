@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 import type { AssignCategoryRequest } from '@/types/messaging';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // GET /api/conversation-categories?conversationId=... OR ?userId=...
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const supabase = await createAuthClient();
   const conversationId = searchParams.get('conversationId');
   const userId = searchParams.get('userId');
-  
+
   try {
     if (conversationId) {
       // Original behavior: Get categories for a specific conversation
@@ -57,16 +54,17 @@ export async function GET(req: NextRequest) {
 // POST /api/conversation-categories - Assign conversation to category
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const body: AssignCategoryRequest = await req.json();
     const { conversation_id, category_id } = body;
-    
+
     // Get user from headers (set by middleware)
     const user_id = req.headers.get('x-user-id');
-    
+
     if (!user_id) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    
+
     if (!conversation_id || !category_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -104,9 +102,9 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: 'Conversation already assigned to category',
-        id: existing.id 
+        id: existing.id
       });
     }
 
@@ -120,7 +118,7 @@ export async function POST(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json(data, { status: 201 });
-    
+
   } catch (error: unknown) {
     console.error('Error assigning category:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -134,6 +132,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, category_id } = body;
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    const supabase = await createAuthClient();
     const { data, error } = await supabase
       .from('conversation_categories')
       .update({ category_id })
@@ -151,8 +150,11 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/conversation-categories
 export async function DELETE(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const user_id = req.headers.get('x-user-id');
+    if (!user_id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { error } = await supabase
       .from('conversation_categories')

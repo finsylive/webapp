@@ -28,7 +28,7 @@ export function Step1BasicIdentity({ data, onChange }: Step1Props) {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-foreground">Basic Identity</h2>
-          <p className="text-sm text-muted-foreground">Start with your startup's core info</p>
+          <p className="text-sm text-muted-foreground">Start with your startup&apos;s core info</p>
         </div>
       </div>
 
@@ -71,11 +71,10 @@ export function Step1BasicIdentity({ data, onChange }: Step1Props) {
               key={ls.value}
               type="button"
               onClick={() => onChange('legal_status', ls.value)}
-              className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all duration-200 ${
-                data.legal_status === ls.value
+              className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all duration-200 ${data.legal_status === ls.value
                   ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
                   : 'border-border hover:border-primary/30 hover:bg-accent/30'
-              }`}
+                }`}
             >
               <span className="text-sm font-medium text-foreground">{ls.label}</span>
               <span className="text-xs text-muted-foreground">{ls.desc}</span>

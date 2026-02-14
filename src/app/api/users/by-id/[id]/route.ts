@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/users/by-id/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { id } = await params;
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     const { data, error } = await supabase
@@ -23,4 +20,3 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

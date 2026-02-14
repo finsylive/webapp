@@ -322,7 +322,7 @@ export default function PublicProfilePage() {
           <div className="rounded-2xl overflow-hidden">
             <div className="relative h-44 sm:h-52 w-full">
               {coverUrl && !imgError.cover ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img
                   src={coverUrl}
                   alt="Cover image"
@@ -339,7 +339,7 @@ export default function PublicProfilePage() {
           <div className="relative -mt-14 ml-5 mb-3 z-10">
             <div className={`w-28 h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
               {avatarUrl && !imgError.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img
                   src={avatarUrl}
                   alt={fullName}
