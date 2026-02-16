@@ -170,12 +170,21 @@ export function useConversations(userId: string, filter: ConversationFilter = 'a
     }
   }, []);
 
+  const clearUnreadCount = useCallback((conversationId: string) => {
+    setConversations(prev => prev.map(conv =>
+      conv.conversation_id === conversationId
+        ? { ...conv, unread_count: 0 }
+        : conv
+    ));
+  }, []);
+
   return {
     conversations,
     loading,
     error,
     refetch: fetchConversations,
     createConversation,
-    updateConversationStatus
+    updateConversationStatus,
+    clearUnreadCount
   };
 }

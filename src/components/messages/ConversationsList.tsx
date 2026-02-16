@@ -16,6 +16,7 @@ export const ConversationsList = React.memo(function ConversationsList() {
     setActiveTab,
     setSearchQuery,
     filteredConversations,
+    clearUnreadCount,
   } = useConversations();
 
   const getProxiedImageUrl = (url: string | null | undefined): string | null => {
@@ -142,6 +143,7 @@ export const ConversationsList = React.memo(function ConversationsList() {
               <Link
                 key={conversation.conversation_id}
                 href={`/messages/${conversation.conversation_id}`}
+                onClick={() => clearUnreadCount(conversation.conversation_id)}
                 className="flex items-center gap-3 p-4 hover:bg-accent/30 transition-colors cursor-pointer border-l-4 border-transparent hover:border-primary"
               >
                 {/* Avatar */}

@@ -28,7 +28,7 @@ export function ConversationList({
   const [searchQuery, setSearchQuery] = useState('');
   const [showCategories, setShowCategories] = useState(true);
 
-  const { conversations, loading, error } = useConversations(userId, activeFilter);
+  const { conversations, loading, error, clearUnreadCount } = useConversations(userId, activeFilter);
   const { categories, totalUnreadCount } = useChatCategories(userId);
 
   // Filter conversations based on search
@@ -157,7 +157,7 @@ export function ConversationList({
     return (
       <div
         key={conversation.conversation_id}
-        onClick={() => onSelectConversation(conversation)}
+        onClick={() => { clearUnreadCount(conversation.conversation_id); onSelectConversation(conversation); }}
         className={cn(
           "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all",
           "hover:bg-gray-800",

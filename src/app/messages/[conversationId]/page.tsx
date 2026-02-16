@@ -82,12 +82,26 @@ export default function ConversationPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  // Mark messages as read
+  const markAsRead = useCallback(async () => {
+    if (!conversationId || !userId) return;
+    try {
+      await fetch('/api/messages/read', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        body: JSON.stringify({ conversation_id: String(conversationId) }),
+      });
+    } catch (err) {
+      console.error('Failed to mark messages as read:', err);
+    }
+  }, [conversationId, userId]);
+
   // Fetch messages and reactions
   useEffect(() => {
     if (!conversationId) return;
     setLoading(true);
     setError(null);
-    
+
     Promise.all([
       fetch(`/api/messages?conversationId=${String(conversationId)}`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch messages');
@@ -108,6 +122,13 @@ export default function ConversationPage() {
       })
       .finally(() => setLoading(false));
   }, [conversationId]);
+
+  // Mark all messages as read when conversation loads or gets new messages
+  useEffect(() => {
+    if (!loading && messages.length > 0 && userId) {
+      markAsRead();
+    }
+  }, [loading, messages.length, userId, markAsRead]);
 
   // Load the other participant (username and avatar)
   useEffect(() => {
@@ -163,6 +184,10 @@ export default function ConversationPage() {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+      // Mark as read if from other user and page is visible
+      if (msg.sender_id !== userId && document.visibilityState === 'visible') {
+        markAsRead();
+      }
     }
   );
 

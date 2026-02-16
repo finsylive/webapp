@@ -35,7 +35,8 @@ export function ChatPage({
 
   const {
     conversations,
-    updateConversationStatus
+    updateConversationStatus,
+    clearUnreadCount
   } = useConversations(userId);
 
   const {
@@ -76,10 +77,12 @@ export function ChatPage({
     if (selectedConversation && messages.length > 0) {
       const unreadMessages = messages.filter(m => !m.is_read && m.sender_id !== userId);
       if (unreadMessages.length > 0) {
-        markAsRead();
+        markAsRead().then(() => {
+          clearUnreadCount(selectedConversation.conversation_id);
+        });
       }
     }
-  }, [selectedConversation, messages, userId, markAsRead]);
+  }, [selectedConversation, messages, userId, markAsRead, clearUnreadCount]);
 
   // Handle infinite scroll for message pagination
   const handleScroll = useCallback(() => {

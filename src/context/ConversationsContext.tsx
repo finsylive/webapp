@@ -33,6 +33,7 @@ interface ConversationsContextType {
   setSearchQuery: (query: string) => void;
   refetchConversations: () => Promise<void>;
   filteredConversations: Conversation[];
+  clearUnreadCount: (conversationId: string) => void;
 }
 
 const ConversationsContext = createContext<ConversationsContextType | null>(null);
@@ -149,6 +150,14 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     await fetchConversations();
   };
 
+  const clearUnreadCount = useCallback((conversationId: string) => {
+    setConversations(prev => prev.map(conv =>
+      conv.conversation_id === conversationId
+        ? { ...conv, unread_count: 0 }
+        : conv
+    ));
+  }, []);
+
   const value: ConversationsContextType = {
     conversations,
     categories,
@@ -159,6 +168,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     refetchConversations,
     filteredConversations,
+    clearUnreadCount,
   };
 
   return (
