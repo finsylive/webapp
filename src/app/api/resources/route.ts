@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       .from('resources')
       .select('*')
       .order(orderBy, { ascending, nullsFirst: false })
-      .limit(Math.max(1, Math.min(100, limit)));
+      .limit(Math.max(1, Math.min(500, limit)));
 
     if (activeOnly) {
       query = query.eq('is_active', true);

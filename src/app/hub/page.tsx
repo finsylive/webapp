@@ -1,13 +1,14 @@
 "use client";
+import React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, X, Eye, Building2, TrendingUp, Target, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
-import { toProxyUrl } from '@/utils/imageUtils';
-import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/utils/supabase';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 // Local util: determine if a competition/event has ended
 function isEnded(c: { deadline?: string | null; event_date?: string | null }) {
@@ -88,20 +89,30 @@ type ResourceItem = {
   description?: string | null;
   url?: string | null;
   icon?: string | null;
+  logo_url?: string | null;
   category: string;
   provider?: string | null;
   eligibility?: string | null;
   deadline?: string | null;
   tags?: string[];
+  metadata?: {
+    location?: string;
+    recent_investments?: string;
+    sectors?: string;
+    avg_startup_age?: string;
+    avg_num_founders?: string;
+    avg_founder_age?: string;
+    companies_invested?: string;
+  };
 };
 
 const RESOURCE_CATEGORIES = [
   { key: 'All', label: 'All' },
-  { key: 'govt_scheme', label: 'Govt Schemes' },
   { key: 'accelerator_incubator', label: 'Accelerators' },
   { key: 'company_offer', label: 'Company Offers' },
   { key: 'tool', label: 'Tools' },
   { key: 'bank_offer', label: 'Bank Offers' },
+  { key: 'scheme', label: 'Schemes' },
 ];
 
 const categoryLabels: Record<string, string> = {
@@ -110,6 +121,7 @@ const categoryLabels: Record<string, string> = {
   company_offer: 'Company Offer',
   tool: 'Tool',
   bank_offer: 'Bank Offer',
+  scheme: 'Scheme',
 };
 
 // Resolve a banner URL that might be a storage path
@@ -384,7 +396,7 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
 
 // --- Event row card ---
 
-const EventRowCard = ({ event }: { event: EventItem; user: { id: string } | null }) => {
+const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
   const ended = isEnded(event);
   const categoryLabel = event.category === 'meetup' ? 'Meetup' : event.category === 'workshop' ? 'Workshop' : 'Event';
 
@@ -532,25 +544,208 @@ const GigRowCard = ({ gig }: { gig: GigItem }) => {
   );
 };
 
-// --- Resource card (unchanged) ---
+// --- Helper: get logo/favicon for a resource ---
 
-const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
+function getResourceLogoUrl(resource: ResourceItem): string | null {
+  if (resource.logo_url) return resource.logo_url;
+  if (resource.url) {
+    try {
+      const domain = new URL(resource.url).hostname;
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    } catch {}
+  }
+  return null;
+}
+
+// --- Resource Detail Modal ---
+
+const ResourceDetailModal = ({ resource, onClose }: { resource: ResourceItem; onClose: () => void }) => {
   const ended = isEnded(resource);
-  const Wrapper = resource.url ? 'a' : 'div';
-  const linkProps = resource.url ? { href: resource.url, target: '_blank' as const, rel: 'noopener noreferrer' } : {};
+  const logoUrl = getResourceLogoUrl(resource);
+  const meta = resource.metadata;
+
   return (
-    <Wrapper
-      {...linkProps}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-4 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-muted/30 p-1" />
+            ) : (
+              <div className="h-10 w-10 rounded-lg bg-muted/50 flex items-center justify-center text-2xl">
+                {resource.icon || '\uD83D\uDCE6'}
+              </div>
+            )}
+            <div>
+              <h3 className="text-lg font-bold text-foreground">{resource.title}</h3>
+              {resource.provider && <p className="text-xs text-muted-foreground">{resource.provider}</p>}
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Category badge */}
+          <span className="inline-block text-[11px] font-semibold text-primary/80 dark:text-primary/70 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+            {categoryLabels[resource.category] || resource.category}
+          </span>
+
+          {/* Description */}
+          {resource.description && (
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-1">Description</h4>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{resource.description}</p>
+            </div>
+          )}
+
+          {/* Scheme-specific fields */}
+          {meta && (resource.category === 'scheme' || resource.category === 'govt_scheme' || resource.category === 'accelerator_incubator') && (
+            <div className="space-y-3 rounded-lg bg-muted/20 border border-border/60 p-4">
+              <h4 className="text-sm font-semibold text-foreground">Scheme Details</h4>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {meta.location && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Location</p>
+                      <p className="text-foreground">{meta.location}</p>
+                    </div>
+                  </div>
+                )}
+                {meta.sectors && (
+                  <div className="flex items-start gap-2">
+                    <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Sectors</p>
+                      <p className="text-foreground">{meta.sectors}</p>
+                    </div>
+                  </div>
+                )}
+                {meta.avg_startup_age && (
+                  <div className="flex items-start gap-2">
+                    <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Avg Startup Age</p>
+                      <p className="text-foreground">{meta.avg_startup_age}</p>
+                    </div>
+                  </div>
+                )}
+                {meta.avg_num_founders && (
+                  <div className="flex items-start gap-2">
+                    <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Avg No. of Founders</p>
+                      <p className="text-foreground">{meta.avg_num_founders}</p>
+                    </div>
+                  </div>
+                )}
+                {meta.avg_founder_age && (
+                  <div className="flex items-start gap-2">
+                    <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Avg Founder Age</p>
+                      <p className="text-foreground">{meta.avg_founder_age}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {meta.recent_investments && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                    <p className="text-[11px] text-muted-foreground font-medium">Recent Investments</p>
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-line">{meta.recent_investments}</p>
+                </div>
+              )}
+              {meta.companies_invested && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                    <p className="text-[11px] text-muted-foreground font-medium">Companies Invested</p>
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-line">{meta.companies_invested}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Eligibility */}
+          {resource.eligibility && (
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-1">Eligibility</h4>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{resource.eligibility}</p>
+            </div>
+          )}
+
+          {/* Deadline */}
+          {resource.deadline && (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className={`text-sm font-medium ${ended ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`}>
+                {ended ? 'Expired' : `Deadline: ${format(new Date(resource.deadline), 'dd MMM, yyyy')}`}
+              </span>
+            </div>
+          )}
+
+          {/* Tags */}
+          {resource.tags && resource.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {resource.tags.map((tag) => (
+                <span key={tag} className="text-[11px] font-medium text-muted-foreground bg-muted/40 border border-border px-2 py-0.5 rounded-full">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {resource.url && (
+          <div className="sticky bottom-0 border-t border-border bg-card px-5 py-4 rounded-b-2xl">
+            <a
+              href={resource.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-5 py-2.5 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition w-full"
+            >
+              Visit Website <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Resource card ---
+
+const ResourceCard = ({ resource, onView }: { resource: ResourceItem; onView: (r: ResourceItem) => void }) => {
+  const ended = isEnded(resource);
+  const logoUrl = getResourceLogoUrl(resource);
+
+  return (
+    <div
       className="group rounded-2xl bg-card/70 border border-border/60 p-5 hover:bg-card/80 hover:border-primary/30 hover:shadow-lg transition-all duration-200"
     >
       <div className="flex items-start gap-4">
-        <div className="text-3xl flex-shrink-0 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
-          {resource.icon || '\uD83D\uDCE6'}
-        </div>
+        {logoUrl ? (
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center overflow-hidden">
+            <img src={logoUrl} alt="" className="w-10 h-10 object-contain" />
+          </div>
+        ) : (
+          <div className="text-3xl flex-shrink-0 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
+            {resource.icon || '\uD83D\uDCE6'}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">{resource.title}</h4>
-            {resource.url && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
           </div>
           {resource.provider && (
             <p className="text-xs text-muted-foreground mt-0.5">{resource.provider}</p>
@@ -577,9 +772,28 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
               ))}
             </div>
           )}
+          {/* Action buttons */}
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => onView(resource)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-transparent px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
+            >
+              <Eye className="h-3.5 w-3.5" /> View Details
+            </button>
+            {resource.url && (
+              <a
+                href={resource.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
+              >
+                Visit <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
         </div>
       </div>
-    </Wrapper>
+    </div>
   );
 };
 
@@ -603,11 +817,21 @@ export default function HubPage() {
   // Resources tab data
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [resourceFilter, setResourceFilter] = useState<string>('All');
+  const [viewingResource, setViewingResource] = useState<ResourceItem | null>(null);
+  const [resourcePage, setResourcePage] = useState(0);
+  const RESOURCES_PER_PAGE = 10;
 
   const filteredResources = useMemo(() => {
     if (resourceFilter === 'All') return resources;
     return resources.filter(r => r.category === resourceFilter);
   }, [resourceFilter, resources]);
+
+  const totalResourcePages = Math.max(1, Math.ceil(filteredResources.length / RESOURCES_PER_PAGE));
+
+  const paginatedResources = useMemo(() => {
+    const start = resourcePage * RESOURCES_PER_PAGE;
+    return filteredResources.slice(start, start + RESOURCES_PER_PAGE);
+  }, [filteredResources, resourcePage]);
 
   // Fetch data for the Events tab (competitions + events from DB)
   useEffect(() => {
@@ -667,7 +891,7 @@ export default function HubPage() {
       setLoading(true);
       (async () => {
         try {
-          const res = await fetch(`/api/resources?activeOnly=true&orderBy=created_at&ascending=false&limit=50`, { cache: 'no-store' });
+          const res = await fetch(`/api/resources?activeOnly=true&orderBy=created_at&ascending=false&limit=500`, { cache: 'no-store' });
           const json = await res.json();
           setResources(Array.isArray(json.data) ? json.data : []);
         } catch (e) {
@@ -847,7 +1071,7 @@ export default function HubPage() {
                       ? 'bg-primary/15 text-primary border border-primary/30'
                       : 'text-muted-foreground bg-muted/40 border border-border hover:bg-muted/60'
                     }`}
-                  onClick={() => setResourceFilter(cat.key)}
+                  onClick={() => { setResourceFilter(cat.key); setResourcePage(0); }}
                 >
                   {cat.label}
                 </button>
@@ -860,18 +1084,44 @@ export default function HubPage() {
                   <div key={i} className="h-36 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                 ))}
               </div>
-            ) : filteredResources.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {filteredResources.map(resource => (
-                  <ResourceCard key={resource.id} resource={resource} />
-                ))}
-              </div>
+            ) : paginatedResources.length > 0 ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {paginatedResources.map(resource => (
+                    <ResourceCard key={resource.id} resource={resource} onView={setViewingResource} />
+                  ))}
+                </div>
+
+                {/* Pagination controls */}
+                {filteredResources.length > RESOURCES_PER_PAGE && (
+                  <div className="flex items-center justify-center gap-3 pt-4">
+                    <button
+                      onClick={() => setResourcePage((prev) => (prev - 1 + totalResourcePages) % totalResourcePages)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
+                    >
+                      <ArrowRight className="h-4 w-4 rotate-180" /> Prev
+                    </button>
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                    <button
+                      onClick={() => setResourcePage((prev) => (prev + 1) % totalResourcePages)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
+                    >
+                      Next <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center text-muted-foreground py-10">No resources in this category.</div>
             )}
           </div>
         )}
       </div>
+
+      {/* Resource Detail Modal */}
+      {viewingResource && (
+        <ResourceDetailModal resource={viewingResource} onClose={() => setViewingResource(null)} />
+      )}
     </DashboardLayout>
   );
 }
