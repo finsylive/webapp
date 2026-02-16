@@ -5,10 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
-import { ArrowLeft, Share2, Trophy, Users, Clock, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Share2, Trophy, Users, Clock, ChevronDown, CheckCircle, Loader2, X, FolderOpen, Plus, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { supabase } from '@/utils/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 type Competition = {
   id: string;
@@ -48,7 +49,6 @@ function isEnded(c?: { deadline?: string | null }) {
 
 function resolveBannerUrl(raw?: string | null): string | null {
   if (!raw) return null;
-  // Handle s3://bucket/key form
   if (raw.startsWith('s3://')) {
     const withoutScheme = raw.slice('s3://'.length);
     const slashIdx = withoutScheme.indexOf('/');
@@ -58,31 +58,19 @@ function resolveBannerUrl(raw?: string | null): string | null {
       return toProxyUrl(`https://${bucket}.s3.amazonaws.com/${key}`);
     }
   }
-  if (/^https?:\/\//i.test(raw)) return toProxyUrl(raw);
-
-  // Try as-is in common buckets
-  const buckets = ['media', 'public', 'banners', 'images'];
-  for (const bucket of buckets) {
-    try {
-      // If the path includes the bucket prefix (e.g. "public/xyz.jpg"), strip it
-      const path = raw.startsWith(bucket + '/') ? raw.slice(bucket.length + 1) : raw;
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-      if (data?.publicUrl) return toProxyUrl(data.publicUrl);
-    } catch {}
-  }
-
-  // If it's a full path like "/storage/v1/object/public/<bucket>/path.jpg"
-  if (raw.startsWith('/storage/v1/object/public/')) {
-    const full = `${location.origin}${raw}`;
-    return toProxyUrl(full);
-  }
-
+  if (raw.includes('/storage/v1/object/public/')) return raw;
+  if (raw.startsWith('http')) return toProxyUrl(raw);
+  try {
+    const { data } = supabase.storage.from('media').getPublicUrl(raw);
+    if (data?.publicUrl) return data.publicUrl;
+  } catch {}
   return null;
 }
 
 export default function CompetitionDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const id = params?.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -90,6 +78,20 @@ export default function CompetitionDetailsPage() {
   const [participants, setParticipants] = useState(0);
   const [entries, setEntries] = useState<(CompetitionEntry & { project?: ProjectLite | null; username?: string | null })[]>([]);
   const [aboutOpen, setAboutOpen] = useState(true);
+
+  // Join button state
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [checkingJoin, setCheckingJoin] = useState(true);
+
+  const [unjoining, setUnjoining] = useState(false);
+
+  // Project picker modal state
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [userProjects, setUserProjects] = useState<ProjectLite[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -170,6 +172,127 @@ export default function CompetitionDetailsPage() {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Check if user already joined this competition
+  useEffect(() => {
+    if (!id || !user) { setCheckingJoin(false); return; }
+    let cancelled = false;
+    (async () => {
+      setCheckingJoin(true);
+      try {
+        const { data } = await supabase
+          .from('competition_entries')
+          .select('submitted_by')
+          .eq('competition_id', id)
+          .eq('submitted_by', user.id)
+          .maybeSingle();
+        if (!cancelled) setJoined(!!data);
+      } catch {}
+      if (!cancelled) setCheckingJoin(false);
+    })();
+    return () => { cancelled = true; };
+  }, [id, user]);
+
+  // Open the project picker (or redirect for external competitions)
+  const handleJoinClick = async () => {
+    if (!user || !comp) return;
+
+    // External competitions: redirect to external URL
+    if (comp.is_external && comp.external_url) {
+      window.open(comp.external_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Open the project picker modal and fetch user's projects
+    setShowProjectPicker(true);
+    setLoadingProjects(true);
+    setJoinError(null);
+    try {
+      // Resolve username from user id
+      let uname = currentUsername;
+      if (!uname) {
+        const res = await fetch(`/api/users/by-id/${encodeURIComponent(user.id)}`, { cache: 'no-store' });
+        const json = await res.json();
+        uname = json?.data?.username ? String(json.data.username) : null;
+        setCurrentUsername(uname);
+      }
+      if (uname) {
+        const res = await fetch(`/api/users/${encodeURIComponent(uname)}/projects`, { cache: 'no-store' });
+        const json = await res.json();
+        const projects: ProjectLite[] = Array.isArray(json.data)
+          ? json.data.map((p: Record<string, unknown>) => ({
+              id: p.id as string,
+              title: p.title as string,
+              tagline: (p.tagline as string) ?? null,
+              logo_url: (p.logo_url as string) ?? null,
+              cover_url: (p.cover_url as string) ?? null,
+            }))
+          : [];
+        setUserProjects(projects);
+      } else {
+        setUserProjects([]);
+      }
+    } catch {
+      setUserProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  // Submit the join with an optional project
+  const handleConfirmJoin = async (projectId?: string) => {
+    if (!user || !comp) return;
+
+    setShowProjectPicker(false);
+    setJoining(true);
+    setJoinError(null);
+    try {
+      const res = await fetch(`/api/competitions/${encodeURIComponent(comp.id)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, projectId: projectId || null }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setJoined(true);
+        setParticipants(p => p + 1);
+      } else if (json.alreadyJoined) {
+        setJoined(true);
+      } else {
+        setJoinError(json.error || 'Failed to join');
+      }
+    } catch {
+      setJoinError('Network error. Please try again.');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  // Leave / unjoin competition
+  const handleLeave = async () => {
+    if (!user || !comp) return;
+
+    setUnjoining(true);
+    setJoinError(null);
+    try {
+      const res = await fetch(`/api/competitions/${encodeURIComponent(comp.id)}/join`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setJoined(false);
+        setParticipants(p => Math.max(0, p - 1));
+      } else {
+        setJoinError(json.error || 'Failed to leave');
+      }
+    } catch {
+      setJoinError('Network error. Please try again.');
+    } finally {
+      setUnjoining(false);
+    }
+  };
+
   const bannerUrl = useMemo(() => resolveBannerUrl(comp?.banner_image_url), [comp?.banner_image_url]);
   const ended = comp ? isEnded(comp) : false;
 
@@ -199,7 +322,8 @@ export default function CompetitionDetailsPage() {
         {/* Banner */}
         <div className="relative rounded-2xl overflow-hidden border border-border/60 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-[160px] md:min-h-[220px]">
           {bannerUrl && (
-            <Image src={bannerUrl} alt={comp?.title || 'Cover'} fill className="object-cover" priority sizes="(max-width: 768px) 100vw, 1024px" />
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={bannerUrl} alt={comp?.title || 'Cover'} className="absolute inset-0 w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-black/35" />
           <div className="relative p-5 md:p-8">
@@ -228,27 +352,134 @@ export default function CompetitionDetailsPage() {
               <span>{comp?.deadline ? format(new Date(comp.deadline), 'dd MMM, yyyy') : 'No deadline'}</span>
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            {comp?.is_external && comp.external_url ? (
-              <a
-                href={comp.external_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white font-semibold px-5 py-3 transition active:scale-95 border border-emerald-400/40"
-              >
-                Join Competition
-              </a>
-            ) : (
-              <button
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white font-semibold px-5 py-3 transition active:scale-95 border border-emerald-400/40"
-                disabled
-                title="Joining via internal projects coming soon"
-              >
-                Join Competition
-              </button>
+          <div className="flex items-center gap-2">
+            {!ended && (
+              <>
+                {joined ? (
+                  <>
+                    <span className="inline-flex items-center gap-2 rounded-xl font-semibold px-5 py-3 border bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40">
+                      <CheckCircle className="h-4 w-4" />
+                      Joined
+                    </span>
+                    <button
+                      onClick={handleLeave}
+                      disabled={unjoining}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-4 py-3 transition active:scale-95 border border-red-400/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50"
+                      title="Leave competition"
+                    >
+                      {unjoining ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="h-4 w-4" />
+                      )}
+                      {unjoining ? 'Leaving...' : 'Leave'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleJoinClick}
+                    disabled={joining || checkingJoin || !user}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-5 py-3 transition active:scale-95 border bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white border-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!user ? 'Sign in to join' : undefined}
+                  >
+                    {checkingJoin ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : joining ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Joining...
+                      </>
+                    ) : (
+                      'Join Competition'
+                    )}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
+        {joinError && (
+          <p className="mt-2 text-sm text-red-500">{joinError}</p>
+        )}
+
+        {/* Project Picker Modal */}
+        {showProjectPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowProjectPicker(false)}>
+            <div className="relative w-full max-w-md mx-4 rounded-2xl border border-border/60 bg-card shadow-xl" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <h2 className="text-lg font-bold">Join with a Project</h2>
+                <button onClick={() => setShowProjectPicker(false)} className="rounded-lg p-1.5 hover:bg-accent/60 transition" aria-label="Cancel">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="px-5 text-sm text-muted-foreground mb-3">
+                Select one of your projects to submit, or join without one.
+              </p>
+
+              {/* Project list */}
+              <div className="px-5 max-h-64 overflow-y-auto">
+                {loadingProjects ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : userProjects.length === 0 ? (
+                  <div className="flex flex-col items-center py-6 text-center">
+                    <FolderOpen className="h-10 w-10 text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">You don&apos;t have any projects yet.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {userProjects.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleConfirmJoin(p.id)}
+                        className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-3 text-left hover:bg-accent/50 transition"
+                      >
+                        {p.logo_url ? (
+                          <Image src={toProxyUrl(p.logo_url)} alt={p.title} width={40} height={40} className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-muted/40 flex items-center justify-center text-sm font-semibold text-muted-foreground flex-shrink-0">
+                            {p.title.charAt(0)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate">{p.title}</div>
+                          {p.tagline && <div className="text-xs text-muted-foreground truncate">{p.tagline}</div>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-2 px-5 pt-4 pb-5">
+                {currentUsername && (
+                  <a
+                    href={`/profile/${encodeURIComponent(currentUsername)}/projects`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border/80 px-4 py-2.5 text-sm font-medium hover:bg-accent/40 transition"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create a New Project
+                  </a>
+                )}
+                <button
+                  onClick={() => handleConfirmJoin()}
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500/90 dark:hover:bg-emerald-500 text-white px-4 py-2.5 text-sm font-semibold transition"
+                >
+                  Join without a Project
+                </button>
+                <button
+                  onClick={() => setShowProjectPicker(false)}
+                  className="rounded-xl border border-border/60 px-4 py-2.5 text-sm font-medium hover:bg-accent/40 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* About */}
         <div className="mt-6 rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
@@ -291,7 +522,7 @@ export default function CompetitionDetailsPage() {
                       )}
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{p ? p.title : (e.project_id ? 'Project Submission' : 'External Entry')}</div>
-                        <div className="text-sm text-muted-foreground truncate">{p?.tagline || (e.external_entry_url ?? `Project ID: ${e.project_id}`)}</div>
+                        <div className="text-sm text-muted-foreground truncate">{p?.tagline || e.external_entry_url || 'Participant'}</div>
                       </div>
                     </div>
                     {e.external_entry_url ? (
