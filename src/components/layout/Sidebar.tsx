@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Plus, User, Settings, LogOut, Rocket } from 'lucide-react';
+import { Plus, User, Settings, LogOut, Rocket, TrendingUp, Target } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -35,7 +35,7 @@ export const Sidebar = React.memo(function Sidebar() {
   const pathname = usePathname();
   const [profileHref, setProfileHref] = useState<string>('/profile');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState<{avatar_url?: string | null, full_name?: string, username?: string} | null>(null);
+  const [userProfile, setUserProfile] = useState<{ avatar_url?: string | null, full_name?: string, username?: string, user_type?: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -53,20 +53,21 @@ export const Sidebar = React.memo(function Sidebar() {
         let username = (user.user_metadata?.username as string | undefined)?.toLowerCase();
         const { data } = await supabase
           .from('users')
-          .select('username, avatar_url, full_name')
+          .select('username, avatar_url, full_name, user_type')
           .eq('id', user.id)
           .maybeSingle();
-          
+
         if (!username) {
           username = data?.username?.toLowerCase();
         }
-        
+
         if (!cancelled) {
           setProfileHref(username ? `/profile/${encodeURIComponent(username)}` : '/profile');
           setUserProfile({
             avatar_url: data?.avatar_url,
             full_name: data?.full_name || user.user_metadata?.full_name,
-            username: data?.username || username
+            username: data?.username || username,
+            user_type: data?.user_type || 'normal_user'
           });
         }
       } catch {
@@ -80,65 +81,78 @@ export const Sidebar = React.memo(function Sidebar() {
     return () => { cancelled = true; };
   }, [user]);
 
+  const isFounder = userProfile?.user_type === 'founder';
+  const isInvestor = userProfile?.user_type === 'investor';
+
   const mainNavItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />, 
-      label: 'Search' 
+    {
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={20} height={20} className={className || "w-5 h-5"} />,
+      label: 'Search'
     },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create Post' 
+    {
+      href: '/create',
+      icon: Plus,
+      label: 'Create Post'
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
+    // Founder-specific: Find Investors
+    ...(isFounder ? [{
+      href: '/search?type=investor',
+      icon: Target,
+      label: 'Find Investors'
+    }] : []),
+    // Investor-specific: Deal Flow
+    ...(isInvestor ? [{
+      href: '/deal-flow',
+      icon: TrendingUp,
+      label: 'Deal Flow'
+    }] : []),
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
     },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: '/settings',
+      icon: Settings,
+      label: 'Settings'
     },
   ];
 
-  const NavLink = ({ href, icon: Icon, label, count }: { 
-    href: string; 
-    icon: React.ComponentType<{ className?: string }>; 
-    label: string; 
+  const NavLink = ({ href, icon: Icon, label, count }: {
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
     count?: number;
   }) => {
     const isActive = pathname === href;
     return (
-      <Link 
+      <Link
         href={href}
-        className={`group flex items-center gap-3.5 rounded-xl px-4 py-3 text-[15px] font-medium transition-all duration-200 ${
-          isActive 
-            ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md' 
-            : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
-        }`}
+        className={`group flex items-center gap-3.5 rounded-xl px-4 py-3 text-[15px] font-medium transition-all duration-200 ${isActive
+          ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md'
+          : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
+          }`}
       >
-        <div className={`${
-          isActive
-            ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
-            : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
-        }`}>
+        <div className={`${isActive
+          ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
+          : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
+          }`}>
           <Icon className="h-5 w-5" />
         </div>
         <span className="flex-1">{label}</span>
@@ -162,7 +176,7 @@ export const Sidebar = React.memo(function Sidebar() {
   // Handle click outside dropdown
   useEffect(() => {
     if (!isDropdownOpen) return;
-    
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
@@ -177,7 +191,7 @@ export const Sidebar = React.memo(function Sidebar() {
 
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
@@ -185,7 +199,7 @@ export const Sidebar = React.memo(function Sidebar() {
   }, [isDropdownOpen]);
 
   return (
-    <div className="flex h-full flex-col">        
+    <div className="flex h-full flex-col">
       {/* Navigation */}
       <div className="flex-1 overflow-auto sidebar-scroll-hide">
         <nav className="space-y-2">
@@ -197,7 +211,7 @@ export const Sidebar = React.memo(function Sidebar() {
           </div>
         </nav>
       </div>
-      
+
       {/* User Profile Section */}
       {user && (
         <>
@@ -207,7 +221,7 @@ export const Sidebar = React.memo(function Sidebar() {
             {isDropdownOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
                 <div className="py-1">
-                  <Link 
+                  <Link
                     href={profileHref}
                     className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/50 transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
@@ -215,7 +229,7 @@ export const Sidebar = React.memo(function Sidebar() {
                     <User className="h-4 w-4 opacity-80" />
                     <span>View Profile</span>
                   </Link>
-                  <Link 
+                  <Link
                     href="/settings"
                     className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/50 transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
@@ -224,7 +238,7 @@ export const Sidebar = React.memo(function Sidebar() {
                     <span>Settings</span>
                   </Link>
                   <div className="h-px bg-border/60 my-1" />
-                  <button 
+                  <button
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 hover:text-red-500 transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
                     onClick={async (e) => {
                       e.preventDefault();
@@ -249,9 +263,9 @@ export const Sidebar = React.memo(function Sidebar() {
                 </div>
               </div>
             )}
-            
+
             {/* User Profile Button */}
-            <button 
+            <button
               onClick={toggleDropdown}
               className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border hover:from-muted/70 hover:to-muted/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
@@ -326,42 +340,42 @@ export function MobileSidebar() {
     run();
     return () => { cancelled = true; };
   }, [user]);
-  
+
   const mobileNavItems = [
-    { 
-      href: '/', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Home' 
+    {
+      href: '/',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/home.svg" alt="Home" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Home'
     },
-    { 
-      href: '/search', 
-      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />, 
-      label: 'Search' 
+    {
+      href: '/search',
+      icon: ({ className }: { className?: string }) => <Image src="/icons/search.svg" alt="Search" width={16} height={16} className={className || "w-4 h-4"} />,
+      label: 'Search'
     },
-    { 
-      href: '/create', 
-      icon: Plus, 
-      label: 'Create' 
+    {
+      href: '/create',
+      icon: Plus,
+      label: 'Create'
     },
     {
       href: '/startups',
       icon: Rocket,
       label: 'Startups'
     },
-    { 
-      href: '/hub', 
-      icon: HubIcon, 
-      label: 'Hub' 
+    {
+      href: '/hub',
+      icon: HubIcon,
+      label: 'Hub'
     },
-    { 
-      href: profileHref, 
-      icon: User, 
-      label: 'Profile' 
+    {
+      href: profileHref,
+      icon: User,
+      label: 'Profile'
     },
-    { 
-      href: '/settings', 
-      icon: Settings, 
-      label: 'Settings' 
+    {
+      href: '/settings',
+      icon: Settings,
+      label: 'Settings'
     },
   ];
 
@@ -370,20 +384,18 @@ export function MobileSidebar() {
       {mobileNavItems.map((item) => {
         const isActive = pathname === item.href;
         return (
-          <Link 
+          <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
-              isActive 
-                ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg' 
-                : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
-            }`}
+            className={`flex flex-col items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${isActive
+              ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg'
+              : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
+              }`}
           >
-            <div className={`${
-              isActive
-                ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
-                : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
-            }`}>
+            <div className={`${isActive
+              ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
+              : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
+              }`}>
               <item.icon className="h-4 w-4" />
             </div>
             <span className="text-xs">{item.label}</span>
