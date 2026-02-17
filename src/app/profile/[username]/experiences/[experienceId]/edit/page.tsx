@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Check } from 'lucide-react';
+import CompanyAutocomplete from '@/components/profile/CompanyAutocomplete';
 
 type PositionRow = {
   id: string;
@@ -165,21 +166,34 @@ export default function EditOneExperiencePage() {
                 <div className="space-y-3 mb-8">
                   <div>
                     <label className="block text-sm text-muted-foreground mb-1">Company Name</label>
-                    <input
+                    <CompanyAutocomplete
                       value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className={`w-full rounded-lg bg-black/30 border px-3 py-2 outline-none border-emerald-500/20`}
+                      domain={domain}
+                      onChange={(sel) => {
+                        setCompanyName(sel.name);
+                        if (sel.domain) setDomain(sel.domain);
+                      }}
                       placeholder="Company"
                     />
                   </div>
                   <div>
                     <label className="block text-sm text-muted-foreground mb-1">Domain</label>
-                    <input
-                      value={domain}
-                      onChange={(e) => setDomain(e.target.value)}
-                      className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
-                      placeholder="example.com"
-                    />
+                    <div className="flex items-center gap-2">
+                      {domain && (
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                          alt=""
+                          className="h-5 w-5 rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
+                      <input
+                        value={domain}
+                        onChange={(e) => setDomain(e.target.value)}
+                        className="w-full rounded-lg bg-black/30 border border-emerald-500/20 px-3 py-2 outline-none"
+                        placeholder="example.com"
+                      />
+                    </div>
                   </div>
                   <div className="h-2" />
                 </div>

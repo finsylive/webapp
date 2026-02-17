@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle } from 'lucide-react';
+import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { UserActivityFeed } from '@/components/posts/UserActivityFeed';
@@ -38,6 +38,18 @@ type StartupRow = {
   is_actively_raising: boolean | null;
 };
 
+type EducationRow = {
+  id: string;
+  institution_name: string;
+  institution_domain?: string | null;
+  degree?: string | null;
+  field_of_study?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  description?: string | null;
+  sort_order?: number | null;
+};
+
 type ProfileData = {
   user: {
     id: string;
@@ -52,6 +64,7 @@ type ProfileData = {
     is_verified?: boolean | null;
     about?: string | null;
     bio?: string | null;
+    skills?: string[] | null;
   };
   counts: {
     followers: number;
@@ -61,6 +74,7 @@ type ProfileData = {
     startups: number;
   };
   experiences: ExperienceRow[];
+  education: EducationRow[];
   startups: StartupRow[];
   viewer: { is_following: boolean };
 } | null;
@@ -269,6 +283,7 @@ export default function PublicProfilePage() {
   const bio = data?.user?.about || data?.user?.bio || '';
   const city = data?.user?.current_city || '';
   const experiences = useMemo(() => data?.experiences ?? [], [data?.experiences]);
+  const education = useMemo(() => data?.education ?? [], [data?.education]);
   const startups = useMemo(() => data?.startups ?? [], [data?.startups]);
   const isOwnProfile = viewerId && data?.user?.id && viewerId === data.user.id;
 
@@ -468,9 +483,45 @@ export default function PublicProfilePage() {
                     {loading ? (
                       <p className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>Loading...</p>
                     ) : (
-                      <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {bio || 'No bio yet.'}
-                      </p>
+                      <>
+                        <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {bio || 'No bio yet.'}
+                        </p>
+
+                        {/* Profile Completion — only shown to profile owner */}
+                        {isOwnProfile && (() => {
+                          const fields = [
+                            { label: 'Full Name', done: !!data?.user?.full_name },
+                            { label: 'Avatar', done: !!data?.user?.avatar_url },
+                            { label: 'Cover Image', done: !!(data?.user?.banner_image || data?.user?.cover_url) },
+                            { label: 'Tagline', done: !!data?.user?.tagline },
+                            { label: 'Bio', done: !!(data?.user?.about || data?.user?.bio) },
+                            { label: 'City', done: !!data?.user?.current_city },
+                            { label: 'Skills', done: !!(data?.user?.skills && data.user.skills.length > 0) },
+                            { label: 'Experience', done: experiences.length > 0 },
+                            { label: 'Education', done: education.length > 0 },
+                          ];
+                          const completed = fields.filter(f => f.done).length;
+                          const percent = Math.round((completed / fields.length) * 100);
+                          const missing = fields.filter(f => !f.done).map(f => f.label);
+
+                          return (
+                            <div className="mt-3 flex items-center gap-2">
+                              <div className={`w-24 h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                                <div
+                                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <span className={`text-[11px] font-semibold whitespace-nowrap ${
+                                percent === 100 ? 'text-emerald-500' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>
+                                {percent}% complete
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </>
                     )}
                   </div>
 
@@ -650,8 +701,25 @@ export default function PublicProfilePage() {
                             <div key={exp.id} className="flex gap-3">
                               {/* Timeline */}
                               <div className="flex flex-col items-center pt-1">
-                                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                                  <Building2 className="h-4 w-4 text-emerald-500" />
+                                <div className={`h-10 w-10 rounded-xl ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'} overflow-hidden flex items-center justify-center`}>
+                                  {exp.domain ? (
+                                    <img
+                                      src={`https://www.google.com/s2/favicons?domain=${exp.domain}&sz=64`}
+                                      alt={exp.company_name}
+                                      className="h-7 w-7 object-contain"
+                                      onError={(e) => {
+                                        const el = e.target as HTMLImageElement;
+                                        el.style.display = 'none';
+                                        if (el.nextElementSibling) return;
+                                        const fallback = document.createElement('span');
+                                        fallback.className = 'h-7 w-7 flex items-center justify-center';
+                                        fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 2v4"/><path d="M2 10h20"/></svg>';
+                                        el.parentElement?.appendChild(fallback);
+                                      }}
+                                    />
+                                  ) : (
+                                    <Building2 className="h-5 w-5 text-emerald-500" />
+                                  )}
                                 </div>
                                 {index < (experiences.length - 1) && (
                                   <div className={`w-px flex-1 mt-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
@@ -707,6 +775,140 @@ export default function PublicProfilePage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Education */}
+                  {(education.length > 0 || isOwnProfile) && (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+                          <GraduationCap className="h-4 w-4 text-emerald-500" />
+                          Education
+                        </h2>
+                        {isOwnProfile && (
+                          <Link
+                            href={`/profile/${encodeURIComponent(username)}/education/edit`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                              isDarkMode
+                                ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                                : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                            }`}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add
+                          </Link>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        {loading ? (
+                          <p className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>Loading...</p>
+                        ) : education.length > 0 ? (
+                          education.map((ed, index) => {
+                            const edStart = ed.start_date ? new Date(ed.start_date) : null;
+                            const edEnd = ed.end_date ? new Date(ed.end_date) : null;
+                            const edIsCurrent = !ed.end_date && !!ed.start_date;
+                            const formatMonthYear = (d: Date | null) => d ? d.toLocaleString(undefined, { month: 'short', year: 'numeric' }) : '—';
+                            const edDuration = formatDuration(ed.start_date, ed.end_date);
+
+                            return (
+                              <div key={ed.id} className="flex gap-3">
+                                <div className="flex flex-col items-center pt-1">
+                                  <div className={`h-10 w-10 rounded-xl ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'} overflow-hidden flex items-center justify-center`}>
+                                    {ed.institution_domain ? (
+                                      <img
+                                        src={`https://www.google.com/s2/favicons?domain=${ed.institution_domain}&sz=64`}
+                                        alt={ed.institution_name}
+                                        className="h-7 w-7 object-contain"
+                                        onError={(e) => {
+                                          const el = e.target as HTMLImageElement;
+                                          el.style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <GraduationCap className="h-5 w-5 text-emerald-500" />
+                                    )}
+                                  </div>
+                                  {index < (education.length - 1) && (
+                                    <div className={`w-px flex-1 mt-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+                                  )}
+                                </div>
+
+                                <div className="flex-1 pb-6">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        {ed.degree || 'Education'}
+                                        {ed.field_of_study && (
+                                          <span className={`font-normal ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            {' '}in {ed.field_of_study}
+                                          </span>
+                                        )}
+                                      </h3>
+                                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {ed.institution_name}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      {edDuration && (
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                          isDarkMode
+                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                            : 'bg-emerald-50 text-emerald-700'
+                                        }`}>
+                                          {edDuration}
+                                        </span>
+                                      )}
+                                      {edIsCurrent && (
+                                        <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium">
+                                          Current
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {(edStart || edEnd) && (
+                                    <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      {formatMonthYear(edStart)} — {edIsCurrent && !edEnd ? 'Present' : formatMonthYear(edEnd)}
+                                    </p>
+                                  )}
+                                  {ed.description && (
+                                    <p className={`text-sm mt-2 leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                      {ed.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No education added.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skills */}
+                  {(data?.user?.skills && data.user.skills.length > 0) && (
+                    <div>
+                      <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3 flex items-center gap-2`}>
+                        <Zap className="h-4 w-4 text-amber-500" />
+                        Skills
+                      </h2>
+                      <div className="flex flex-wrap gap-2">
+                        {data.user.skills.map((skill) => (
+                          <span
+                            key={skill}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
+                              isDarkMode
+                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

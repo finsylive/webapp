@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 
 type Position = {
   id: string;
@@ -40,8 +40,9 @@ export async function DELETE(
 
     const supabase = createAdminClient();
 
-    // auth and owner
-    const { data: auth } = await supabase.auth.getUser();
+    // auth via cookie-based client
+    const authClient = await createAuthClient();
+    const { data: auth } = await authClient.auth.getUser();
     const requesterId = auth?.user?.id || null;
     const { data: userRow } = await supabase
       .from('users')
@@ -93,9 +94,10 @@ export async function POST(
 
     const supabase = createAdminClient();
 
-    // auth
-    const { data: auth } = await supabase.auth.getUser();
-    const requesterId = auth?.user?.id || null;
+    // auth via cookie-based client
+    const authClient = await createAuthClient();
+    const { data: authData } = await authClient.auth.getUser();
+    const requesterId = authData?.user?.id || null;
 
     // profile owner
     const { data: userRow, error: userError } = await supabase
@@ -160,9 +162,10 @@ export async function PATCH(
 
     const supabase = createAdminClient();
 
-    // Authenticated user
-    const { data: auth } = await supabase.auth.getUser();
-    const requesterId = auth?.user?.id || null;
+    // auth via cookie-based client
+    const authClient = await createAuthClient();
+    const { data: patchAuth } = await authClient.auth.getUser();
+    const requesterId = patchAuth?.user?.id || null;
 
     // Resolve profile owner by username
     const { data: userRow, error: userError } = await supabase

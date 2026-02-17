@@ -58,6 +58,7 @@ type UserRow = {
   user_type: string | null;
   is_verified: boolean | null;
   about: string | null;
+  skills: string[] | null;
 };
 
 
@@ -82,7 +83,7 @@ export async function GET(
     // 1) Fetch user by username (case-insensitive)
     const { data: userRow, error: userError } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, user_type, is_verified, about')
+      .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, user_type, is_verified, about, skills')
       .ilike('username', username)
       .maybeSingle();
 
@@ -115,6 +116,7 @@ export async function GET(
       about: u.about ?? null,
       // legacy alias kept for backward compatibility
       bio: u.about ?? null,
+      skills: u.skills ?? [],
     } as const;
 
     // 2-5) Fetch ALL supplementary data in parallel for performance
@@ -128,6 +130,7 @@ export async function GET(
       portfoliosResult,
       startupsResult,
       followCheckResult,
+      educationResult,
     ] = await Promise.all([
       // Followers count
       (async () => {
@@ -211,6 +214,19 @@ export async function GET(
           return !r.error && r.data && r.data.length > 0;
         } catch { return false; }
       })(),
+      // Education
+      (async () => {
+        try {
+          const r = await supabase
+            .from('education')
+            .select('id, institution_name, institution_domain, degree, field_of_study, start_date, end_date, description, sort_order')
+            .eq('user_id', user.id)
+            .order('sort_order', { ascending: true })
+            .order('start_date', { ascending: false })
+            .limit(25);
+          return r.data || [];
+        } catch { return []; }
+      })(),
     ]);
 
     const followers = followersResult as number;
@@ -222,6 +238,8 @@ export async function GET(
     const startups = startupsResult as StartupBrief[];
     const startupsCount = startups.length;
     const is_following = followCheckResult as boolean;
+    type EducationBrief = { id: string; institution_name: string; institution_domain: string | null; degree: string | null; field_of_study: string | null; start_date: string | null; end_date: string | null; description: string | null; sort_order: number | null };
+    const education = educationResult as EducationBrief[];
 
     return NextResponse.json({
       data: {
@@ -234,6 +252,7 @@ export async function GET(
           startups: startupsCount,
         },
         experiences,
+        education,
         startups,
         viewer: {
           is_following,

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
+import CompanyAutocomplete from '@/components/profile/CompanyAutocomplete';
 
 // lightweight types (aligned with our edit page)
 type PositionPayload = {
@@ -155,21 +156,34 @@ export default function CreateExperiencePage() {
                 </select>
               ) : (
                 <>
-                  <input
-                    type="text"
-                    placeholder="Company Name"
-                    className={`w-full px-4 py-3 rounded-xl bg-background/50 border focus:outline-none focus:ring-2 ${errors.companyName ? 'border-red-500/50 focus:ring-red-500' : 'border-emerald-500/40 focus:ring-emerald-500'} mb-1`}
+                  <CompanyAutocomplete
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    domain={domain}
+                    onChange={(sel) => {
+                      setCompanyName(sel.name);
+                      if (sel.domain) setDomain(sel.domain);
+                    }}
+                    placeholder="Company Name"
+                    className="mb-1"
                   />
                   {errors.companyName && <p className="text-xs text-red-400 mb-2">{errors.companyName}</p>}
-                  <input
-                    type="text"
-                    placeholder="Domain"
-                    className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                  />
+                  <div className="flex items-center gap-2">
+                    {domain && (
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                        alt=""
+                        className="h-5 w-5 rounded"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <input
+                      type="text"
+                      placeholder="Domain (e.g. google.com)"
+                      className="w-full px-4 py-3 rounded-xl bg-background/50 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      value={domain}
+                      onChange={(e) => setDomain(e.target.value)}
+                    />
+                  </div>
                 </>
               )}
               {errors.experienceId && mode === 'existing' && <p className="text-xs text-red-400 mt-1">{errors.experienceId}</p>}

@@ -1,10 +1,11 @@
 "use client";
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, X, Eye, Building2, TrendingUp, Target, UserCheck } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
@@ -95,15 +96,7 @@ type ResourceItem = {
   eligibility?: string | null;
   deadline?: string | null;
   tags?: string[];
-  metadata?: {
-    location?: string;
-    recent_investments?: string;
-    sectors?: string;
-    avg_startup_age?: string;
-    avg_num_founders?: string;
-    avg_founder_age?: string;
-    companies_invested?: string;
-  };
+  metadata?: Record<string, string>;
 };
 
 const RESOURCE_CATEGORIES = [
@@ -463,7 +456,7 @@ const jobTypeLabels: Record<string, string> = {
 const JobRowCard = ({ job }: { job: JobItem }) => {
   const ended = isEnded(job);
   return (
-    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 transition">
+    <Link href={`/hub/job/${encodeURIComponent(job.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 hover:shadow-md transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -489,19 +482,19 @@ const JobRowCard = ({ job }: { job: JobItem }) => {
             )}
           </div>
         </div>
-        <button className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition">
-          Apply
+        <span className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition">
+          View
           <ArrowRight className="h-4 w-4" />
-        </button>
+        </span>
       </div>
-    </div>
+    </Link>
   );
 };
 
 const GigRowCard = ({ gig }: { gig: GigItem }) => {
   const ended = isEnded(gig);
   return (
-    <div className="rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 transition">
+    <Link href={`/hub/gig/${encodeURIComponent(gig.id)}`} className="block rounded-2xl bg-card/70 border border-border/60 p-4 md:p-5 hover:bg-card/80 hover:shadow-md transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -535,12 +528,12 @@ const GigRowCard = ({ gig }: { gig: GigItem }) => {
             </div>
           )}
         </div>
-        <button className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition">
-          Apply
+        <span className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition">
+          View
           <ArrowRight className="h-4 w-4" />
-        </button>
+        </span>
       </div>
-    </div>
+    </Link>
   );
 };
 
@@ -557,175 +550,9 @@ function getResourceLogoUrl(resource: ResourceItem): string | null {
   return null;
 }
 
-// --- Resource Detail Modal ---
-
-const ResourceDetailModal = ({ resource, onClose }: { resource: ResourceItem; onClose: () => void }) => {
-  const ended = isEnded(resource);
-  const logoUrl = getResourceLogoUrl(resource);
-  const meta = resource.metadata;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-4 rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            {logoUrl ? (
-              <img src={logoUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-muted/30 p-1" />
-            ) : (
-              <div className="h-10 w-10 rounded-lg bg-muted/50 flex items-center justify-center text-2xl">
-                {resource.icon || '\uD83D\uDCE6'}
-              </div>
-            )}
-            <div>
-              <h3 className="text-lg font-bold text-foreground">{resource.title}</h3>
-              {resource.provider && <p className="text-xs text-muted-foreground">{resource.provider}</p>}
-            </div>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-5 py-4 space-y-4">
-          {/* Category badge */}
-          <span className="inline-block text-[11px] font-semibold text-primary/80 dark:text-primary/70 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
-            {categoryLabels[resource.category] || resource.category}
-          </span>
-
-          {/* Description */}
-          {resource.description && (
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-1">Description</h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-line">{resource.description}</p>
-            </div>
-          )}
-
-          {/* Scheme-specific fields */}
-          {meta && (resource.category === 'scheme' || resource.category === 'govt_scheme' || resource.category === 'accelerator_incubator') && (
-            <div className="space-y-3 rounded-lg bg-muted/20 border border-border/60 p-4">
-              <h4 className="text-sm font-semibold text-foreground">Scheme Details</h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {meta.location && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">Location</p>
-                      <p className="text-foreground">{meta.location}</p>
-                    </div>
-                  </div>
-                )}
-                {meta.sectors && (
-                  <div className="flex items-start gap-2">
-                    <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">Sectors</p>
-                      <p className="text-foreground">{meta.sectors}</p>
-                    </div>
-                  </div>
-                )}
-                {meta.avg_startup_age && (
-                  <div className="flex items-start gap-2">
-                    <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">Avg Startup Age</p>
-                      <p className="text-foreground">{meta.avg_startup_age}</p>
-                    </div>
-                  </div>
-                )}
-                {meta.avg_num_founders && (
-                  <div className="flex items-start gap-2">
-                    <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">Avg No. of Founders</p>
-                      <p className="text-foreground">{meta.avg_num_founders}</p>
-                    </div>
-                  </div>
-                )}
-                {meta.avg_founder_age && (
-                  <div className="flex items-start gap-2">
-                    <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">Avg Founder Age</p>
-                      <p className="text-foreground">{meta.avg_founder_age}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {meta.recent_investments && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                    <p className="text-[11px] text-muted-foreground font-medium">Recent Investments</p>
-                  </div>
-                  <p className="text-sm text-foreground whitespace-pre-line">{meta.recent_investments}</p>
-                </div>
-              )}
-              {meta.companies_invested && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                    <p className="text-[11px] text-muted-foreground font-medium">Companies Invested</p>
-                  </div>
-                  <p className="text-sm text-foreground whitespace-pre-line">{meta.companies_invested}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Eligibility */}
-          {resource.eligibility && (
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-1">Eligibility</h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-line">{resource.eligibility}</p>
-            </div>
-          )}
-
-          {/* Deadline */}
-          {resource.deadline && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className={`text-sm font-medium ${ended ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`}>
-                {ended ? 'Expired' : `Deadline: ${format(new Date(resource.deadline), 'dd MMM, yyyy')}`}
-              </span>
-            </div>
-          )}
-
-          {/* Tags */}
-          {resource.tags && resource.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {resource.tags.map((tag) => (
-                <span key={tag} className="text-[11px] font-medium text-muted-foreground bg-muted/40 border border-border px-2 py-0.5 rounded-full">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        {resource.url && (
-          <div className="sticky bottom-0 border-t border-border bg-card px-5 py-4 rounded-b-2xl">
-            <a
-              href={resource.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-5 py-2.5 text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition w-full"
-            >
-              Visit Website <ExternalLink className="h-4 w-4" />
-            </a>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 // --- Resource card ---
 
-const ResourceCard = ({ resource, onView }: { resource: ResourceItem; onView: (r: ResourceItem) => void }) => {
+const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
   const ended = isEnded(resource);
   const logoUrl = getResourceLogoUrl(resource);
 
@@ -774,12 +601,12 @@ const ResourceCard = ({ resource, onView }: { resource: ResourceItem; onView: (r
           )}
           {/* Action buttons */}
           <div className="mt-3 flex items-center gap-2">
-            <button
-              onClick={() => onView(resource)}
+            <Link
+              href={`/hub/resource/${encodeURIComponent(resource.id)}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-transparent px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
             >
               <Eye className="h-3.5 w-3.5" /> View Details
-            </button>
+            </Link>
             {resource.url && (
               <a
                 href={resource.url}
@@ -799,11 +626,20 @@ const ResourceCard = ({ resource, onView }: { resource: ResourceItem; onView: (r
 
 // --- Main Hub Page ---
 
-export default function HubPage() {
+function HubPageContent() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<TabKey>('events');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as TabKey) || 'events';
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [eventCategory, setEventCategory] = useState<EventCategoryKey>('all');
   const [loading, setLoading] = useState(true);
+
+  // Sync tab with URL search params so back navigation preserves tab state
+  const handleTabChange = (newTab: TabKey) => {
+    setTab(newTab);
+    router.replace(`/hub?tab=${newTab}`, { scroll: false });
+  };
 
   // Events tab data
   const [featured, setFeatured] = useState<CompetitionItem | null>(null);
@@ -817,9 +653,13 @@ export default function HubPage() {
   // Resources tab data
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [resourceFilter, setResourceFilter] = useState<string>('All');
-  const [viewingResource, setViewingResource] = useState<ResourceItem | null>(null);
   const [resourcePage, setResourcePage] = useState(0);
   const RESOURCES_PER_PAGE = 10;
+
+  // Recommendations
+  type RecommendedResource = ResourceItem & { ai_reason?: string };
+  const [recommendations, setRecommendations] = useState<RecommendedResource[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
 
   const filteredResources = useMemo(() => {
     if (resourceFilter === 'All') return resources;
@@ -903,6 +743,24 @@ export default function HubPage() {
     }
   }, [tab]);
 
+  // Fetch AI recommendations when resources tab is active and user is logged in
+  useEffect(() => {
+    if (tab !== 'resources' || !user) return;
+    let cancelled = false;
+    setLoadingRecs(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/resources/recommendations', { cache: 'no-store' });
+        const json = await res.json();
+        if (!cancelled) setRecommendations(Array.isArray(json.recommendations) ? json.recommendations : []);
+      } catch {
+        if (!cancelled) setRecommendations([]);
+      }
+      if (!cancelled) setLoadingRecs(false);
+    })();
+    return () => { cancelled = true; };
+  }, [tab, user]);
+
   // Filter events by sub-category
   const filteredEvents = useMemo(() => {
     if (eventCategory === 'all') return events;
@@ -926,7 +784,7 @@ export default function HubPage() {
       <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
         {/* Tabs header */}
         <div className="flex items-center justify-end">
-          <PillTabs active={tab} onChange={setTab} />
+          <PillTabs active={tab} onChange={handleTabChange} />
         </div>
 
         {/* Section title */}
@@ -1063,6 +921,47 @@ export default function HubPage() {
         {/* Resources tab */}
         {tab === 'resources' && (
           <div className="mt-6 space-y-6">
+            {/* AI Recommendations */}
+            {user && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <h3 className="text-lg font-bold text-foreground">Recommended for You</h3>
+                </div>
+                {loadingRecs ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                    ))}
+                  </div>
+                ) : recommendations.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {recommendations.map((rec) => (
+                      <Link
+                        key={rec.id}
+                        href={`/hub/resource/${encodeURIComponent(rec.id)}`}
+                        className="rounded-2xl bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20 p-4 hover:border-amber-500/40 hover:shadow-md transition-all"
+                      >
+                        <h4 className="text-sm font-semibold text-foreground line-clamp-1">{rec.title}</h4>
+                        {rec.provider && <p className="text-xs text-muted-foreground mt-0.5">{rec.provider}</p>}
+                        <span className="mt-1.5 inline-block text-[10px] font-semibold text-primary/80 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full">
+                          {categoryLabels[rec.category] || rec.category}
+                        </span>
+                        {rec.ai_reason && (
+                          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300/80 line-clamp-2">
+                            <Sparkles className="inline h-3 w-3 mr-1" />{rec.ai_reason}
+                          </p>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+                {(recommendations.length > 0 || loadingRecs) && (
+                  <div className="mt-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                )}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {RESOURCE_CATEGORIES.map(cat => (
                 <button
@@ -1088,7 +987,7 @@ export default function HubPage() {
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {paginatedResources.map(resource => (
-                    <ResourceCard key={resource.id} resource={resource} onView={setViewingResource} />
+                    <ResourceCard key={resource.id} resource={resource} />
                   ))}
                 </div>
 
@@ -1118,10 +1017,27 @@ export default function HubPage() {
         )}
       </div>
 
-      {/* Resource Detail Modal */}
-      {viewingResource && (
-        <ResourceDetailModal resource={viewingResource} onClose={() => setViewingResource(null)} />
-      )}
     </DashboardLayout>
+  );
+}
+
+export default function HubPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
+          <div className="h-10 w-48 animate-pulse rounded-2xl bg-muted/20 ml-auto" />
+          <div className="h-10 w-40 animate-pulse rounded-xl bg-muted/20 mt-6" />
+          <div className="h-1 w-40 rounded-full bg-muted/20 mt-4" />
+          <div className="mt-6 space-y-4">
+            <div className="h-64 animate-pulse rounded-2xl bg-muted/20 border border-border/60" />
+            <div className="h-28 animate-pulse rounded-2xl bg-muted/20 border border-border/60" />
+            <div className="h-28 animate-pulse rounded-2xl bg-muted/20 border border-border/60" />
+          </div>
+        </div>
+      </DashboardLayout>
+    }>
+      <HubPageContent />
+    </Suspense>
   );
 }
