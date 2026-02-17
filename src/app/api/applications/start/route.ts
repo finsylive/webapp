@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
 export async function POST(req: NextRequest) {
   try {
@@ -128,7 +128,7 @@ Deliverables: ${(listing.deliverables as string || '').slice(0, 500)}
 Scope: ${(listing.responsibilities as string || '').slice(0, 500)}`;
 
     // AI Call 1: Profile Analysis
-    const analysisResponse = await groq.chat.completions.create({
+    const analysisResponse = await getGroq().chat.completions.create({
       messages: [
         {
           role: 'system',
@@ -167,7 +167,7 @@ Return JSON:
     } catch { /* use defaults */ }
 
     // AI Call 2: Generate Questions
-    const questionsResponse = await groq.chat.completions.create({
+    const questionsResponse = await getGroq().chat.completions.create({
       messages: [
         {
           role: 'system',

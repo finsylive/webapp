@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
 export async function POST(
   req: NextRequest,
@@ -68,7 +68,7 @@ export async function POST(
     let score = 5;
     let feedback = '';
     try {
-      const evalResponse = await groq.chat.completions.create({
+      const evalResponse = await getGroq().chat.completions.create({
         messages: [
           {
             role: 'system',
