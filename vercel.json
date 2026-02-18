@@ -5,6 +5,14 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["bom1"],
+  "functions": {
+    "src/app/api/feed/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/feed/refresh/route.ts": {
+      "maxDuration": 30
+    }
+  },
   "github": {
     "silent": true
   }

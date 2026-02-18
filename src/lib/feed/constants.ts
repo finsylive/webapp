@@ -50,7 +50,7 @@ export const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 export const CACHE_TTL_HOURS = 2;
 
 // Pipeline configuration
-export const CANDIDATE_POOL_SIZE = 10_000;
+export const CANDIDATE_POOL_SIZE = 200;
 export const LLM_RERANK_TOP_N = 50;
 export const FEED_PAGE_SIZE = 20;
 
