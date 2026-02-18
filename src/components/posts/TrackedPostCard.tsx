@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { PostCard } from './PostCard';
 import { useFeedTracking } from '@/hooks/useFeedTracking';
 import type { Post } from '@/api/posts';
@@ -13,6 +14,7 @@ interface TrackedPostCardProps {
 }
 
 export const TrackedPostCard = memo(({ post, positionInFeed, onReply, onLike }: TrackedPostCardProps) => {
+  const router = useRouter();
   const { ref, trackClick, trackLike, trackReply, trackShare, trackBookmark, trackPollVote, trackProfileClick, trackExpandContent } = useFeedTracking({
     postId: post.id,
     authorId: post.author_id,
@@ -21,8 +23,12 @@ export const TrackedPostCard = memo(({ post, positionInFeed, onReply, onLike }: 
 
   const handleReply = useCallback(() => {
     trackReply();
-    onReply?.();
-  }, [trackReply, onReply]);
+    if (onReply) {
+      onReply();
+    } else {
+      router.push(`/post/${post.id}`);
+    }
+  }, [trackReply, onReply, router, post.id]);
 
   const handleLike = useCallback(() => {
     trackLike();

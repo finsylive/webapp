@@ -112,6 +112,15 @@ export function FeedSuggestions({ users, isLoading, onFollow }: FeedSuggestionsP
                         src={toProxyUrl(user.avatar_url, { width: 96, quality: 80 })}
                         alt={user.full_name}
                         className="w-12 h-12 rounded-full object-cover"
+                        onError={(e) => {
+                          const el = e.target as HTMLImageElement;
+                          el.style.display = 'none';
+                          if (el.nextElementSibling?.classList.contains('avatar-fallback')) return;
+                          const fallback = document.createElement('div');
+                          fallback.className = 'avatar-fallback w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg';
+                          fallback.textContent = user.full_name?.charAt(0)?.toUpperCase() || '?';
+                          el.parentElement?.insertBefore(fallback, el.nextSibling);
+                        }}
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg">

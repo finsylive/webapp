@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
 import { useConversations } from '@/context/ConversationsContext';
+import { toProxyUrl } from '@/utils/imageUtils';
 
 export const ConversationsList = React.memo(function ConversationsList() {
   const {
@@ -21,15 +22,7 @@ export const ConversationsList = React.memo(function ConversationsList() {
 
   const getProxiedImageUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
-    
-    // Only proxy S3 URLs that start with "s3://"
-    if (url.startsWith('s3://')) {
-      const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
-      return `${base}${encodeURIComponent(url)}`;
-    }
-    
-    // All other URLs (Google, direct HTTPS, etc.) use directly
-    return url;
+    return toProxyUrl(url, { width: 48, quality: 80 });
   };
 
   const formatTime = (dateString: string) => {
