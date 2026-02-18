@@ -1005,10 +1005,10 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   const profileSection = useMemo(() => (
     <div className="flex-1 min-w-0">
       {/* User profile and name section - horizontally aligned */}
-      <div className="flex items-start gap-4 mb-3">
+      <div className="flex items-start gap-3 sm:gap-4 mb-3">
         {/* Profile Picture */}
         <div className="relative" onClick={handleProfileClick} data-no-nav="true" role="link" tabIndex={0}>
-          <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
+          <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-border/20 group-hover:ring-primary/30 transition-all duration-300">
             {post.author?.avatar_url && !isGoogleAvatar(post.author.avatar_url) && !uiState.imageError ? (
               <div className="relative w-full h-full">
                 <Image
@@ -1036,7 +1036,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         <div className="flex-1 min-w-0">
           {/* Name + Verification Badge */}
           <div className="flex items-center gap-1.5 mb-1">
-            <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors duration-200 cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
+            <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-primary transition-colors duration-200 cursor-pointer" onClick={handleProfileClick} data-no-nav="true" role="link">
               {post.author?.full_name || post.author?.username || 'Anonymous'}
             </h3>
             {isVerified && (
@@ -1104,7 +1104,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     if (!post.tags || post.tags.length === 0) return null;
     
     return (
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div className="flex gap-1.5 sm:gap-2 mb-3 sm:mb-5 flex-wrap">
         {post.tags.map((tag, index) => (
           <div 
             key={index} 
@@ -1120,7 +1120,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
   return (
     <article
-      className="group relative bg-card border border-border rounded-3xl p-6 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-black/5 dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/50 dark:hover:bg-card/80 dark:hover:border-border/80 dark:hover:shadow-white/5 hover:-translate-y-1"
+      className="group relative bg-card border border-border rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-black/5 dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/50 dark:hover:bg-card/80 dark:hover:border-border/80 dark:hover:shadow-white/5 hover:-translate-y-1"
       data-post-id={post.id}
       data-author-id={post.author_id}
       onClick={onCardClick}
@@ -1133,7 +1133,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       
       <div className="relative z-10">
         {/* Header */}
-        <header className="flex items-start justify-between mb-5">
+        <header className="flex items-start justify-between mb-3 sm:mb-5">
           {profileSection}
           
           {/* Menu */}
@@ -1221,7 +1221,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         {tagsSection}
         
         {/* Content */}
-        <div className="mb-5">
+        <div className="mb-3 sm:mb-5">
           <MentionText 
             content={displayContent}
             className="text-foreground leading-relaxed text-[17px] block"
@@ -1242,7 +1242,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         
         {/* Media */}
         {post.media && post.media.length > 0 && (
-          <div className={`mb-5 rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-2 flex justify-center ${uiState.isExpanded ? 'max-h-none' : 'max-h-[500px]'}`}>
+          <div className={`mb-3 sm:mb-5 rounded-xl sm:rounded-2xl overflow-hidden bg-muted/5 ring-1 ring-border p-1.5 sm:p-2 flex justify-center ${uiState.isExpanded ? 'max-h-none' : 'max-h-[400px] sm:max-h-[500px]'}`}>
             <MediaGallery
               items={post.media}
               onOpen={openLightbox}
@@ -1252,8 +1252,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
         {/* Poll */}
         {post.poll && (
-          <div className="mb-5 rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 dark:from-card dark:to-card/50 border border-border p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="font-bold mb-4 text-foreground text-lg">{post.poll.question}</div>
+          <div className="mb-3 sm:mb-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 dark:from-card dark:to-card/50 border border-border p-3 sm:p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="font-bold mb-3 sm:mb-4 text-foreground text-base sm:text-lg">{post.poll.question}</div>
             <div className="space-y-3">
               {post.poll.options?.map(option => {
                 const voteCount = pollState.votes[option.id] || 0;
@@ -1326,64 +1326,64 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
         )}
         
         {/* Interaction buttons */}
-        <footer className="flex items-center justify-between pt-4 border-t border-border">
+        <footer className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border">
           <Button
             variant="ghost"
             size="sm"
             type="button"
-            className="flex items-center gap-2 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 rounded-2xl px-4 py-2 transition-all duration-200 group/reply"
+            className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/reply"
             onClick={handleReply}
           >
-            <MessageCircle className="h-5 w-5 group-hover/reply:scale-110 transition-transform duration-200" />
-            <span className="text-sm font-semibold">
+            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 group-hover/reply:scale-110 transition-transform duration-200" />
+            <span className="text-xs sm:text-sm font-semibold">
               {replies > 0 ? replies : 'Reply'}
             </span>
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`flex items-center gap-2 rounded-2xl px-4 py-2 transition-all duration-200 group/like ${
-              uiState.isLiked 
-                ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20' 
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/like ${
+              uiState.isLiked
+                ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20'
                 : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
             } ${uiState.isLiking ? 'opacity-50 scale-95' : ''}`}
             onClick={handleLike}
             disabled={uiState.isLiking}
           >
-            <Heart className={`h-5 w-5 group-hover/like:scale-110 transition-all duration-200 ${uiState.isLiked ? 'fill-current animate-pulse' : ''}`} />
-            <span className="text-sm font-semibold">
+            <Heart className={`h-4 w-4 sm:h-5 sm:w-5 group-hover/like:scale-110 transition-all duration-200 ${uiState.isLiked ? 'fill-current animate-pulse' : ''}`} />
+            <span className="text-xs sm:text-sm font-semibold">
               {uiState.likes > 0 ? uiState.likes : 'Like'}
             </span>
           </Button>
 
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`flex items-center gap-2 rounded-2xl px-4 py-2 transition-all duration-200 group/bookmark ${
-              uiState.isBookmarked 
-                ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' 
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/bookmark ${
+              uiState.isBookmarked
+                ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20'
                 : 'text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10'
             }`}
             onClick={handleBookmark}
           >
-            <Bookmark className={`h-5 w-5 group-hover/bookmark:scale-110 transition-all duration-200 ${uiState.isBookmarked ? 'fill-current' : ''}`} />
+            <Bookmark className={`h-4 w-4 sm:h-5 sm:w-5 group-hover/bookmark:scale-110 transition-all duration-200 ${uiState.isBookmarked ? 'fill-current' : ''}`} />
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
-            className="flex items-center gap-2 text-muted-foreground hover:text-green-500 hover:bg-green-500/10 rounded-2xl px-4 py-2 transition-all duration-200 group/share"
+            className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground hover:text-green-500 hover:bg-green-500/10 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/share"
             onClick={handleShare}
           >
-            <Share className="h-5 w-5 group-hover/share:scale-110 transition-transform duration-200" />
+            <Share className="h-4 w-4 sm:h-5 sm:w-5 group-hover/share:scale-110 transition-transform duration-200" />
           </Button>
 
           <Button
             variant="ghost"
             size="sm"
             type="button"
-            className="flex items-center gap-2 text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-2xl px-4 py-2 transition-all duration-200 group/resize"
+            className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/resize"
             onClick={(e) => {
               e.stopPropagation();
               if (!uiState.isExpanded) onExpandContent?.();
@@ -1395,9 +1395,9 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             }}
           >
             {uiState.isExpanded ? (
-              <Minimize2 className="h-5 w-5 group-hover/resize:scale-110 transition-transform duration-200" />
+              <Minimize2 className="h-4 w-4 sm:h-5 sm:w-5 group-hover/resize:scale-110 transition-transform duration-200" />
             ) : (
-              <Maximize2 className="h-5 w-5 group-hover/resize:scale-110 transition-transform duration-200" />
+              <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5 group-hover/resize:scale-110 transition-transform duration-200" />
             )}
           </Button>
         </footer>

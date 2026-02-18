@@ -335,7 +335,7 @@ export default function PublicProfilePage() {
 
           {/* Cover image — using <img> to bypass Next.js Image restrictions */}
           <div className="rounded-2xl overflow-hidden">
-            <div className="relative h-44 sm:h-52 w-full">
+            <div className="relative h-36 sm:h-44 md:h-52 w-full">
               {coverUrl && !imgError.cover ? (
                  
                 <img
@@ -351,8 +351,8 @@ export default function PublicProfilePage() {
           </div>
 
           {/* Avatar overlapping cover bottom */}
-          <div className="relative -mt-14 ml-5 mb-3 z-10">
-            <div className={`w-28 h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
+          <div className="relative -mt-12 ml-3 sm:-mt-14 sm:ml-5 mb-3 z-10">
+            <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
               {avatarUrl && !imgError.avatar ? (
                  
                 <img
@@ -371,7 +371,7 @@ export default function PublicProfilePage() {
 
           {/* Profile info card */}
           <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm -mt-2 mb-6">
-            <div className="px-6 py-5">
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
@@ -424,7 +424,7 @@ export default function PublicProfilePage() {
               </div>
 
               {/* Follower / Following stats */}
-              <div className="flex items-center gap-5 mt-4">
+              <div className="flex items-center gap-3 sm:gap-5 mt-4">
                 <Link
                   href={`/profile/${encodeURIComponent(username)}/followers`}
                   className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
@@ -457,7 +457,7 @@ export default function PublicProfilePage() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-3 py-3 sm:px-5 sm:py-3.5 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === (tab.id as typeof activeTab)
                       ? 'border-emerald-500 text-emerald-500'
                       : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-900'}`
@@ -469,7 +469,7 @@ export default function PublicProfilePage() {
               ))}
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* ── About Tab ── */}
               {activeTab === 'about' && (
                 <div className="space-y-8">
@@ -605,13 +605,13 @@ export default function PublicProfilePage() {
                       <Diamond className="h-4 w-4 text-emerald-500" />
                       Showcase
                     </h2>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       {/* Portfolio */}
                       <Link
                         href={isOwnProfile ? `/profile/${encodeURIComponent(username)}/portfolios/edit` : `/profile/${encodeURIComponent(username)}/portfolios`}
                         className={`group relative overflow-hidden rounded-xl border ${
                           isDarkMode ? 'border-teal-500/30 hover:border-teal-500/50' : 'border-teal-300 hover:border-teal-400'
-                        } bg-card/50 p-5 transition-all hover:shadow-md`}
+                        } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -633,7 +633,7 @@ export default function PublicProfilePage() {
                         href={`/profile/${encodeURIComponent(username)}/projects`}
                         className={`group relative overflow-hidden rounded-xl border ${
                           isDarkMode ? 'border-emerald-500/30 hover:border-emerald-500/50' : 'border-emerald-300 hover:border-emerald-400'
-                        } bg-card/50 p-5 transition-all hover:shadow-md`}
+                        } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
                       >
                         <div className="flex items-center justify-between">
                           <div>

@@ -873,42 +873,42 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
         {/* Post Type chips */}
         <div>
           <h3 className="text-sm font-semibold text-foreground mb-2">Post Type</h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2 py-2.5 sm:px-3 sm:py-3 border transition ${
                 postType === 'text'
                   ? 'bg-primary/15 border-primary/40 text-primary'
                   : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('text')}
             >
-              <TypeIcon className="h-5 w-5" />
-              <span className="text-sm font-semibold">Text</span>
+              <TypeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-xs sm:text-sm font-semibold">Text</span>
             </button>
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2 py-2.5 sm:px-3 sm:py-3 border transition ${
                 postType === 'media'
                   ? 'bg-primary/15 border-primary/40 text-primary'
                   : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('media')}
             >
-              <ImageIcon className="h-5 w-5" />
-              <span className="text-sm font-semibold">Media</span>
+              <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-xs sm:text-sm font-semibold">Media</span>
             </button>
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 border transition ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2 py-2.5 sm:px-3 sm:py-3 border transition ${
                 postType === 'poll'
                   ? 'bg-primary/15 border-primary/40 text-primary'
                   : 'bg-muted/50 border-border text-muted-foreground'
               }`}
               onClick={() => setPostType('poll')}
             >
-              <BarChart2 className="h-5 w-5" />
-              <span className="text-sm font-semibold">Poll</span>
+              <BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-xs sm:text-sm font-semibold">Poll</span>
             </button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">Create interactive polls for your community.</p>
@@ -929,7 +929,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               value={content}
               onChange={handleContentChange}
               placeholder="What's on your mind? Type @ to mention someone"
-              className="w-full rounded-xl bg-muted/30 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground min-h-[140px] p-3"
+              className="w-full rounded-xl bg-muted/30 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground min-h-[100px] sm:min-h-[140px] p-3"
               spellCheck="false"
               autoComplete="off"
             />
@@ -959,7 +959,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isSubmitting || isUploading || compressionProgress.isCompressing}
-            className="w-full rounded-2xl border border-border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors p-6 flex flex-col items-center justify-center text-muted-foreground"
+            className="w-full rounded-2xl border border-border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors p-4 sm:p-6 flex flex-col items-center justify-center text-muted-foreground"
           >
             <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 border border-primary/30 mb-2">
               {isUploading || compressionProgress.isCompressing ? (

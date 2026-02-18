@@ -90,16 +90,16 @@ function StartupsPageContent() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Discover Startups</h1>
-            <p className="text-sm text-muted-foreground mt-1">Find and connect with innovative startups</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Discover Startups</h1>
+            <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Find and connect with innovative startups</p>
           </div>
           <Link
             href="/startups/create"
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-md"
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-md shrink-0"
           >
-            <Plus className="h-4 w-4" /> Create Startup
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Create Startup</span><span className="sm:hidden">Create</span>
           </Link>
         </div>
 

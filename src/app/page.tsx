@@ -57,7 +57,7 @@ const HomePage = () => {
       {/* ===== LEFT — Brand panel ===== */}
       <div className="relative lg:w-[52%] w-full lg:min-h-screen bg-[#09090b] overflow-hidden">
 
-        <div className="relative z-10 h-full flex flex-col px-10 py-10 lg:px-16 lg:py-14">
+        <div className="relative z-10 h-full flex flex-col px-6 py-8 sm:px-10 sm:py-10 lg:px-16 lg:py-14">
 
           {/* Top — Logo + wordmark */}
           <div className="flex items-center gap-2.5">
@@ -66,7 +66,7 @@ const HomePage = () => {
           </div>
 
           {/* Center hero */}
-          <div className="flex-1 flex flex-col justify-center py-16 lg:py-0 max-w-lg">
+          <div className="flex-1 flex flex-col justify-center py-10 sm:py-16 lg:py-0 max-w-lg">
 
             {/* Large logo */}
             <img
@@ -76,12 +76,12 @@ const HomePage = () => {
             />
 
             {/* Big headline */}
-            <h1 className="text-4xl lg:text-[3.25rem] font-extrabold text-white tracking-tight leading-[1.1] mb-6">
+            <h1 className="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold text-white tracking-tight leading-[1.1] mb-4 sm:mb-6">
               Build the future,{' '}
               <span className="text-emerald-400">together.</span>
             </h1>
 
-            <p className="text-neutral-400 text-lg leading-relaxed mb-12 max-w-md">
+            <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-8 sm:mb-12 max-w-md">
               Ments brings builders, designers, and dreamers onto one platform to turn bold ideas into real products.
             </p>
 
@@ -121,7 +121,7 @@ const HomePage = () => {
       {/* ===== RIGHT — Sign in ===== */}
       <div className="lg:w-[48%] w-full lg:min-h-screen flex flex-col bg-neutral-50">
 
-        <div className="flex-1 flex items-center justify-center px-8 py-14 lg:px-16">
+        <div className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8 sm:py-14 lg:px-16">
           <div className="w-full max-w-[420px]">
 
             {/* Mobile logo */}
@@ -131,7 +131,7 @@ const HomePage = () => {
             </div>
 
             {/* Sign in card */}
-            <div className="bg-white rounded-2xl border border-neutral-200 p-8 lg:p-10 shadow-sm">
+            <div className="bg-white rounded-2xl border border-neutral-200 p-5 sm:p-8 lg:p-10 shadow-sm">
 
               {/* Heading */}
               <h2 className="text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight mb-1.5">
@@ -181,18 +181,18 @@ const HomePage = () => {
             </div>
 
             {/* Stats row below card */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="bg-white rounded-xl border border-neutral-200 p-4 text-center">
-                <p className="text-2xl font-bold text-neutral-900">500+</p>
-                <p className="text-xs text-neutral-400 mt-1">Builders</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4 sm:mt-6">
+              <div className="bg-white rounded-xl border border-neutral-200 p-3 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-neutral-900">500+</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 mt-1">Builders</p>
               </div>
-              <div className="bg-white rounded-xl border border-neutral-200 p-4 text-center">
-                <p className="text-2xl font-bold text-neutral-900">50+</p>
-                <p className="text-xs text-neutral-400 mt-1">Startups</p>
+              <div className="bg-white rounded-xl border border-neutral-200 p-3 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-neutral-900">50+</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 mt-1">Startups</p>
               </div>
-              <div className="bg-white rounded-xl border border-neutral-200 p-4 text-center">
-                <p className="text-2xl font-bold text-neutral-900">1K+</p>
-                <p className="text-xs text-neutral-400 mt-1">Projects</p>
+              <div className="bg-white rounded-xl border border-neutral-200 p-3 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-neutral-900">1K+</p>
+                <p className="text-[10px] sm:text-xs text-neutral-400 mt-1">Projects</p>
               </div>
             </div>
 
