@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAdminClient } from '@/utils/supabase-server';
 
 // GET /api/notifications?userId=...&page=...&limit=...&unreadOnly=...&type=...
 export async function GET(request: NextRequest) {
@@ -16,10 +16,9 @@ export async function GET(request: NextRequest) {
     }
 
     const offset = (page - 1) * limit;
-    // Each table gets half the limit to avoid over-fetching, then merge
-    const perTableLimit = limit + 1; // Fetch one extra to detect hasMore
+    const perTableLimit = limit + 1;
 
-    const supabase = await createAuthClient();
+    const supabase = createAdminClient();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type NotifRow = Record<string, any>;
@@ -79,10 +78,57 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, limit);
 
+    // Extract unique actor IDs from the data JSON field to look up user info
+    const actorIds = new Set<string>();
+    for (const n of merged) {
+      const d = n.data || {};
+      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.user_id;
+      if (actorId) actorIds.add(actorId);
+    }
+
+    // Fetch actor profiles in one query
+    let actorMap: Record<string, { username: string; full_name: string | null; avatar_url: string | null }> = {};
+    if (actorIds.size > 0) {
+      try {
+        const { data: actors } = await supabase
+          .from('users')
+          .select('id, username, full_name, avatar_url')
+          .in('id', Array.from(actorIds));
+        if (actors) {
+          for (const a of actors) {
+            actorMap[a.id] = { username: a.username, full_name: a.full_name, avatar_url: a.avatar_url };
+          }
+        }
+      } catch {
+        // non-critical, continue without actor info
+      }
+    }
+
+    // Map to the shape expected by the frontend
+    const mapped = merged.map((n) => {
+      const d = n.data || {};
+      const actorId = d.actor_id || d.from_user_id || d.sender_id || d.follower_id || d.user_id || null;
+      const actor = actorId ? actorMap[actorId] : null;
+
+      return {
+        id: n.id,
+        type: n.type,
+        content: n.message || d.message || d.content || null,
+        created_at: n.created_at,
+        actor_id: actorId,
+        actor_name: actor?.full_name || d.actor_name || d.sender_name || null,
+        actor_username: actor?.username || d.actor_username || d.sender_username || null,
+        actor_avatar_url: actor?.avatar_url || d.actor_avatar_url || d.sender_avatar_url || null,
+        post_id: d.post_id || d.postId || null,
+        notification_source: n.notification_source,
+        is_read: n.is_read,
+      };
+    });
+
     const total = (legacyResult.count || 0) + (inappResult.count || 0);
 
     return NextResponse.json({
-      data: merged,
+      data: mapped,
       pagination: {
         page,
         limit,
@@ -105,7 +151,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    const supabase = await createAuthClient();
+    const supabase = createAdminClient();
 
     if (markAllAsRead) {
       // Mark all unread in both tables
@@ -155,7 +201,7 @@ export async function HEAD(request: NextRequest) {
       return new NextResponse(null, { status: 400, headers: { 'X-Error': 'userId parameter is required' } });
     }
 
-    const supabase = await createAuthClient();
+    const supabase = createAdminClient();
 
     const [legacyCount, inappCount] = await Promise.all([
       (async () => {

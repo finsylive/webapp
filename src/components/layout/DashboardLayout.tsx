@@ -16,9 +16,10 @@ import { useAuth } from '@/context/AuthContext';
 type DashboardLayoutProps = {
   children: ReactNode;
   showSidebar?: boolean;
+  fullWidth?: boolean;
 };
 
-export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps) {
+export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardLayoutProps) {
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -136,7 +137,7 @@ export function DashboardLayout({ children, showSidebar }: DashboardLayoutProps)
 
         {/* Main Post Section */}
         <main className="flex-1 min-w-0 overflow-visible py-4 px-3 sm:py-6 sm:px-4 md:px-6 min-h-[500px]">
-          <div className="max-w-2xl mx-auto">
+          <div className={fullWidth ? 'w-full' : 'max-w-2xl mx-auto'}>
             {children}
           </div>
         </main>

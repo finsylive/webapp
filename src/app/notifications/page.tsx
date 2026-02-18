@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Image from "next/image";
-// Removed unused Link import
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 
@@ -18,6 +18,7 @@ interface NotificationItem {
   actor_id?: string;
   post_id?: string;
   notification_source?: 'inapp' | 'legacy' | string;
+  is_read?: boolean;
 }
 
 // Compact Avatar component
@@ -42,8 +43,8 @@ function AvatarImageWithFallback({ avatarUrl, email }: { avatarUrl: string, emai
 
   if (!avatarUrl || directFailed) {
     return (
-      <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 flex-shrink-0">
-        <span className="text-sm font-medium">{email?.charAt(0).toUpperCase() || "👤"}</span>
+      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+        <span className="text-sm font-semibold">{email?.charAt(0).toUpperCase() || "?"}</span>
       </div>
     );
   }
@@ -54,7 +55,7 @@ function AvatarImageWithFallback({ avatarUrl, email }: { avatarUrl: string, emai
       alt="Profile"
       width={40}
       height={40}
-      className="w-10 h-10 object-cover rounded-full border border-gray-600 flex-shrink-0"
+      className="w-10 h-10 object-cover rounded-full border border-border flex-shrink-0"
       unoptimized
       onError={() => {
         if (!proxyFailed) {
@@ -77,6 +78,8 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [markingRead, setMarkingRead] = useState(false);
+  const userIdRef = useRef<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -90,7 +93,8 @@ export default function NotificationsPage() {
           setLoading(false);
           return;
         }
-        const res = await fetch(`/api/notifications?userId=${data.user.id}`);
+        userIdRef.current = data.user.id;
+        const res = await fetch(`/api/notifications?userId=${data.user.id}&limit=50`);
         if (!res.ok) throw new Error('Failed to fetch notifications');
         const result = (await res.json()) as { data?: NotificationItem[] };
         setNotifications(result.data ?? []);
@@ -106,6 +110,27 @@ export default function NotificationsPage() {
 
   const [tab, setTab] = useState<'all' | 'follows' | 'replies' | 'mentions'>('all');
 
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const handleMarkAllRead = async () => {
+    if (!userIdRef.current || markingRead) return;
+    setMarkingRead(true);
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userIdRef.current, markAllAsRead: true }),
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setMarkingRead(false);
+    }
+  };
+
   const handleNotificationClick = (notification: NotificationItem) => {
     if (notification.type === 'follow' && notification.actor_username) {
       router.push(`/profile/${notification.actor_username}`);
@@ -118,19 +143,38 @@ export default function NotificationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
+      <div className="space-y-6">
         {/* Header */}
-        <h1 className="text-2xl font-semibold text-white mb-6">Notifications</h1>
-        
-        {/* Compact Tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-800 rounded-lg p-1 w-fit">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Notifications</h1>
+            <p className="text-sm text-muted-foreground mt-1">Stay updated with your latest activity</p>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingRead}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-primary hover:bg-primary/10 transition disabled:opacity-50"
+            >
+              {markingRead ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCheck className="h-3.5 w-3.5" />
+              )}
+              Mark all read
+            </button>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-accent/30 rounded-xl p-1 w-fit">
           {['All', 'Follows', 'Replies', 'Mentions'].map((t) => (
             <button
               key={t}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                ${tab === t.toLowerCase() 
-                  ? 'bg-green-500 text-white shadow-sm' 
-                  : 'text-gray-300 hover:text-white hover:bg-gray-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                ${tab === t.toLowerCase()
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}`}
               onClick={() => setTab(t.toLowerCase() as 'all' | 'follows' | 'replies' | 'mentions')}
             >
               {t}
@@ -140,11 +184,17 @@ export default function NotificationsPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="text-center text-gray-400 py-12">Loading...</div>
+          <div className="text-center text-muted-foreground py-12">Loading...</div>
         ) : error ? (
-          <div className="text-red-400 text-center py-12">{error}</div>
+          <div className="text-red-500 text-center py-12">{error}</div>
         ) : notifications.length === 0 ? (
-          <div className="text-center text-gray-400 py-12">No notifications</div>
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="w-16 h-16 rounded-full bg-accent/30 flex items-center justify-center mb-4">
+              <Bell className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <p className="text-muted-foreground font-medium mb-1">No notifications yet</p>
+            <p className="text-sm text-muted-foreground/70">When someone interacts with you, it will show up here</p>
+          </div>
         ) : (
           <div className="space-y-1">
             {(tab === 'all'
@@ -156,29 +206,37 @@ export default function NotificationsPage() {
                   return true;
                 })
             ).map((n) => (
-              <div 
-                key={n.id} 
-                className="flex items-start gap-3 p-4 hover:bg-gray-800/50 rounded-lg transition-colors border border-transparent hover:border-gray-700 cursor-pointer"
+              <div
+                key={n.id}
+                className={`flex items-start gap-3 p-4 rounded-xl transition-colors border cursor-pointer ${
+                  n.is_read
+                    ? 'border-transparent hover:bg-accent/30 hover:border-border'
+                    : 'bg-primary/5 border-primary/10 hover:bg-primary/10'
+                }`}
                 onClick={() => handleNotificationClick(n)}
               >
-                {/* Compact Avatar */}
+                {/* Unread dot */}
+                {!n.is_read && (
+                  <div className="w-2 h-2 rounded-full bg-primary mt-4 flex-shrink-0" />
+                )}
+                {/* Avatar */}
                 <div onClick={(e) => {
                   if (n.actor_username) {
                     e.stopPropagation();
                     router.push(`/profile/${n.actor_username}`);
                   }
                 }}>
-                  <AvatarImageWithFallback 
-                    avatarUrl={n.actor_avatar_url || ''} 
-                    email={n.actor_username || n.actor_name || ''} 
+                  <AvatarImageWithFallback
+                    avatarUrl={n.actor_avatar_url || ''}
+                    email={n.actor_username || n.actor_name || ''}
                   />
                 </div>
-                
+
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span 
-                      className="font-medium text-white text-sm truncate hover:underline"
+                    <span
+                      className="font-medium text-foreground text-sm truncate hover:underline"
                       onClick={(e) => {
                         if (n.actor_username) {
                           e.stopPropagation();
@@ -188,38 +246,31 @@ export default function NotificationsPage() {
                     >
                       {n.actor_name || n.actor_username || 'System'}
                     </span>
-                    
-                    {/* Compact badges */}
-                    <div className="flex gap-1">
-                      {n.type && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-300">
-                          {n.type.charAt(0).toUpperCase() + n.type.slice(1)}
-                        </span>
-                      )}
-                      {(n.notification_source === 'inapp' || n.notification_source === 'legacy') && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
-                          {n.notification_source}
-                        </span>
-                      )}
-                    </div>
-                    
+
+                    {/* Badge */}
+                    {n.type && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                        {n.type.charAt(0).toUpperCase() + n.type.slice(1)}
+                      </span>
+                    )}
+
                     {/* Timestamp */}
-                    <span className="text-xs text-gray-500 ml-auto">
+                    <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
                       {new Date(n.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  
+
                   {/* Notification message */}
-                  <div className="text-sm text-gray-300 leading-relaxed">
+                  <div className="text-sm text-muted-foreground leading-relaxed">
                     {n.type === 'reaction' && n.content ? (
                       <>
-                        reacted to your message: <span className="font-medium">{n.content}</span>
+                        reacted to your message: <span className="font-medium text-foreground">{n.content}</span>
                       </>
                     ) : n.type === 'mention' ? (
                       <>
                         mentioned you
                         {n.content && (
-                          <div className="bg-gray-800 rounded px-3 py-2 mt-2 text-gray-300 text-sm border-l-2 border-green-500">
+                          <div className="bg-accent/30 rounded-lg px-3 py-2 mt-2 text-sm text-foreground border-l-2 border-primary">
                             {n.content}
                           </div>
                         )}
@@ -228,7 +279,7 @@ export default function NotificationsPage() {
                       <>
                         replied to your post
                         {n.content && (
-                          <div className="bg-gray-800 rounded px-3 py-2 mt-2 text-gray-300 text-sm border-l-2 border-blue-500">
+                          <div className="bg-accent/30 rounded-lg px-3 py-2 mt-2 text-sm text-foreground border-l-2 border-blue-500">
                             {n.content}
                           </div>
                         )}
