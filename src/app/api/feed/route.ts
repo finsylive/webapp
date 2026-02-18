@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     let experimentId: string | null = null;
     let variant: string | null = null;
 
+    let pipelineDebug: string | undefined;
     try {
       const feedResponse = await generatePersonalizedFeed(user.id, cursor);
       postIds = feedResponse.posts.map((p) => p.post_id);
@@ -40,7 +41,13 @@ export async function GET(request: Request) {
       feedCursor = feedResponse.cursor;
       experimentId = feedResponse.experiment_id ?? null;
       variant = feedResponse.variant ?? null;
+      if (postIds.length === 0) {
+        pipelineDebug = `pipeline returned source="${feedResponse.source}" with 0 posts`;
+      } else {
+        pipelineDebug = `pipeline OK: source="${feedResponse.source}", ${postIds.length} posts`;
+      }
     } catch (pipelineError) {
+      pipelineDebug = `pipeline threw: ${pipelineError instanceof Error ? pipelineError.message : String(pipelineError)}`;
       console.warn('Feed pipeline failed:', pipelineError);
     }
 
@@ -116,6 +123,7 @@ export async function GET(request: Request) {
       source: feedSource,
       experiment_id: experimentId,
       variant: variant,
+      _debug: pipelineDebug,
     });
   } catch (error) {
     console.error('Error in feed API:', error);
