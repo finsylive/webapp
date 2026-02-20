@@ -117,10 +117,10 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'like': return <Heart className="w-3 h-3 text-red-500" />;
-      case 'comment': case 'reply': return <MessageCircle className="w-3 h-3 text-muted-foreground" />;
-      case 'follow': return <UserPlus className="w-3 h-3 text-green-500" />;
-      default: return <Bell className="w-3 h-3 text-muted-foreground" />;
+      case 'like': return <Heart className="w-4 h-4 text-red-500" />;
+      case 'comment': case 'reply': return <MessageCircle className="w-4 h-4 text-muted-foreground" />;
+      case 'follow': return <UserPlus className="w-4 h-4 text-green-500" />;
+      default: return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -131,28 +131,28 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
         <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-base font-semibold text-foreground">Communities</h2>
+              <Users className="w-[18px] h-[18px] text-muted-foreground" />
+              <h2 className="text-sm font-bold text-foreground">Communities</h2>
             </div>
-            <Link href="/environments" className="text-sm text-primary hover:underline">View all</Link>
+            <Link href="/environments" className="text-xs font-medium text-primary hover:underline">View all</Link>
           </div>
-          <div className="space-y-1">
-            {environments.map((env) => (
+          <div className="space-y-0.5">
+            {environments.slice(0, 12).map((env) => (
               <Link
                 key={env.id}
                 href={`/environments/${env.id}`}
-                className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground transition-colors"
+                className="flex items-center gap-3 rounded-lg px-2 py-[7px] text-sm font-medium text-foreground hover:bg-accent/60 transition-colors"
               >
                 {env.picture ? (
                   <Image
-                    src={toProxyUrl(env.picture, { width: 24, quality: 80 })}
+                    src={toProxyUrl(env.picture, { width: 32, quality: 80 })}
                     alt={env.name}
-                    width={24}
-                    height={24}
-                    className="h-6 w-6 rounded-lg object-cover"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
                   />
                 ) : (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-muted text-xs font-bold text-muted-foreground">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground flex-shrink-0">
                     {env.name.charAt(0)}
                   </div>
                 )}
@@ -168,43 +168,43 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
         <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-base font-semibold text-foreground">Recent Chats</h2>
+              <MessageCircle className="w-[18px] h-[18px] text-muted-foreground" />
+              <h2 className="text-sm font-bold text-foreground">Recent Chats</h2>
             </div>
-            <Link href="/messages" className="text-sm text-primary hover:underline">View all</Link>
+            <Link href="/messages" className="text-xs font-medium text-primary hover:underline">View all</Link>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {recentConversations.map((conv) => (
               <Link
                 key={conv.conversation_id}
                 href={`/messages/${conv.conversation_id}`}
-                className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground transition-colors"
+                className="flex items-center gap-3 rounded-lg px-2 py-[7px] text-sm hover:bg-accent/60 transition-colors"
               >
                 {conv.other_avatar_url ? (
                   <Image
-                    src={toProxyUrl(conv.other_avatar_url, { width: 28, quality: 80 })}
+                    src={toProxyUrl(conv.other_avatar_url, { width: 32, quality: 80 })}
                     alt={conv.other_full_name || conv.other_username}
-                    width={28}
-                    height={28}
-                    className="h-7 w-7 rounded-full object-cover flex-shrink-0"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
                   />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground flex-shrink-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground flex-shrink-0">
                     {(conv.other_full_name || conv.other_username || '?').charAt(0)}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="truncate text-base font-medium text-foreground">
+                  <p className="truncate text-sm font-semibold text-foreground">
                     {conv.other_full_name || conv.other_username}
                   </p>
                   {conv.last_message && (
-                    <p className="truncate text-sm text-muted-foreground">
+                    <p className="truncate text-xs text-muted-foreground">
                       {conv.last_message}
                     </p>
                   )}
                 </div>
                 {conv.unread_count > 0 && (
-                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground font-semibold">
+                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground font-bold">
                     {conv.unread_count > 9 ? '9+' : conv.unread_count}
                   </span>
                 )}
@@ -218,27 +218,27 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+            <Bell className="w-[18px] h-[18px] text-muted-foreground" />
+            <h2 className="text-sm font-bold text-foreground">Recent Activity</h2>
           </div>
-          <Link href="/notifications" className="text-sm text-primary hover:underline">View all</Link>
+          <Link href="/notifications" className="text-xs font-medium text-primary hover:underline">View all</Link>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {notifications.length > 0 ? (
-            notifications.slice(0, 6).map((notif) => (
+            notifications.slice(0, 5).map((notif) => (
               <Link
                 key={notif.id}
                 href="/notifications"
-                className={`flex items-start gap-3 rounded-xl p-2.5 transition-colors ${
-                  !notif.is_read ? 'bg-primary/5 border border-primary/10' : 'bg-muted/40 border border-border/80'
-                } hover:bg-accent/60`}
+                className={`flex items-start gap-2.5 rounded-lg p-2.5 transition-colors ${
+                  !notif.is_read ? 'bg-primary/5 border border-primary/10' : 'hover:bg-accent/60'
+                }`}
               >
                 <div className="mt-0.5">{getActivityIcon(notif.type)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {truncateText(notif.content, 80)}
+                  <p className="text-xs text-foreground leading-snug">
+                    {truncateText(notif.content, 70)}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(notif.created_at)}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(notif.created_at)}</p>
                 </div>
                 {!notif.is_read && (
                   <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
@@ -254,21 +254,21 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       {/* My Posts Performance Widget — Real posts */}
       <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold text-foreground">My Posts</h2>
+          <TrendingUp className="w-[18px] h-[18px] text-muted-foreground" />
+          <h2 className="text-sm font-bold text-foreground">My Posts</h2>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {myPosts.length > 0 ? (
             myPosts.map((post) => (
               <Link
                 key={post.id}
                 href={`/post/${post.id}`}
-                className="block rounded-xl bg-muted/40 border border-border/80 p-3 hover:bg-accent/60 transition-colors"
+                className="block rounded-lg bg-muted/30 p-2.5 hover:bg-accent/60 transition-colors"
               >
-                <p className="text-base text-foreground mb-2 line-clamp-2">
+                <p className="text-xs text-foreground mb-1.5 line-clamp-2 leading-snug">
                   {truncateText(post.content, 60) || 'Untitled post'}
                 </p>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
                       <Heart className="w-3 h-3" />
@@ -293,15 +293,15 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">People to Connect</h2>
+            <Users className="w-[18px] h-[18px] text-muted-foreground" />
+            <h2 className="text-sm font-bold text-foreground">People to Connect</h2>
           </div>
-          <Link href="/people" className="text-sm text-primary hover:underline">View all</Link>
+          <Link href="/people" className="text-xs font-medium text-primary hover:underline">View all</Link>
         </div>
         <div className="space-y-2">
           {suggestedUsers.length > 0 ? (
             suggestedUsers.map((person) => (
-              <div key={person.id} className="rounded-xl bg-muted/40 border border-border/80 p-3">
+              <div key={person.id} className="rounded-lg bg-muted/30 p-2.5">
                 <div className="flex items-center justify-between">
                   <Link
                     href={`/profile/${encodeURIComponent(person.username)}`}
@@ -309,36 +309,36 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                   >
                     {person.avatar_url ? (
                       <Image
-                        src={toProxyUrl(person.avatar_url, { width: 40, quality: 80 })}
+                        src={toProxyUrl(person.avatar_url, { width: 36, quality: 80 })}
                         alt={person.full_name || person.username}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                        width={36}
+                        height={36}
+                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-muted text-muted-foreground flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold bg-muted text-muted-foreground flex-shrink-0">
                         {(person.full_name || person.username || '?').charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
-                        <h3 className="font-medium text-base text-foreground truncate">{person.full_name || person.username}</h3>
+                        <h3 className="font-semibold text-sm text-foreground truncate">{person.full_name || person.username}</h3>
                         {person.is_verified && <CheckCircle className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {person.tagline || `@${person.username}`}
                       </p>
                     </div>
                   </Link>
                   {followingSet.has(person.id) ? (
-                    <span className="text-xs text-muted-foreground px-3 py-1 rounded-lg border border-border font-medium">
+                    <span className="text-xs text-muted-foreground px-3 py-1.5 rounded-lg border border-border font-medium">
                       Following
                     </span>
                   ) : (
                     <button
                       onClick={() => handleFollow(person.username, person.id)}
                       disabled={loadingFollow.has(person.id)}
-                      className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1 rounded-lg transition-colors font-medium disabled:opacity-50"
+                      className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-lg transition-colors font-medium disabled:opacity-50"
                     >
                       {loadingFollow.has(person.id) ? '...' : 'Follow'}
                     </button>

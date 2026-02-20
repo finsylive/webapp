@@ -8,7 +8,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Share2, MapPin, Briefcase, DollarSign, Clock,
   Building2, Globe, Mail, CheckCircle, Brain, Sparkles, Loader2,
-  ChevronDown, Monitor, Wifi, Home, GraduationCap, Layers, AlertCircle,
+  ChevronDown, Monitor, Wifi, Home, GraduationCap, Layers, AlertCircle, X, UserCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -101,7 +101,8 @@ export default function JobDetailPage() {
   const [responsibilitiesOpen, setResponsibilitiesOpen] = useState(true);
   const [benefitsOpen, setBenefitsOpen] = useState(true);
   const [appCheck, setAppCheck] = useState<{ applied: boolean; status?: string; loading: boolean }>({ applied: false, loading: true });
-  const [profileCompletion, setProfileCompletion] = useState<{ percent: number; missing: string[]; loading: boolean }>({ percent: 100, missing: [], loading: true });
+  const [profileCompletion, setProfileCompletion] = useState<{ percent: number; missing: string[]; username: string | null; loading: boolean }>({ percent: 100, missing: [], username: null, loading: true });
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Check if user already applied
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function JobDetailPage() {
   useEffect(() => {
     fetch('/api/users/profile-completion')
       .then((r) => r.json())
-      .then((json) => setProfileCompletion({ percent: json.percent ?? 100, missing: json.missing ?? [], loading: false }))
+      .then((json) => setProfileCompletion({ percent: json.percent ?? 100, missing: json.missing ?? [], username: json.username ?? null, loading: false }))
       .catch(() => setProfileCompletion((prev) => ({ ...prev, loading: false })));
   }, []);
 
@@ -378,26 +379,14 @@ export default function JobDetailPage() {
                     )}
                   </div>
                 ) : profileCompletion.percent < 70 ? (
-                  <div className="w-full rounded-xl bg-card border border-amber-500/30 p-4 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400 mb-2">
-                      <AlertCircle className="h-4 w-4" />
-                      Complete your profile to apply
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Your profile is {profileCompletion.percent}% complete. At least 70% is required to apply.
-                    </p>
-                    {profileCompletion.missing.length > 0 && (
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Missing: {profileCompletion.missing.join(', ')}
-                      </p>
-                    )}
-                    <Link
-                      href="/profile"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                    >
-                      Complete your profile
-                    </Link>
-                  </div>
+                  <button
+                    onClick={() => setShowProfileModal(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-emerald-500/90 text-white px-8 py-3.5 text-sm font-bold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-[0.98] transition shadow-lg shadow-emerald-500/20 border border-emerald-500/30"
+                  >
+                    <Brain className="h-4 w-4" />
+                    Apply with AI
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </button>
                 ) : (
                   <Link
                     href={`/hub/job/${id}/apply`}
@@ -412,6 +401,87 @@ export default function JobDetailPage() {
             )}
 
           </>
+        )}
+
+        {/* Profile Incomplete Modal */}
+        {showProfileModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowProfileModal(false)} />
+            <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+              {/* Close button */}
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="absolute top-4 right-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              {/* Icon */}
+              <div className="flex justify-center mb-4">
+                <div className="p-3 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  <UserCircle className="h-8 w-8 text-amber-500" />
+                </div>
+              </div>
+
+              {/* Title */}
+              <h2 className="text-lg font-bold text-foreground text-center mb-1">
+                Complete Your Profile
+              </h2>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                Your profile needs to be at least 70% complete before you can apply.
+              </p>
+
+              {/* Progress bar */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="text-muted-foreground font-medium">Profile completion</span>
+                  <span className={`font-bold ${profileCompletion.percent >= 70 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                    {profileCompletion.percent}%
+                  </span>
+                </div>
+                <div className="w-full h-2.5 rounded-full bg-muted/30 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                    style={{ width: `${profileCompletion.percent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Missing fields */}
+              {profileCompletion.missing.length > 0 && (
+                <div className="mb-5 rounded-xl bg-accent/30 border border-border/60 p-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Missing fields:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profileCompletion.missing.map((field) => (
+                      <span
+                        key={field}
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                      >
+                        <AlertCircle className="h-3 w-3" />
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-accent/50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <Link
+                  href={profileCompletion.username ? `/profile/${encodeURIComponent(profileCompletion.username)}` : '/profile/edit'}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold text-center hover:bg-primary/90 transition-colors"
+                >
+                  Go to Profile
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

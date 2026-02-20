@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const [profileRes, expCountRes, eduCountRes] = await Promise.all([
       admin
         .from('users')
-        .select('full_name, avatar_url, banner_image, cover_url, tagline, about, bio, current_city, skills')
+        .select('full_name, avatar_url, banner_image, tagline, about, current_city, skills')
         .eq('id', user.id)
         .single(),
       admin.from('work_experiences').select('id').eq('user_id', user.id).limit(1),

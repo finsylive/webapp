@@ -40,8 +40,7 @@ const HomePage = () => {
   if (user) {
     return (
       <DashboardLayout>
-        <div className="space-y-8">
-          {/* Personalized Feed */}
+        <div className="space-y-6">
           <div className="animate-in fade-in-50 duration-300">
             <PersonalizedFeed />
           </div>

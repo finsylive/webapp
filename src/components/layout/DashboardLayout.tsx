@@ -126,9 +126,9 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
       <div className="container mx-auto flex min-h-[calc(100vh-4rem)]">
         {/* Sidebar Container - hidden on mobile, narrower on md, full on lg */}
         {shouldShowSidebar && (
-          <div className="hidden md:block md:w-64 lg:w-72 xl:w-80 shrink-0 sticky top-20 h-[calc(100vh-5rem)] pt-6 pb-6">
+          <div className="hidden md:block md:w-72 lg:w-80 xl:w-[340px] shrink-0 sticky top-20 h-[calc(100vh-5rem)] pt-6 pb-6">
             <div className="h-full pr-4 lg:pr-6">
-              <div className="h-full bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-4 lg:p-6 shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="h-full bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-5 lg:p-6 shadow-sm hover:shadow-md transition-all duration-200">
                 <Sidebar />
               </div>
             </div>
@@ -137,14 +137,14 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
 
         {/* Main Post Section */}
         <main className="flex-1 min-w-0 overflow-visible py-4 px-3 sm:py-6 sm:px-4 md:px-6 min-h-[500px]">
-          <div className={fullWidth ? 'w-full' : 'max-w-2xl mx-auto'}>
+          <div className={fullWidth ? 'w-full' : 'max-w-5xl mx-auto'}>
             {children}
           </div>
         </main>
 
         {/* Right Side Components - only on xl+ */}
         {pathname === '/' && (
-          <aside className="hidden xl:block w-80 shrink-0 pt-6 pb-6 pl-6">
+          <aside className="hidden xl:block w-[320px] shrink-0 pt-6 pb-6 pl-6">
             <DashboardSidebarWidgets />
           </aside>
         )}

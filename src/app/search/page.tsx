@@ -229,7 +229,7 @@ export default function SearchPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 w-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col flex-1 w-full">
         <div className="max-w-3xl mx-auto w-full">
           {/* Search header */}
           <div className="mb-6">

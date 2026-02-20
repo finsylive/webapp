@@ -126,12 +126,12 @@ export const Sidebar = React.memo(function Sidebar() {
   }) => {
     const isActive = pathname === href;
     return (
-      <Link 
+      <Link
         href={href}
-        className={`group flex items-center gap-3.5 rounded-xl px-4 py-3 text-base font-medium transition-all duration-200 ${
-          isActive 
-            ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md' 
-            : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
+        className={`group flex items-center gap-4 rounded-xl px-4 py-3.5 text-base transition-all duration-200 ${
+          isActive
+            ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md font-semibold'
+            : 'text-muted-foreground font-medium hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
         }`}
       >
         <div className={`${
@@ -139,7 +139,7 @@ export const Sidebar = React.memo(function Sidebar() {
             ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
             : '[&_svg]:text-current text-current group-hover:[&_svg]:text-accent-foreground group-hover:text-accent-foreground dark:group-hover:[&_img]:brightness-0 dark:group-hover:[&_img]:invert'
         }`}>
-          <Icon className="h-5 w-5" />
+          <Icon className="h-[22px] w-[22px]" />
         </div>
         <span className="flex-1">{label}</span>
         {count && count > 0 && (
@@ -152,7 +152,7 @@ export const Sidebar = React.memo(function Sidebar() {
   };
 
   const SectionDivider = () => (
-    <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-4" />
+    <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-3" />
   );
 
   const toggleDropdown = useCallback(() => {
@@ -188,7 +188,7 @@ export const Sidebar = React.memo(function Sidebar() {
     <div className="flex h-full flex-col">        
       {/* Navigation */}
       <div className="flex-1 overflow-auto sidebar-scroll-hide">
-        <nav className="space-y-2">
+        <nav className="space-y-1">
           {/* Main Navigation */}
           <div className="space-y-1">
             {mainNavItems.map((item) => (
@@ -206,26 +206,26 @@ export const Sidebar = React.memo(function Sidebar() {
             {/* Dropdown Menu */}
             {isDropdownOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
-                <div className="py-1">
-                  <Link 
+                <div className="py-1.5">
+                  <Link
                     href={profileHref}
-                    className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/50 transition-colors"
+                    className="flex items-center gap-3.5 px-4 py-3 text-[15px] font-medium hover:bg-accent/50 transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
                   >
-                    <User className="h-4 w-4 opacity-80" />
+                    <User className="h-5 w-5 opacity-80" />
                     <span>View Profile</span>
                   </Link>
-                  <Link 
+                  <Link
                     href="/settings"
-                    className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/50 transition-colors"
+                    className="flex items-center gap-3.5 px-4 py-3 text-[15px] font-medium hover:bg-accent/50 transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
                   >
-                    <Settings className="h-4 w-4 opacity-80" />
+                    <Settings className="h-5 w-5 opacity-80" />
                     <span>Settings</span>
                   </Link>
-                  <div className="h-px bg-border/60 my-1" />
-                  <button 
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 hover:text-red-500 transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
+                  <div className="h-px bg-border/60 my-1.5" />
+                  <button
+                    className="w-full flex items-center gap-3.5 px-4 py-3 text-[15px] font-medium hover:bg-red-500/10 hover:text-red-500 transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
                     onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -238,7 +238,7 @@ export const Sidebar = React.memo(function Sidebar() {
                     }}
                     disabled={isSigningOut}
                   >
-                    <LogOut className="h-4 w-4 opacity-80" />
+                    <LogOut className="h-5 w-5 opacity-80" />
                     <span className="flex-1">{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
                     {isSigningOut && (
                       <span className="ml-2 inline-flex items-center">
@@ -251,40 +251,40 @@ export const Sidebar = React.memo(function Sidebar() {
             )}
             
             {/* User Profile Button */}
-            <button 
+            <button
               onClick={toggleDropdown}
-              className="w-full flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border hover:from-muted/70 hover:to-muted/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <div className="relative">
                 {userProfile?.avatar_url ? (
-                  <div className="h-12 w-12 rounded-xl overflow-hidden shadow-lg">
+                  <div className="h-10 w-10 rounded-full overflow-hidden">
                     <Image
-                      src={toProxyUrl(userProfile.avatar_url, { width: 48, quality: 82 })}
+                      src={toProxyUrl(userProfile.avatar_url, { width: 40, quality: 82 })}
                       alt={userProfile.full_name || 'Profile'}
-                      width={48}
-                      height={48}
+                      width={40}
+                      height={40}
                       className="h-full w-full object-cover"
-                      sizes="48px"
+                      sizes="40px"
                     />
                   </div>
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-lg">
-                    <span className="text-base font-bold text-primary-foreground">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary/80">
+                    <span className="text-sm font-bold text-primary-foreground">
                       {userProfile?.full_name?.charAt(0) || user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || '?'}
                     </span>
                   </div>
                 )}
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="truncate text-base font-semibold">
+                <p className="truncate text-sm font-semibold">
                   {userProfile?.full_name || user.user_metadata?.full_name || 'User'}
                 </p>
-                <p className="truncate text-sm text-muted-foreground">
+                <p className="truncate text-xs text-muted-foreground">
                   {user.email}
                 </p>
               </div>
-              <div className="text-muted-foreground transition-transform duration-200 group-hover:rotate-180">
+              <div className="text-muted-foreground">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>

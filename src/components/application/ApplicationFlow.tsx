@@ -193,7 +193,15 @@ export default function ApplicationFlow({ type, listingId, listingTitle }: Appli
           }
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Something went wrong');
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : 'Something went wrong';
+          // Show user-friendly message for duplicate/constraint errors
+          if (msg.includes('unique constraint') || msg.includes('duplicate key') || msg.includes('already applied')) {
+            setError('You have already applied to this position.');
+          } else {
+            setError(msg);
+          }
+        }
       }
     })();
     return () => { cancelled = true; };

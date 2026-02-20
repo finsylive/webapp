@@ -405,9 +405,9 @@ const MediaGallery = memo(({ items, onOpen }: {
       )}
 
       {/* Horizontal scrolling container */}
-      <div 
+      <div
         ref={scrollRef}
-        className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className={`flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${total === 1 ? 'justify-center' : ''}`}
       >
         {items.map((m, i) => {
           const imageUrl = toProxyUrl(m.media_url);
@@ -437,33 +437,35 @@ const MediaGallery = memo(({ items, onOpen }: {
           }
           
           const aspectRatio = imageWidth / imageHeight;
-          
-          // Calculate container dimensions
-          const baseSize = 200;
-          const maxSize = 350;
-          const minSize = 120;
-          
+          const isSingle = total === 1;
+
+          // Calculate container dimensions — use larger sizes for single items
+          const baseSize = isSingle ? 350 : 200;
+          const maxSize = isSingle ? 500 : 350;
+          const minSize = isSingle ? 200 : 120;
+          const maxHeight = isSingle ? 520 : 350;
+
           let containerWidth, containerHeight;
-          
+
           // For landscape images (width > height), base on height
           if (aspectRatio > 1) {
-            containerHeight = Math.min(baseSize, maxSize);
+            containerHeight = Math.min(baseSize, maxHeight);
             containerWidth = containerHeight * aspectRatio;
             if (containerWidth > maxSize) {
               containerWidth = maxSize;
               containerHeight = containerWidth / aspectRatio;
             }
-          } 
+          }
           // For portrait images (height > width), base on width
           else {
             containerWidth = Math.min(baseSize, maxSize);
             containerHeight = containerWidth / aspectRatio;
-            if (containerHeight > maxSize) {
-              containerHeight = maxSize;
+            if (containerHeight > maxHeight) {
+              containerHeight = maxHeight;
               containerWidth = containerHeight * aspectRatio;
             }
           }
-          
+
           // Ensure minimums
           if (containerWidth < minSize) containerWidth = minSize;
           if (containerHeight < minSize) containerHeight = minSize;

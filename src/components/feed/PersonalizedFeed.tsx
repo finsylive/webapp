@@ -74,7 +74,7 @@ export function PersonalizedFeed() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="space-y-6 max-w-3xl mx-auto">
         {[1, 2, 3].map((i) => (
           <div key={i} className="post-card animate-pulse">
             <div className="flex items-start gap-3 mb-4">
@@ -102,7 +102,7 @@ export function PersonalizedFeed() {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="post-card border-destructive/20 bg-destructive/5">
           <div className="text-center">
             <h3 className="text-lg font-semibold text-destructive mb-2">Something went wrong</h3>
@@ -121,7 +121,7 @@ export function PersonalizedFeed() {
 
   if (posts.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="post-card text-center">
           <div className="py-8">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/20 flex items-center justify-center">
@@ -140,7 +140,7 @@ export function PersonalizedFeed() {
       {/* New posts banner */}
       <NewPostsNotifier count={newPostCount} onRefresh={handleRefresh} />
 
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="space-y-6 max-w-3xl mx-auto">
         {posts.map((post, index) => (
           <div key={post.id}>
             <TrackedPostCard post={post} positionInFeed={index} />
