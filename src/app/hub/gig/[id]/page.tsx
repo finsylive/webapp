@@ -8,7 +8,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Share2, DollarSign, Clock, Zap,
   Building2, Globe, Mail, CheckCircle, Brain, Sparkles, Loader2,
-  ChevronDown, GraduationCap, Layers, Package, FileText,
+  ChevronDown, GraduationCap, Layers, Package, FileText, AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -85,6 +85,7 @@ export default function GigDetailPage() {
   const [deliverablesOpen, setDeliverablesOpen] = useState(true);
   const [responsibilitiesOpen, setResponsibilitiesOpen] = useState(true);
   const [appCheck, setAppCheck] = useState<{ applied: boolean; status?: string; loading: boolean }>({ applied: false, loading: true });
+  const [profileCompletion, setProfileCompletion] = useState<{ percent: number; missing: string[]; loading: boolean }>({ percent: 100, missing: [], loading: true });
 
   // Check if user already applied
   useEffect(() => {
@@ -94,6 +95,14 @@ export default function GigDetailPage() {
       .then((json) => setAppCheck({ applied: json.applied, status: json.status, loading: false }))
       .catch(() => setAppCheck((prev) => ({ ...prev, loading: false })));
   }, [id]);
+
+  // Check profile completion
+  useEffect(() => {
+    fetch('/api/users/profile-completion')
+      .then((r) => r.json())
+      .then((json) => setProfileCompletion({ percent: json.percent ?? 100, missing: json.missing ?? [], loading: false }))
+      .catch(() => setProfileCompletion((prev) => ({ ...prev, loading: false })));
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -323,7 +332,7 @@ export default function GigDetailPage() {
             {/* Apply CTA */}
             {!ended && gig.is_active && (
               <div className="sticky bottom-4 mt-4">
-                {appCheck.loading ? (
+                {appCheck.loading || profileCompletion.loading ? (
                   <div className="w-full flex items-center justify-center py-3.5">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
@@ -338,6 +347,27 @@ export default function GigDetailPage() {
                         Continue Application
                       </Link>
                     )}
+                  </div>
+                ) : profileCompletion.percent < 70 ? (
+                  <div className="w-full rounded-xl bg-card border border-amber-500/30 p-4 text-center">
+                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400 mb-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Complete your profile to apply
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Your profile is {profileCompletion.percent}% complete. At least 70% is required to apply.
+                    </p>
+                    {profileCompletion.missing.length > 0 && (
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Missing: {profileCompletion.missing.join(', ')}
+                      </p>
+                    )}
+                    <Link
+                      href="/profile"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Complete your profile
+                    </Link>
                   </div>
                 ) : (
                   <Link

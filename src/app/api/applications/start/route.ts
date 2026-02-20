@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { calculateProfileCompletion } from '@/utils/profileCompletion';
 import Groq from 'groq-sdk';
 
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY! });
@@ -24,6 +25,30 @@ export async function POST(req: NextRequest) {
     }
 
     const admin = createAdminClient();
+
+    // Profile completion gate — require at least 70%
+    const [profileRes, expCountRes, eduCountRes] = await Promise.all([
+      admin
+        .from('users')
+        .select('full_name, avatar_url, banner_image, cover_url, tagline, about, bio, current_city, skills')
+        .eq('id', user.id)
+        .single(),
+      admin.from('work_experiences').select('id').eq('user_id', user.id).limit(1),
+      admin.from('education').select('id').eq('user_id', user.id).limit(1),
+    ]);
+
+    const completion = calculateProfileCompletion(
+      profileRes.data,
+      (expCountRes.data || []).length,
+      (eduCountRes.data || []).length,
+    );
+
+    if (completion.percent < 70) {
+      return NextResponse.json(
+        { error: 'profile_incomplete', percent: completion.percent, required: 70, missing: completion.missing },
+        { status: 403 },
+      );
+    }
 
     // Check if already applied
     const refCol = job_id ? 'job_id' : 'gig_id';
@@ -228,7 +253,7 @@ Return JSON array:
       feedback: '',
     }));
 
-    // Insert application
+    // Insert application (handle race condition with unique constraint)
     const { data: application, error: insertError } = await admin
       .from('applications')
       .insert({
@@ -253,8 +278,21 @@ Return JSON array:
       .single();
 
     if (insertError) {
+      // Handle duplicate key / unique constraint (race condition)
+      if (insertError.code === '23505' || insertError.message?.includes('unique constraint') || insertError.message?.includes('duplicate key')) {
+        const { data: existingApp } = await admin
+          .from('applications')
+          .select('*')
+          .eq(refCol, refVal)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (existingApp) {
+          return NextResponse.json({ data: existingApp, resumed: true });
+        }
+      }
       console.error('Insert error:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create application. Please try again.' }, { status: 500 });
     }
 
     return NextResponse.json({ data: application });

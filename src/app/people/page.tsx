@@ -36,7 +36,7 @@ export default function PeoplePage() {
 
     (async () => {
       try {
-        const res = await fetch('/api/recommendations');
+        const res = await fetch('/api/recommendations?limit=50');
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
