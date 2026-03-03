@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
     } else {
       // Get total unread count using the RPC function from documentation
       const { data, error } = await supabase.rpc('get_unread_message_count', {
-        user_id: user_id
+        p_user_id: user_id
       });
 
       if (error) throw error;

@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { Loader2, Camera, ArrowLeft, User, AtSign, MessageSquare, FileText, Zap, X, Search, ChevronDown, ChevronUp, MapPin, BadgeCheck, ShieldCheck } from 'lucide-react';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Link from 'next/link';
+import ResumeUpload from '@/components/profile/ResumeUpload';
 
 const EDGE_FUNCTION_NAME = 'upload-profile-image';
 
@@ -354,6 +355,7 @@ export default function EditProfileForm() {
   const [initial, setInitial] = useState<ProfileShape | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -635,6 +637,7 @@ export default function EditProfileForm() {
     if (!user?.id || saving) return;
     setSaving(true);
     setError(null);
+    setSuccessMsg(null);
 
     try {
       let newAvatarUrl: string | null | undefined = undefined; // undefined -> unchanged
@@ -660,11 +663,15 @@ export default function EditProfileForm() {
       if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
       if (newBannerUrl !== undefined) payload.banner_image = newBannerUrl;
 
-      const { error: upError } = await supabase
+      console.log('[EditProfile] saving payload:', JSON.stringify(payload));
+      console.log('[EditProfile] user.id:', user.id);
+
+      const { error: upError, status, statusText } = await supabase
         .from('users')
         .update(payload)
         .eq('id', user.id);
 
+      console.log('[EditProfile] update result:', { error: upError, status, statusText });
       if (upError) throw upError;
 
       // Reset local refs and change flags
@@ -673,7 +680,7 @@ export default function EditProfileForm() {
       setAvatarChanged(false);
       setCoverChanged(false);
 
-      // Optionally re-fetch to ensure state is accurate
+      // Re-fetch to ensure state is accurate
       const { data: latest } = await supabase
         .from('users')
         .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, about, skills')
@@ -682,6 +689,8 @@ export default function EditProfileForm() {
       if (latest) {
         setInitial(latest as ProfileShape);
       }
+      setSuccessMsg('Profile saved successfully!');
+      setTimeout(() => setSuccessMsg(null), 4000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
@@ -830,6 +839,25 @@ export default function EditProfileForm() {
         </div>
       </div>
 
+      {/* Resume Upload Section */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <FileText className="h-4 w-4" />
+            <span className="text-sm font-medium">Import from Resume</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Upload your CV and auto-fill your profile with AI</p>
+        </div>
+        <div className="p-6">
+          <ResumeUpload
+            onProfileUpdated={() => {
+              // Re-fetch profile data after resume apply
+              window.location.reload();
+            }}
+          />
+        </div>
+      </div>
+
       {/* Profile Information Section */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
@@ -912,6 +940,9 @@ export default function EditProfileForm() {
       </div>
       {error && (
         <div className="text-sm text-destructive">{error}</div>
+      )}
+      {successMsg && (
+        <div className="text-sm text-emerald-600 font-medium">{successMsg}</div>
       )}
       {/* Save Button */}
       <div className="flex justify-end pt-4">

@@ -30,6 +30,7 @@ export function useUserData() {
     if (!user?.id) {
       setUserData(null);
       setLoading(false);
+      setError(null); // Clear error when no user
       return;
     }
 
@@ -44,13 +45,23 @@ export function useUserData() {
         .single();
 
       if (error) {
-        throw error;
+        // Check if it's a "not found" error
+        if (error.code === 'PGRST116') {
+          console.warn('User profile not found in database. User may need to complete onboarding.');
+          setError('User profile not found. Please complete sign up.');
+        } else {
+          throw error;
+        }
+        setUserData(null);
+        return;
       }
 
       setUserData(data);
     } catch (err) {
       console.error('Error fetching user data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch user data');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user data';
+      console.error('Full error details:', JSON.stringify(err, null, 2));
+      setError(errorMessage);
       setUserData(null);
     } finally {
       setLoading(false);
