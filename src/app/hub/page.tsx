@@ -83,6 +83,8 @@ type JobItem = {
   deadline?: string | null;
   is_active: boolean;
   created_at: string;
+  visibility?: string | null;
+  facilitator_id?: string | null;
 };
 
 type GigItem = {
@@ -95,6 +97,8 @@ type GigItem = {
   deadline?: string | null;
   is_active: boolean;
   created_at: string;
+  visibility?: string | null;
+  facilitator_id?: string | null;
 };
 
 type ResourceItem = {
@@ -626,6 +630,9 @@ const JobRowCard = ({ job }: { job: JobItem }) => {
             ) : (
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Open</span>
             )}
+            {job.visibility && job.visibility !== 'public' && (
+              <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-400/10 border border-purple-500/30 dark:border-purple-400/30 px-2.5 py-0.5 rounded-full shrink-0">Exclusive</span>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">{job.company}</p>
           {job.description && (
@@ -663,6 +670,9 @@ const GigRowCard = ({ gig }: { gig: GigItem }) => {
               <span className="text-xs font-semibold text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30 dark:border-rose-400/30 px-2.5 py-0.5 rounded-full shrink-0">Closed</span>
             ) : (
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">Open</span>
+            )}
+            {gig.visibility && gig.visibility !== 'public' && (
+              <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-400/10 border border-purple-500/30 dark:border-purple-400/30 px-2.5 py-0.5 rounded-full shrink-0">Exclusive</span>
             )}
           </div>
           {gig.description && (

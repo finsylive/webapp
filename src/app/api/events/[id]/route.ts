@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = await createAuthClient();
     const { id } = await params;
 
-    // Fetch event details and participant count in parallel
     const [{ data: event, error }, participantsAgg] = await Promise.all([
-      getSupabase().from('events').select('*').eq('id', id).maybeSingle(),
-      getSupabase()
+      supabase.from('events').select('*').eq('id', id).maybeSingle(),
+      supabase
         .from('event_participants')
         .select('user_id', { count: 'exact', head: true })
         .eq('event_id', id),

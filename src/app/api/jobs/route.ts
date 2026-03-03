@@ -14,12 +14,14 @@ export async function GET(req: NextRequest) {
     const orderBy = (searchParams.get('orderBy') || 'created_at') as 'created_at' | 'deadline';
     const ascending = searchParams.get('ascending') === 'true';
 
-    // Check cache
-    const cacheKey = `${CACHE_PREFIX}:active=${activeOnly}&limit=${limit}&order=${orderBy}&asc=${ascending}`;
+    // Cache key is scoped to user identity to prevent email_restricted leaks
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id ?? 'anon';
+    const cacheKey = `${CACHE_PREFIX}:${userId}:active=${activeOnly}&limit=${limit}&order=${orderBy}&asc=${ascending}`;
     const cached = cacheGet<{ data: unknown[] }>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
-        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' },
+        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=30' },
       });
     }
 
@@ -42,7 +44,7 @@ export async function GET(req: NextRequest) {
     cacheSet(cacheKey, result, CACHE_TTL);
 
     return NextResponse.json(result, {
-      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' },
+      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=30' },
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unexpected error';

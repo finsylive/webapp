@@ -1,34 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 import { cacheGet, cacheSet } from '@/lib/cache';
 
 const CACHE_PREFIX = 'events';
 const CACHE_TTL = 120; // 2 minutes
 
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function GET(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get('activeOnly') !== 'false';
-    const category = searchParams.get('category'); // event_type filter: online, in-person, hybrid
+    const category = searchParams.get('category');
     const limit = Number(searchParams.get('limit') || '50');
     const orderBy = (searchParams.get('orderBy') || 'event_date') as string;
     const ascending = searchParams.get('ascending') === 'true';
 
-    // Check cache
-    const cacheKey = `${CACHE_PREFIX}:active=${activeOnly}&cat=${category || ''}&limit=${limit}&order=${orderBy}&asc=${ascending}`;
+    // Cache key scoped to user identity to prevent email_restricted leaks
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id ?? 'anon';
+    const cacheKey = `${CACHE_PREFIX}:${userId}:active=${activeOnly}&cat=${category || ''}&limit=${limit}&order=${orderBy}&asc=${ascending}`;
     const cached = cacheGet<{ data: unknown[] }>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
-        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=60' },
+        headers: { 'X-Cache': 'HIT', 'Cache-Control': 'private, s-maxage=120, stale-while-revalidate=60' },
       });
     }
 
-    let query = getSupabase()
+    let query = supabase
       .from('events')
       .select('*')
       .order(orderBy, { ascending, nullsFirst: false })
@@ -51,7 +49,7 @@ export async function GET(req: NextRequest) {
     cacheSet(cacheKey, result, CACHE_TTL);
 
     return NextResponse.json(result, {
-      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=60' },
+      headers: { 'X-Cache': 'MISS', 'Cache-Control': 'private, s-maxage=120, stale-while-revalidate=60' },
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unexpected error';
