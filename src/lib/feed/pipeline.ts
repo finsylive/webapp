@@ -1,12 +1,12 @@
 import { generateCandidates } from './candidate-generator';
 import { extractFeatures } from './feature-extractor';
 import { scorePostsDeterministic } from './scorer';
-import { groqRerank } from './groq-ranker';
 import { applyDiversityRules } from './reranker';
 import { getCachedFeed, writeFeedCache } from './cache-manager';
 import { injectRealtimePosts } from './realtime-injector';
 import { getUserInterestProfile } from './interest-profile';
 import { getExperimentConfig } from './experiments';
+import { PipelineTimer } from './pipeline-timer';
 import { FEED_PAGE_SIZE } from './constants';
 import type { FeedResponse, ScoredPost } from './types';
 
@@ -33,6 +33,8 @@ export async function generatePersonalizedFeed(
     try {
       const cached = await getCachedFeed(userId, cursor);
       if (cached) {
+        console.log(`[Feed] Cache HIT for user=${userId.substring(0, 8)} posts=${cached.posts.length}`);
+
         // Real-time injection for page 1 only (no cursor)
         let postIds = cached.posts;
         let scores = cached.scores;
@@ -71,9 +73,7 @@ export async function generatePersonalizedFeed(
 
   // Step 2: Run full pipeline
   try {
-    console.log('[Feed] Running full pipeline for user:', userId);
     const scored = await runFullPipeline(userId, experiment);
-    console.log(`[Feed] Pipeline returned ${scored.length} scored posts`);
 
     if (scored.length > 0) {
       // Step 3: Cache the result (non-critical)
@@ -122,31 +122,40 @@ async function runFullPipeline(
   userId: string,
   experiment: { experimentId: string; variant: string; config: Record<string, number> } | null
 ): Promise<ScoredPost[]> {
+  const timer = new PipelineTimer(userId);
+
   // Stage 1: Candidate generation
+  timer.start('candidates');
   const candidates = await generateCandidates(userId);
+  timer.end({ count: candidates.length });
 
   if (candidates.length === 0) {
+    timer.log();
     return [];
   }
 
   // Stage 2: Get user interest profile
+  timer.start('profile');
   const userProfile = await getUserInterestProfile(userId);
+  timer.end({ source: userProfile ? 'loaded' : 'null' });
 
   // Stage 3: Feature extraction
+  timer.start('features');
   const features = await extractFeatures(candidates, userId, userProfile);
+  timer.end({ count: features.length });
 
   // Stage 4: Tier 1 - Deterministic scoring
+  timer.start('tier1');
   const weightOverrides = experiment?.config;
   const tier1Scored = scorePostsDeterministic(features, weightOverrides);
+  timer.end({ count: tier1Scored.length });
 
-  // Stage 5: Tier 2 - Groq LLM re-ranking (top 50)
-  const postSummaries = new Map(
-    candidates.map((c) => [c.id, c.content || ''])
-  );
-  const tier2Scored = await groqRerank(tier1Scored, userProfile, postSummaries);
+  // Stage 5: Diversity rules
+  timer.start('diversity');
+  const finalScored = applyDiversityRules(tier1Scored, experiment?.config);
+  timer.end({ count: finalScored.length });
 
-  // Stage 6: Diversity rules
-  const finalScored = applyDiversityRules(tier2Scored, experiment?.config);
+  timer.log();
 
   return finalScored;
 }

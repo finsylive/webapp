@@ -611,6 +611,151 @@ Week 5+: Ship Level 2 (Redis + background jobs)
 
 ---
 
+## FAQ
+
+### Q: Is calling an LLM for every feed request insane? Won't it be slow and expensive?
+
+Short answer: **cost is negligible, latency is the real concern — but it's solvable.**
+
+Let's do the actual math. Here's what one re-rank call looks like:
+
+```
+INPUT (~1,620 tokens):
+  System prompt:              ~100 tokens
+  50 posts × 30 tokens each:  ~1,500 tokens
+  User's top 5 interests:     ~20 tokens
+
+OUTPUT (~200 tokens):
+  JSON array of 50 short IDs
+```
+
+#### Cost per single re-rank call
+
+| Model | Input cost | Output cost | **Total/call** |
+|-------|-----------|------------|----------------|
+| GPT-4.1 nano | $0.000162 | $0.000080 | **$0.00024** |
+| Groq llama-3.3-70b | $0.000956 | $0.000158 | **$0.0011** |
+| GPT-4.1 mini | $0.000648 | $0.000320 | **$0.00097** |
+| GPT-4.1 | $0.00324 | $0.00160 | **$0.0048** |
+
+That's fractions of a cent. Even GPT-4.1 (the expensive one) costs less than half a cent per feed load.
+
+#### Monthly cost at scale (cache miss = 20% of feed loads)
+
+Assumptions: each user loads feed 2×/day, 80% are cache hits, so only 20% trigger an LLM call.
+
+| Model | 1K DAU (12K calls/mo) | 10K DAU (120K calls/mo) | 100K DAU (1.2M calls/mo) |
+|-------|----------------------|------------------------|--------------------------|
+| GPT-4.1 nano | **$2.90** | **$29** | **$290** |
+| Groq llama-3.3-70b | **$13** | **$133** | **$1,330** |
+| GPT-4.1 mini | **$12** | **$116** | **$1,160** |
+| GPT-4.1 | **$58** | **$580** | **$5,800** |
+
+**At beta scale (1K DAU), the LLM cost is $3-13/month. That's nothing.**
+
+At 100K DAU it starts to matter — but by then you should be on Level 4 (segment-cached Groq: ~50 calls/hour instead of per-user), which drops it back to ~$5/mo regardless of user count.
+
+#### Latency — this is the real problem
+
+| Model | Time to first token | Output speed | **Total for 200 tokens** |
+|-------|-------------------|-------------|--------------------------|
+| Groq llama-3.3-70b | 0.24s | 276 tok/s | **~1.0s** |
+| Groq speculative decoding | ~0.2s | 1,665 tok/s | **~0.3s** |
+| GPT-4.1 nano | ~0.3s | ~150 tok/s | **~1.6s** |
+| GPT-4.1 mini | ~0.5s | ~100 tok/s | **~2.5s** |
+| GPT-4.1 | ~0.8s | ~80 tok/s | **~3.3s** |
+
+**Groq is 2-3× faster than OpenAI for this use case.** That's why the current code uses Groq, not OpenAI.
+
+But even Groq adds ~1 second to the pipeline. Combined with candidate generation (~300ms) and feature extraction (~200ms), total pipeline time is ~1.5s on a cache miss. That's noticeable.
+
+#### So is the LLM call worth it?
+
+Here's the honest assessment:
+
+```
+What the LLM sees:         Top 5 interest keywords + 100 chars per post + metadata
+What Tier 1 already knows: Full feature vector (18 dimensions), interaction history, follow graph
+
+The LLM adds:
+  ✓ Semantic matching     ("seed round" matches "startup funding" interest)
+  ✓ Diversity enforcement (no 2 from same author in top 10)
+  ✓ Content understanding (knows a joke post ≠ a technical post)
+
+The LLM does NOT add:
+  ✗ User history awareness (doesn't know your interaction patterns)
+  ✗ Engagement prediction (doesn't know this type of post gets clicks)
+  ✗ Temporal context (doesn't know what time of day you browse)
+```
+
+**For beta: Tier 1 alone is probably good enough.** The LLM's main advantage (semantic matching) can be replicated cheaper and faster at Level 3 with vector embeddings (~5ms, $0.03/mo). The diversity enforcement it does is already handled by the reranker stage.
+
+**Recommendation:** Launch with Tier 1 only. Run the "Groq on vs off" A/B experiment (Week 3 in the beta plan). If engagement rate doesn't improve by at least 5%, skip Groq entirely and put that engineering effort into Level 3 embeddings instead.
+
+#### What about GPT-4.1 nano as a Groq replacement?
+
+| | Groq llama-3.3-70b | GPT-4.1 nano |
+|---|---|---|
+| Cost/call | $0.0011 | $0.00024 (4.5× cheaper) |
+| Latency | ~1.0s | ~1.6s (60% slower) |
+| Quality | Good (70B model) | Lower (nano = smallest model) |
+| Batch API | No | Yes (50% cheaper, but async) |
+
+GPT-4.1 nano is cheaper but slower and lower quality. For real-time feed ranking, Groq's speed advantage matters more than nano's cost advantage (both are pennies). If you move to segment-caching (Level 4), the calls happen in background anyway, so latency doesn't matter — then nano at $0.00024/call with batch API ($0.00012/call) becomes the obvious choice.
+
+---
+
+### Q: What if we skip the LLM entirely and just use the math scoring?
+
+**Totally viable for beta.** Tier 1 already accounts for:
+- Who you follow (20% weight)
+- How much you interact with each creator (15%)
+- Post engagement metrics (15%)
+- Topic relevance via keywords (10%)
+- Freshness (10%)
+- Content type preferences (3%)
+
+That covers 80% of what makes a feed feel personal. The remaining 20% (semantic understanding + serendipity) is what the LLM adds — nice-to-have, not essential at <10K users.
+
+The pipeline without Groq runs in **200-500ms** instead of **1-3s**. That's a better user experience than a slightly smarter ordering.
+
+---
+
+### Q: Won't the feed engine tables (post_features, content_embeddings, etc.) eat up database storage?
+
+At beta scale, no. Here's the math:
+
+| Table | Row size | At 10K posts | At 100K posts |
+|-------|---------|-------------|---------------|
+| post_features | ~200 bytes | 2 MB | 20 MB |
+| content_embeddings (keywords) | ~500 bytes | 5 MB | 50 MB |
+| content_embeddings (pgvector 1536d) | ~6 KB | 60 MB | 600 MB |
+| feed_events | ~150 bytes | 50 MB (at 10K DAU) | 500 MB |
+| feed_cache | ~2 KB per user | 2 MB (1K users) | 20 MB |
+| user_interest_profiles | ~1 KB | 1 MB | 10 MB |
+
+Without pgvector embeddings (Levels 1-2): **total ~60 MB at 10K posts**. Your t3.medium has 4 GB RAM — this fits entirely in Postgres cache.
+
+With pgvector (Level 3+): add ~600 MB at 100K posts. Still fits, but you'd want an index (IVFFlat or HNSW) and may need to bump to t3.large at that scale.
+
+---
+
+### Q: What happens when the feed engine is completely down?
+
+The pipeline is designed to never crash the feed. Every stage is wrapped in try/catch:
+
+```
+Pipeline fails?     → API route serves chronological (newest first)
+Groq fails?         → Tier 1 scoring used as-is
+Cache fails?        → Full pipeline runs (slower but works)
+RPC fails?          → Fallback SQL query
+Interest profile?   → null (feed still works, just not personalized)
+```
+
+Users always see posts. The worst case is a chronological feed — which is what most apps ship as their only option anyway.
+
+---
+
 ## Pricing Sources & Assumptions
 
 **AWS (self-hosted Supabase):**
@@ -622,7 +767,9 @@ Week 5+: Ship Level 2 (Redis + background jobs)
 - Source: [AWS Pricing Calculator](https://calculator.aws/)
 
 **APIs:**
-- [Groq Pricing](https://groq.com/pricing) — $0.59/M input, $0.79/M output for llama-3.3-70b
+- [Groq Pricing](https://groq.com/pricing) — $0.59/M input, $0.79/M output for llama-3.3-70b (276 tok/s)
+- [OpenAI Pricing](https://openai.com/api/pricing/) — GPT-4.1 nano: $0.10/M in, $0.40/M out · GPT-4.1 mini: $0.40/M in, $1.60/M out · GPT-4.1: $2.00/M in, $8.00/M out
+- [Groq Benchmarks](https://groq.com/blog/new-ai-inference-speed-benchmark-for-llama-3-3-70b-powered-by-groq/) — 276 tok/s standard, 1,665 tok/s speculative decoding
 - [Upstash Redis](https://upstash.com/pricing/redis) — Free: 500K commands/mo, Pay-as-you-go: $0.20/100K commands
 - [OpenAI Embeddings](https://costgoat.com/pricing/openai-embeddings) — text-embedding-3-small: $0.02/M tokens
 - [Cohere Embed](https://cohere.com/pricing) — Embed v4: $0.12/M tokens (alternative)

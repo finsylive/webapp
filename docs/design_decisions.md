@@ -22,12 +22,24 @@
 - Feed cached per user to avoid re-running the expensive pipeline on every load
 - A/B experiment framework built in — new ranking models can be tested against a control group without a code deploy
 
-## Caching: Simple In-Memory over Redis
+## Feed Onboarding: No Explicit Interest Picker
 
-- Map-based TTL cache (`lib/cache.ts`) — no Redis dependency
-- Tradeoff: cache is per-instance (not shared across serverless instances), acceptable for current scale
-- Cache keys prefixed by domain for easy targeted invalidation
-- To scale: swap `lib/cache.ts` implementation for Redis without changing call sites
+- Decision: no topic/interest selection UI during onboarding — interest profiles are built entirely from user behavior (likes, replies, shares, dwell time)
+- Ments is a niche founder community — content is mostly startups/tech/product, so the cold start problem is mild (first feed is already relevant)
+- Behavior-derived profiles are more accurate than self-reported ones (what users engage with ≠ what they say they like)
+- Extra onboarding steps reduce completion rate — not worth the tradeoff at current scale
+- Level 2 interest profiles build within 1-2 sessions (~20-30 interactions); the gap is one generic session, not weeks
+- The follow-people step during signup already seeds the follow-graph signal (20% of ranking formula), which is sufficient for a reasonable first feed
+- Revisit if: first-session feedback is consistently poor, content diversity expands beyond founder topics, or a large public launch demands stronger first impressions
+
+## Caching: Upstash Redis + Postgres Dual-Write (Level 2)
+
+- Feed cache and interest profiles use 3-layer caching: in-memory Map → Upstash Redis → Postgres
+- Redis is the primary fast cache (~5-20ms); Postgres is the durable backup (~50-150ms)
+- Upstash free tier (500K ops/month) covers beta scale (~3K DAU before hitting limit)
+- Graceful degradation: if Redis is unconfigured or fails, falls back to Postgres-only (Level 1 behavior)
+- General app caching still uses in-memory Map-based TTL cache (`lib/cache.ts`) — Redis is feed-engine-only
+- Feed pipeline removed Groq LLM re-ranking stage — Tier 1 deterministic scoring only (no external API dependency)
 
 ## Storage: Supabase Storage + S3
 

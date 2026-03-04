@@ -93,22 +93,36 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, inserted: events.length });
       }
 
-      // Update interaction graph for significant events
+      // Update interaction graph for significant events (with retry)
       const significantEvents = events.filter(
         (e: { event_type: string }) =>
           ['like', 'reply', 'share', 'bookmark', 'click', 'profile_click'].includes(e.event_type)
       );
 
-      // Parallelize interaction graph updates — runs all RPCs concurrently
-      // instead of sequentially (was using await in a for-loop before)
+      // Group by target author to batch per-author updates
+      const byAuthor = new Map<string, string[]>();
+      for (const event of significantEvents as { author_id: string; event_type: string }[]) {
+        if (!event.author_id) continue;
+        const existing = byAuthor.get(event.author_id) || [];
+        existing.push(event.event_type);
+        byAuthor.set(event.author_id, existing);
+      }
+
+      // Retry up to 3 attempts per author
       await Promise.allSettled(
-        significantEvents.map((event: { user_id: string; author_id: string; event_type: string }) =>
-          supabase.rpc('update_interaction_graph', {
-            p_user_id: event.user_id,
-            p_target_user_id: event.author_id,
-            p_event_type: event.event_type,
-          })
-        )
+        [...byAuthor.entries()].map(async ([authorId, eventTypes]) => {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const { error: graphError } = await supabase.rpc('update_interaction_graph', {
+              p_user_id: user.id,
+              p_target_user_id: authorId,
+              p_event_type: eventTypes[0],
+            });
+            if (!graphError) return;
+            if (attempt < 2) {
+              console.warn(`[Feed] Interaction graph update failed for ${authorId} (attempt ${attempt + 1}):`, graphError.message);
+            }
+          }
+        })
       );
 
       return NextResponse.json({ ok: true, inserted: data ?? events.length });

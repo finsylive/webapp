@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk';
 import { GROQ_MODEL, GROQ_TEMPERATURE } from './constants';
+import { createAdminClient } from '@/utils/supabase-server';
 import type { ContentEmbedding } from './types';
 
 let groqClient: Groq | null = null;
@@ -155,4 +156,30 @@ function extractWithFallback(postId: string, content: string): ContentEmbedding 
     language: 'en',
     computed_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Extract topics/keywords from post content and store directly in content_embeddings.
+ * Uses keyword fallback (no API cost). Called server-side on post creation.
+ */
+export async function extractAndStoreTopics(postId: string, content: string): Promise<void> {
+  const embedding = extractWithFallback(postId, content);
+
+  // Only store if we found something meaningful
+  if (embedding.topics.length === 0 && embedding.keywords.length === 0) return;
+
+  const supabase = createAdminClient();
+  await supabase
+    .from('content_embeddings')
+    .upsert(
+      {
+        post_id: postId,
+        topics: embedding.topics,
+        keywords: embedding.keywords,
+        sentiment: embedding.sentiment ?? 0,
+        language: embedding.language ?? 'en',
+        computed_at: embedding.computed_at,
+      },
+      { onConflict: 'post_id' }
+    );
 }

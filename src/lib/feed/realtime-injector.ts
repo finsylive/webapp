@@ -43,6 +43,14 @@ export async function injectRealtimePosts(
     return { postIds: cachedPosts, scores: cachedScores };
   }
 
+  // Get the user's follow list to correctly set is_following
+  const { data: follows } = await supabase
+    .from('user_follows')
+    .select('followee_id')
+    .eq('follower_id', userId);
+
+  const followingIds = new Set((follows || []).map((f: { followee_id: string }) => f.followee_id));
+
   // Quick-score the new posts
   const candidates: RawCandidate[] = freshPosts.map((p: Record<string, unknown>) => {
     const author = p.author as Record<string, unknown> | null;
@@ -62,7 +70,7 @@ export async function injectRealtimePosts(
       author_avatar_url: (author?.avatar_url as string) || null,
       author_is_verified: Boolean(author?.is_verified),
       author_follower_count: 0,
-      is_following: true, // Assume followed for now
+      is_following: followingIds.has(p.author_id as string),
       is_fof: false,
     };
   });
