@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       .from('posts')
       .select(`
         *,
-        author:author_id(id, username, avatar_url, full_name, is_verified, account_status),
+        author:author_id(id, username, avatar_url, full_name, is_verified),
         environment:environment_id(id, name, description, picture),
         media:post_media(*),
         poll:post_polls(*, options:post_poll_options(*))
@@ -78,12 +78,6 @@ export async function GET(request: Request) {
         source: 'fallback',
       });
     }
-
-    // Filter out posts by non-active authors
-    const activePosts = fullPosts.filter((p: Record<string, unknown>) => {
-      const author = p.author as { account_status?: string } | null;
-      return !author?.account_status || author.account_status === 'active';
-    });
 
     // Get like and reply counts using SQL COUNT (head: true = no row data transferred)
     // This is vastly more efficient than fetching all rows and counting client-side
@@ -117,7 +111,7 @@ export async function GET(request: Request) {
 
     // Build post map for ordering
     const postMap = new Map(
-      activePosts.map((p: Record<string, unknown>) => [
+      fullPosts.map((p: Record<string, unknown>) => [
         p.id as string,
         normalizePostPoll({
           ...p,
@@ -179,7 +173,7 @@ async function serveChronological(
     .from('posts')
     .select(`
       *,
-      author:author_id(id, username, avatar_url, full_name, is_verified, account_status),
+      author:author_id(id, username, avatar_url, full_name, is_verified),
       environment:environment_id(id, name, description, picture),
       media:post_media(*),
       poll:post_polls(*, options:post_poll_options(*))
@@ -235,13 +229,7 @@ async function serveChronological(
   const repliesMap = new Map<string, number>();
   repliesCountResults.forEach(({ id, count }: { id: string; count: number }) => repliesMap.set(id, count));
 
-  // Filter out posts by non-active authors
-  const activeChronoPosts = chronoPosts.filter((p: Record<string, unknown>) => {
-    const author = p.author as { account_status?: string } | null;
-    return !author?.account_status || author.account_status === 'active';
-  });
-
-  const postsWithCounts = activeChronoPosts.map((p: Record<string, unknown>) => normalizePostPoll({
+  const postsWithCounts = chronoPosts.map((p: Record<string, unknown>) => normalizePostPoll({
     ...p,
     likes: likesMap.get(p.id as string) || 0,
     replies: repliesMap.get(p.id as string) || 0,

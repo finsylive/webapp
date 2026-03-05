@@ -83,7 +83,7 @@ export async function GET(
     // 1) Fetch user by username (case-insensitive)
     const { data: userRow, error: userError } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, user_type, is_verified, about, skills, account_status')
+      .select('id, username, full_name, avatar_url, banner_image, tagline, current_city, user_type, is_verified, about, skills')
       .ilike('username', username)
       .maybeSingle();
 
@@ -93,12 +93,6 @@ export async function GET(
 
     if (!userRow) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Hide non-active profiles from other users (owner can still see their own)
-    const isOwner = viewerId === userRow.id;
-    if (!isOwner && userRow.account_status && userRow.account_status !== 'active') {
-      return NextResponse.json({ error: 'This account is no longer available' }, { status: 404 });
     }
 
     // Normalize user payload to expose `bio` expected by client

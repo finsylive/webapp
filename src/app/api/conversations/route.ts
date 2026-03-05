@@ -144,17 +144,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cannot create conversation with self' }, { status: 400 });
     }
 
-    // Block messaging non-active accounts
-    const { data: targetUser } = await supabase
-      .from('users')
-      .select('account_status')
-      .eq('id', user2_id)
-      .maybeSingle();
-
-    if (!targetUser || (targetUser.account_status && targetUser.account_status !== 'active')) {
-      return NextResponse.json({ error: 'This account is no longer available' }, { status: 404 });
-    }
-
     // Check if conversation already exists
     const { data: existing, error: existError } = await supabase
       .from('conversations')

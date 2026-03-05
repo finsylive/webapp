@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     // Resolve target user's ID by username
     const { data: userRow, error: userLookupError } = await supabase
       .from('users')
-      .select('id, account_status')
+      .select('id')
       .eq('username', username)
       .maybeSingle();
 
@@ -39,11 +39,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
 
     if (!userRow) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Block interactions with non-active accounts
-    if (userRow.account_status && userRow.account_status !== 'active') {
-      return NextResponse.json({ error: 'This account is no longer available' }, { status: 404 });
     }
 
     const targetUserId = userRow.id as string;

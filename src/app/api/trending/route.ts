@@ -56,7 +56,7 @@ export async function GET(request: Request) {
       supabase.from('post_likes').select('post_id').in('post_id', postIds),
       supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
       supabase.from('post_media').select('post_id, media_url, media_type, media_thumbnail, width, height').in('post_id', postIds),
-      supabase.from('users').select('id, username, full_name, avatar_url, is_verified, account_status').in('id', authorIds),
+      supabase.from('users').select('id, username, full_name, avatar_url, is_verified').in('id', authorIds),
       supabase.from('trending_overrides').select('post_id, status'),
     ]);
 
@@ -78,15 +78,9 @@ export async function GET(request: Request) {
       mediaDetailMap.get(m.post_id)!.push({ media_url: m.media_url, media_type: m.media_type, media_thumbnail: m.media_thumbnail, width: m.width, height: m.height });
     });
 
-    // Build author map, excluding non-active users
-    const nonActiveAuthorIds = new Set<string>();
     const authorsMap = new Map<string, { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }>();
-    authorsRes.data?.forEach((a: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean; account_status?: string }) => {
-      if (a.account_status && a.account_status !== 'active') {
-        nonActiveAuthorIds.add(a.id);
-      } else {
-        authorsMap.set(a.id, a);
-      }
+    authorsRes.data?.forEach((a: { id: string; username: string; full_name: string; avatar_url: string | null; is_verified: boolean }) => {
+      authorsMap.set(a.id, a);
     });
 
     // Process admin overrides
@@ -99,7 +93,7 @@ export async function GET(request: Request) {
 
     // Calculate engagement score for all posts
     const scoredPosts = recentPosts
-      .filter((p: { id: string; author_id: string }) => overridesMap.get(p.id) !== 'removed' && !nonActiveAuthorIds.has(p.author_id))
+      .filter((p: { id: string }) => overridesMap.get(p.id) !== 'removed')
       .map((p: { id: string; content: string | null; created_at: string; author_id: string; post_type: string }) => {
         const likes = likesMap.get(p.id) || 0;
         const replies = repliesMap.get(p.id) || 0;
