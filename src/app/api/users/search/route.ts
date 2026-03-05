@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from('users')
       .select('id, username, full_name, avatar_url, tagline, current_city, user_type, is_verified')
+      .eq('account_status', 'active')
       .or(`username.ilike.%${safe}%,full_name.ilike.%${safe}%,tagline.ilike.%${safe}%`)
       .order('is_verified', { ascending: false })
       .order('full_name', { ascending: true })

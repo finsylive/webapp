@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
       const { data, error } = await supabase
         .from('users')
         .select('id, username, full_name, avatar_url, tagline, current_city, user_type, is_verified')
+        .eq('account_status', 'active')
         .or(`username.ilike.${pattern},full_name.ilike.${pattern},tagline.ilike.${pattern}`)
         .order('is_verified', { ascending: false })
         .order('full_name', { ascending: true })
