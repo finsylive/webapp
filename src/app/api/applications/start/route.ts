@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { calculateProfileCompletion } from '@/utils/profileCompletion';
 import Groq from 'groq-sdk';
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'job_id or gig_id required' }, { status: 400 });
     }
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Profile completion gate — require at least 70%
     const [profileRes, expCountRes, eduCountRes] = await Promise.all([

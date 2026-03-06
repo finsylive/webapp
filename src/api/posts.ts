@@ -160,7 +160,7 @@ export async function fetchPosts(
         .from('posts')
         .select(`
           *,
-          author:author_id(id, username, avatar_url, full_name, is_verified),
+          author:author_id!inner(id, username, avatar_url, full_name, is_verified, account_status),
           environment:environment_id(id, name, description, picture),
           media:post_media(*),
           poll:post_polls(*, options:post_poll_options(*))
@@ -174,6 +174,7 @@ export async function fetchPosts(
       const { data: posts, error: postsError, count } = await query
         .eq('deleted', false)
         .is('parent_post_id', null)
+        .eq('author.account_status', 'active')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -275,13 +276,14 @@ export async function fetchPostById(postId: string): Promise<PostResponse> {
         .from('posts')
         .select(`
           *,
-          author:author_id(id, username, avatar_url, full_name, is_verified),
+          author:author_id!inner(id, username, avatar_url, full_name, is_verified, account_status),
           environment:environment_id(id, name, description, picture),
           media:post_media(*),
           poll:post_polls(*, options:post_poll_options(*))
         `)
         .eq('id', postId)
         .eq('deleted', false)
+        .eq('author.account_status', 'active')
         .single(),
       // Get likes count
       supabase
@@ -355,7 +357,6 @@ export async function createReply(params: {
       body: JSON.stringify({
         postId: parentPostId,
         replyId: data.id,
-        replierId: authorId,
         replyContent: content,
       }),
     });
@@ -420,7 +421,8 @@ export async function createPost(
         const { data: users } = await supabase
           .from('users')
           .select('id, username')
-          .in('username', mentionedUsernames);
+          .in('username', mentionedUsernames)
+          .eq('account_status', 'active');
 
         if (users && users.length > 0) {
           // Send notifications to mentioned users

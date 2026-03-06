@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 type EducationRow = {
   id: string;
@@ -14,13 +14,6 @@ type EducationRow = {
   sort_order: number | null;
 };
 
-// Helper: get authenticated user id via cookie-based auth client
-async function getRequesterId() {
-  const authClient = await createAuthClient();
-  const { data: auth } = await authClient.auth.getUser();
-  return auth?.user?.id || null;
-}
-
 // GET /api/users/[username]/education
 export async function GET(
   req: NextRequest,
@@ -34,12 +27,13 @@ export async function GET(
 
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     const { data: userRow } = await supabase
       .from('users')
       .select('id')
       .eq('username', username)
+      .eq('account_status', 'active')
       .maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -83,8 +77,9 @@ export async function POST(
       return NextResponse.json({ error: 'institution_name is required' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
-    const requesterId = await getRequesterId();
+    const supabase = await createAuthClient();
+    const { data: authData } = await supabase.auth.getUser();
+    const requesterId = authData?.user?.id || null;
 
     const { data: userRow } = await supabase
       .from('users')
@@ -148,8 +143,9 @@ export async function PATCH(
 
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
-    const supabase = createAdminClient();
-    const requesterId = await getRequesterId();
+    const supabase = await createAuthClient();
+    const { data: authData } = await supabase.auth.getUser();
+    const requesterId = authData?.user?.id || null;
 
     const { data: userRow } = await supabase
       .from('users')
@@ -217,8 +213,9 @@ export async function DELETE(
 
     if (!username || !id) return NextResponse.json({ error: 'Username and id are required' }, { status: 400 });
 
-    const supabase = createAdminClient();
-    const requesterId = await getRequesterId();
+    const supabase = await createAuthClient();
+    const { data: authData } = await supabase.auth.getUser();
+    const requesterId = authData?.user?.id || null;
 
     const { data: userRow } = await supabase
       .from('users')

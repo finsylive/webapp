@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/users/[username]/projects/[projectId]/links
 // Returns ordered list of links for project
@@ -13,11 +8,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     const { username, projectId } = await params;
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
-    const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
+    const supabase = await createAuthClient();
+
+    const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Ensure project belongs to user
-    const { data: project } = await getSupabase()
+    const { data: project } = await supabase
       .from('projects')
       .select('id')
       .eq('id', projectId)
@@ -25,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       .maybeSingle();
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    const { data, error } = await getSupabase()
+    const { data, error } = await supabase
       .from('project_links')
       .select('*')
       .eq('project_id', projectId)
@@ -46,14 +43,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     const { username, projectId } = await params;
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
+    const supabase = await createAuthClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const { title, url, icon_name = null, display_order = 0 } = body || {};
     if (!title || !url) return NextResponse.json({ error: 'title and url are required' }, { status: 400 });
 
-    const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
+    const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { data: project } = await getSupabase()
+    // Verify the authenticated user owns this project
+    if (user.id !== userRow.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data: project } = await supabase
       .from('projects')
       .select('id')
       .eq('id', projectId)
@@ -64,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     const normUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
 
     const insert = { project_id: projectId, title, url: normUrl(String(url).trim()), icon_name, display_order } as const;
-    const { data, error } = await getSupabase().from('project_links').insert(insert).select('*').maybeSingle();
+    const { data, error } = await supabase.from('project_links').insert(insert).select('*').maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ data });
   } catch (e) {

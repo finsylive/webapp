@@ -1,6 +1,6 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UserInterestProfile } from './types';
 import { INTEREST_PROFILE_STALE_HOURS } from './constants';
-import { createAdminClient } from '@/utils/supabase-server';
 
 // In-memory cache for interest profiles
 const profileCache = new Map<string, { profile: UserInterestProfile; fetchedAt: number }>();
@@ -9,14 +9,12 @@ const profileCache = new Map<string, { profile: UserInterestProfile; fetchedAt: 
  * Get or compute a user's interest profile.
  * Uses in-memory cache with staleness check, falls back to DB, recomputes if stale.
  */
-export async function getUserInterestProfile(userId: string): Promise<UserInterestProfile | null> {
+export async function getUserInterestProfile(supabase: SupabaseClient, userId: string): Promise<UserInterestProfile | null> {
   // Check in-memory cache
   const cached = profileCache.get(userId);
   if (cached && Date.now() - cached.fetchedAt < INTEREST_PROFILE_STALE_HOURS * 60 * 60 * 1000) {
     return cached.profile;
   }
-
-  const supabase = createAdminClient();
 
   // Check DB
   const { data: existing } = await supabase

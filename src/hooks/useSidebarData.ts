@@ -182,6 +182,7 @@ export function useSidebarData() {
           const { data: users } = await supabase
             .from('users')
             .select('id, username, full_name, avatar_url, tagline, is_verified')
+            .eq('account_status', 'active')
             .order('is_verified', { ascending: false })
             .limit(30);
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 // Quick ping to verify route registration
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
@@ -24,13 +24,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const followerId = user.id;
 
-    const supabase = createAdminClient();
+    const supabase = authClient;
 
     // Resolve target user's ID by username
     const { data: userRow, error: userLookupError } = await supabase
       .from('users')
       .select('id')
       .eq('username', username)
+      .eq('account_status', 'active')
       .maybeSingle();
 
     if (userLookupError) {

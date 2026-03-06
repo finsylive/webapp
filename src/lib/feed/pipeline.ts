@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateCandidates } from './candidate-generator';
 import { extractFeatures } from './feature-extractor';
 import { scorePostsDeterministic } from './scorer';
@@ -16,6 +17,7 @@ import type { FeedResponse, ScoredPost } from './types';
  * Designed to never throw — always returns a response (even if empty).
  */
 export async function generatePersonalizedFeed(
+  supabase: SupabaseClient,
   userId: string,
   cursor?: string,
   forceRefresh: boolean = false
@@ -23,7 +25,7 @@ export async function generatePersonalizedFeed(
   // Step 0: Check for active experiments (non-critical, safe to fail)
   let experiment: { experimentId: string; variant: string; config: Record<string, number> } | null = null;
   try {
-    experiment = await getExperimentConfig(userId);
+    experiment = await getExperimentConfig(supabase, userId);
   } catch (err) {
     console.warn('Failed to get experiment config (non-critical):', err);
   }
@@ -31,7 +33,7 @@ export async function generatePersonalizedFeed(
   // Step 1: Check cache (unless force refresh)
   if (!forceRefresh) {
     try {
-      const cached = await getCachedFeed(userId, cursor);
+      const cached = await getCachedFeed(supabase, userId, cursor);
       if (cached) {
         // Real-time injection for page 1 only (no cursor)
         let postIds = cached.posts;
@@ -40,6 +42,7 @@ export async function generatePersonalizedFeed(
         if (!cursor) {
           try {
             const injected = await injectRealtimePosts(
+              supabase,
               userId,
               cached.entry.post_ids,
               cached.entry.scores,
@@ -72,13 +75,14 @@ export async function generatePersonalizedFeed(
   // Step 2: Run full pipeline
   try {
     console.log('[Feed] Running full pipeline for user:', userId);
-    const scored = await runFullPipeline(userId, experiment);
+    const scored = await runFullPipeline(supabase, userId, experiment);
     console.log(`[Feed] Pipeline returned ${scored.length} scored posts`);
 
     if (scored.length > 0) {
       // Step 3: Cache the result (non-critical)
       try {
         await writeFeedCache(
+          supabase,
           userId,
           scored,
           experiment?.experimentId,
@@ -119,21 +123,22 @@ export async function generatePersonalizedFeed(
 }
 
 async function runFullPipeline(
+  supabase: SupabaseClient,
   userId: string,
   experiment: { experimentId: string; variant: string; config: Record<string, number> } | null
 ): Promise<ScoredPost[]> {
   // Stage 1: Candidate generation
-  const candidates = await generateCandidates(userId);
+  const candidates = await generateCandidates(supabase, userId);
 
   if (candidates.length === 0) {
     return [];
   }
 
   // Stage 2: Get user interest profile
-  const userProfile = await getUserInterestProfile(userId);
+  const userProfile = await getUserInterestProfile(supabase, userId);
 
   // Stage 3: Feature extraction
-  const features = await extractFeatures(candidates, userId, userProfile);
+  const features = await extractFeatures(supabase, candidates, userId, userProfile);
 
   // Stage 4: Tier 1 - Deterministic scoring
   const weightOverrides = experiment?.config;

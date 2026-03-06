@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function GET(
   _req: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
     const { data, error } = await admin
       .from('applications')
       .select('*')

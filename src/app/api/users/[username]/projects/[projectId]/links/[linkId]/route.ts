@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // PUT /api/users/[username]/projects/[projectId]/links/[linkId]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ username: string; projectId: string; linkId: string }> }) {
@@ -12,13 +7,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     const { username, projectId, linkId } = await params;
     if (!username || !projectId || !linkId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
+    const supabase = await createAuthClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const { title, url, icon_name, display_order } = body || {};
 
-    const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
+    const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { data: project } = await getSupabase()
+    // Verify the authenticated user owns this project
+    if (user.id !== userRow.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data: project } = await supabase
       .from('projects')
       .select('id')
       .eq('id', projectId)
@@ -32,7 +39,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     if (typeof icon_name !== 'undefined') patch.icon_name = icon_name;
     if (typeof display_order !== 'undefined') patch.display_order = display_order;
 
-    const { data, error } = await getSupabase()
+    const { data, error } = await supabase
       .from('project_links')
       .update(patch)
       .eq('id', linkId)
@@ -54,10 +61,22 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { username, projectId, linkId } = await params;
     if (!username || !projectId || !linkId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
-    const { data: userRow } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
+    const supabase = await createAuthClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { error } = await getSupabase()
+    // Verify the authenticated user owns this project
+    if (user.id !== userRow.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { error } = await supabase
       .from('project_links')
       .delete()
       .eq('id', linkId)

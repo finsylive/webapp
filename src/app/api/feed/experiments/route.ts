@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const experiments = await getExperiments();
+    const experiments = await getExperiments(supabase);
     return NextResponse.json({ experiments });
   } catch (error) {
     console.error('Error fetching experiments:', error);
@@ -30,8 +30,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Only allow designated admin users to create experiments
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) {
+      return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
+    }
+
     const body = await request.json();
-    const experiment = await createExperiment(body);
+    const experiment = await createExperiment(supabase, body);
 
     if (!experiment) {
       return NextResponse.json({ error: 'Failed to create experiment' }, { status: 500 });

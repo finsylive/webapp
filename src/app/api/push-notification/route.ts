@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate the caller
+    const supabase = await createAuthClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
+
+    // Override senderId with the authenticated user's ID
+    body.senderId = user.id;
 
     // Call the Supabase edge function from the server side
     const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-on-message`, {

@@ -42,13 +42,14 @@ export function MentionDropdown({ searchTerm, onSelectUser, position, isVisible 
         // Show all users if no search term, otherwise filter
         let query = supabase
           .from('users')
-          .select('id, username, email, avatar_url');
-        
+          .select('id, username, email, avatar_url')
+          .eq('account_status', 'active');
+
         if (searchTerm) {
           // Case-insensitive search on username and email
           query = query.or(`username.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
         }
-        
+
         const { data, error } = await query
           .limit(8) // Show more suggestions
           .order('username', { ascending: true });

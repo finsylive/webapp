@@ -56,7 +56,7 @@ export async function GET(request: Request) {
       supabase.from('post_likes').select('post_id').in('post_id', postIds),
       supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
       supabase.from('post_media').select('post_id, media_url, media_type, media_thumbnail, width, height').in('post_id', postIds),
-      supabase.from('users').select('id, username, full_name, avatar_url, is_verified').in('id', authorIds),
+      supabase.from('users').select('id, username, full_name, avatar_url, is_verified').in('id', authorIds).eq('account_status', 'active'),
       supabase.from('trending_overrides').select('post_id, status'),
     ]);
 
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
 
     // Calculate engagement score for all posts
     const scoredPosts = recentPosts
-      .filter((p: { id: string }) => overridesMap.get(p.id) !== 'removed')
+      .filter((p: { id: string; author_id: string }) => overridesMap.get(p.id) !== 'removed' && authorsMap.has(p.author_id))
       .map((p: { id: string; content: string | null; created_at: string; author_id: string; post_type: string }) => {
         const likes = likesMap.get(p.id) || 0;
         const replies = repliesMap.get(p.id) || 0;

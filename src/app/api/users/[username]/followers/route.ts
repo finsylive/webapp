@@ -44,6 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       .from('users')
       .select('id, username, full_name, avatar_url, is_verified')
       .in('id', followerIds)
+      .eq('account_status', 'active')
       .order('full_name', { ascending: true });
 
     if (usersErr) return NextResponse.json({ error: usersErr.message }, { status: 500 });

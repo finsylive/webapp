@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'job_id or gig_id required' }, { status: 400 });
     }
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
     const refCol = job_id ? 'job_id' : 'gig_id';
     const refVal = job_id || gig_id;
 

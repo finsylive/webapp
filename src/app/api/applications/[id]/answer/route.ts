@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import Groq from 'groq-sdk';
 
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY! });
@@ -28,7 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'answer required' }, { status: 400 });
     }
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Fetch the application
     const { data: app, error: fetchErr } = await admin

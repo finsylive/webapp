@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       .from('users')
       .select('id, username')
       .eq('username', username)
+      .eq('account_status', 'active')
       .maybeSingle();
 
     if (userError) console.warn('[projects API] user fetch error:', userError.message);

@@ -46,6 +46,7 @@ export async function GET(request: Request) {
         const { data: users } = await supabase
           .from('users')
           .select('id, username, full_name, avatar_url, tagline, is_verified')
+          .eq('account_status', 'active')
           .order('is_verified', { ascending: false })
           .limit(fetchLimit);
 
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
           supabase.from('post_likes').select('post_id').in('post_id', postIds),
           supabase.from('posts').select('parent_post_id').in('parent_post_id', postIds).eq('deleted', false),
           supabase.from('post_media').select('post_id').in('post_id', postIds),
-          supabase.from('users').select('id, username, full_name, avatar_url').in('id', authorIds),
+          supabase.from('users').select('id, username, full_name, avatar_url').in('id', authorIds).eq('account_status', 'active'),
         ]);
 
         const likesMap = new Map<string, number>();
@@ -108,6 +109,7 @@ export async function GET(request: Request) {
 
         // Calculate engagement score and sort
         return recentPosts
+          .filter((p: { author_id: string }) => authorsMap.has(p.author_id))
           .map((p: { id: string; content: string; created_at: string; author_id: string }) => {
             const likes = likesMap.get(p.id) || 0;
             const replies = repliesMap.get(p.id) || 0;

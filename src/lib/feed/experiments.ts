@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { EXPERIMENT_BUCKET_COUNT } from './constants';
 import type { FeedExperiment, ExperimentVariant } from './types';
 
@@ -42,11 +42,10 @@ function assignVariant(experiment: FeedExperiment, userId: string): ExperimentVa
  * Returns the experiment ID, variant, and config overrides.
  */
 export async function getExperimentConfig(
+  supabase: SupabaseClient,
   userId: string
 ): Promise<{ experimentId: string; variant: string; config: Record<string, number> } | null> {
   try {
-  const supabase = createAdminClient();
-
   // Get active experiments
   const { data: experiments, error: expError } = await supabase
     .from('feed_experiments')
@@ -105,8 +104,7 @@ export async function getExperimentConfig(
 /**
  * Get all experiments with their status.
  */
-export async function getExperiments(): Promise<FeedExperiment[]> {
-  const supabase = createAdminClient();
+export async function getExperiments(supabase: SupabaseClient): Promise<FeedExperiment[]> {
   const { data } = await supabase
     .from('feed_experiments')
     .select('*')
@@ -118,8 +116,7 @@ export async function getExperiments(): Promise<FeedExperiment[]> {
 /**
  * Create a new experiment.
  */
-export async function createExperiment(experiment: Omit<FeedExperiment, 'id' | 'created_at'>): Promise<FeedExperiment | null> {
-  const supabase = createAdminClient();
+export async function createExperiment(supabase: SupabaseClient, experiment: Omit<FeedExperiment, 'id' | 'created_at'>): Promise<FeedExperiment | null> {
   const { data, error } = await supabase
     .from('feed_experiments')
     .insert({
@@ -145,11 +142,10 @@ export async function createExperiment(experiment: Omit<FeedExperiment, 'id' | '
  * Update an experiment (start/pause/end).
  */
 export async function updateExperiment(
+  supabase: SupabaseClient,
   id: string,
   updates: Partial<FeedExperiment>
 ): Promise<FeedExperiment | null> {
-  const supabase = createAdminClient();
-
   const updateData: Record<string, unknown> = {};
   if (updates.status) {
     updateData.status = updates.status;

@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { postId, replyId, replierId, replyContent } = await request.json();
+    // Authenticate the caller
+    const supabase = await createAuthClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!postId || !replyId || !replierId || !replyContent) {
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { postId, replyId, replyContent } = await request.json();
+
+    if (!postId || !replyId || !replyContent) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Get Supabase service role key for authentication
+    // Derive replierId from the authenticated session, not the request body
+    const replierId = user.id;
+
+    // Get Supabase service role key for Edge Function auth
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseServiceKey) {
       console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');

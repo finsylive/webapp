@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 type Position = {
   id: string;
@@ -38,13 +38,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Username and id are required' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
-
-    // auth via cookie-based client
     const authClient = await createAuthClient();
     const { data: auth } = await authClient.auth.getUser();
     const requesterId = auth?.user?.id || null;
-    const { data: userRow } = await supabase
+    const { data: userRow } = await authClient
       .from('users')
       .select('id')
       .eq('username', username)
@@ -54,7 +51,7 @@ export async function DELETE(
     }
 
     // Ensure the experience belongs to this user
-    const { data: expRow } = await supabase
+    const { data: expRow } = await authClient
       .from('work_experiences')
       .select('id, user_id')
       .eq('id', id)
@@ -64,9 +61,9 @@ export async function DELETE(
     }
 
     // Optionally delete positions first if cascade is not configured
-    await supabase.from('positions').delete().eq('experience_id', id);
+    await authClient.from('positions').delete().eq('experience_id', id);
 
-    const { error: delErr } = await supabase
+    const { error: delErr } = await authClient
       .from('work_experiences')
       .delete()
       .eq('id', id)
@@ -92,11 +89,8 @@ export async function POST(
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     if (!companyName || typeof companyName !== 'string') return NextResponse.json({ error: 'companyName is required' }, { status: 400 });
 
-    const supabase = createAdminClient();
-
-    // auth via cookie-based client
-    const authClient = await createAuthClient();
-    const { data: authData } = await authClient.auth.getUser();
+    const supabase = await createAuthClient();
+    const { data: authData } = await supabase.auth.getUser();
     const requesterId = authData?.user?.id || null;
 
     // profile owner
@@ -152,7 +146,7 @@ export async function PATCH(
   try {
     const { username: rawUsername } = await params;
     const username = (rawUsername || '').trim().toLowerCase();
-    const body = await req.json().catch(() => ({} as { order?: string[]; id?: string; company_name?: string; domain?: string|null }));
+    const body = await req.json().catch(() => ({} as { order?: string[]; id?: string; company_name?: string; domain?: string | null }));
     const order = Array.isArray(body?.order) ? body.order : [];
 
     if (!username) {
@@ -160,11 +154,8 @@ export async function PATCH(
     }
     // Two modes: reorder (order array provided) or update single row (id with fields)
 
-    const supabase = createAdminClient();
-
-    // auth via cookie-based client
-    const authClient = await createAuthClient();
-    const { data: patchAuth } = await authClient.auth.getUser();
+    const supabase = await createAuthClient();
+    const { data: patchAuth } = await supabase.auth.getUser();
     const requesterId = patchAuth?.user?.id || null;
 
     // Resolve profile owner by username
@@ -254,13 +245,14 @@ export async function GET(
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // Resolve user by username
     const { data: userRow, error: userError } = await supabase
       .from('users')
       .select('id')
       .eq('username', username)
+      .eq('account_status', 'active')
       .maybeSingle();
 
     if (userError) {

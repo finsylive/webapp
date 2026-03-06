@@ -28,13 +28,14 @@ export function UserActivityFeed({ userId, type }: Props) {
       .from('posts')
       .select(`
         *,
-        author:author_id(id, username, avatar_url, full_name, is_verified),
+        author:author_id!inner(id, username, avatar_url, full_name, is_verified, account_status),
         environment:environment_id(id, name, description, picture),
         media:post_media(*),
         poll:post_polls(*, options:post_poll_options(*))
       `, { count: 'exact' })
       .eq('deleted', false)
       .eq('author_id', userId)
+      .eq('author.account_status', 'active')
       .order('created_at', { ascending: false })
       .range(start, start + limit - 1);
 

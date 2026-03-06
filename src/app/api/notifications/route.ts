@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 // GET /api/notifications?userId=...&page=...&limit=...&unreadOnly=...&type=...
 export async function GET(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
     const perTableLimit = limit + 1;
 
-    const supabase = createAdminClient();
+    const supabase = authClient;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type NotifRow = Record<string, any>;
@@ -104,7 +104,8 @@ export async function GET(request: NextRequest) {
         const { data: actors } = await supabase
           .from('users')
           .select('id, username, full_name, avatar_url')
-          .in('id', Array.from(actorIds));
+          .in('id', Array.from(actorIds))
+          .eq('account_status', 'active');
         if (actors) {
           for (const a of actors) {
             actorMap[a.id] = { username: a.username, full_name: a.full_name, avatar_url: a.avatar_url };
@@ -171,7 +172,7 @@ export async function PATCH(request: NextRequest) {
     }
     const targetUserId = user.id;
 
-    const supabase = createAdminClient();
+    const supabase = authClient;
 
     if (markAllAsRead) {
       await Promise.all([
@@ -225,7 +226,7 @@ export async function HEAD(request: NextRequest) {
       return new NextResponse(null, { status: 403 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = authClient;
 
     const [legacyCount, inappCount] = await Promise.all([
       (async () => {

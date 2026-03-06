@@ -16,11 +16,11 @@ export async function POST() {
     }
 
     // Invalidate caches
-    await invalidateFeedCache(user.id);
+    await invalidateFeedCache(supabase, user.id);
     invalidateProfileCache(user.id);
 
     // Force recomputation
-    const feedResponse = await generatePersonalizedFeed(user.id, undefined, true);
+    const feedResponse = await generatePersonalizedFeed(supabase, user.id, undefined, true);
 
     return NextResponse.json({
       ok: true,

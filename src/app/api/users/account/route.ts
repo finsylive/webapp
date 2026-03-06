@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 
 /**
  * DELETE /api/users/account
@@ -33,13 +34,21 @@ export async function DELETE(req: NextRequest) {
             );
         }
 
-        // Remove the auth user entirely via admin client
-        try {
-            const adminClient = createAdminClient();
-            await adminClient.auth.admin.deleteUser(user.id);
-        } catch (adminErr) {
-            // Log but don't fail — data is already scrubbed
-            console.error('Failed to delete auth user (non-critical):', adminErr);
+        // Remove the auth user entirely (requires service role key)
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (serviceKey) {
+            try {
+                const adminClient = createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    serviceKey
+                );
+                await adminClient.auth.admin.deleteUser(user.id);
+            } catch (adminErr) {
+                // Log but don't fail — data is already scrubbed
+                console.error('Failed to delete auth user (non-critical):', adminErr);
+            }
+        } else {
+            console.warn('SUPABASE_SERVICE_ROLE_KEY not set — auth user not removed (data already scrubbed)');
         }
 
         // Sign out the current session

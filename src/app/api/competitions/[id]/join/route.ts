@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     const userId = user.id;
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Check if competition exists and hasn't ended
     const { data: comp, error: compError } = await admin
@@ -76,7 +76,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Check if competition exists and hasn't ended
     const { data: comp, error: compError } = await admin

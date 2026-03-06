@@ -11,6 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .from('users')
       .select('id, username')
       .eq('id', id)
+      .eq('account_status', 'active')
       .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });

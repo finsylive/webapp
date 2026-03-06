@@ -1,4 +1,4 @@
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { fetchStartupById, updateStartup } from '@/api/startups';
 import { cacheClearByPrefix } from '@/lib/cache';
@@ -46,7 +46,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Enforce ownership — only the startup owner may update it
     const { data: startup } = await admin
@@ -88,7 +88,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // Verify user is owner or accepted cofounder
     const { data: startup } = await supabase

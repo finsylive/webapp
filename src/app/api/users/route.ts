@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const email = searchParams.get('email');
   const username = searchParams.get('username');
 
-  let query = supabase.from('users').select('id, username, full_name, avatar_url, tagline, current_city, user_type, is_verified, is_onboarding_done, created_at, last_seen');
+  let query = supabase.from('users').select('id, username, full_name, avatar_url, tagline, current_city, user_type, is_verified, is_onboarding_done, created_at, last_seen').eq('account_status', 'active');
   if (id) query = query.eq('id', id);
   if (email) query = query.eq('email', email);
   if (username) query = query.eq('username', username);

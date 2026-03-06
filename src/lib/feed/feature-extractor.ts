@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PostFeatureVector, UserInterestProfile } from './types';
 import type { RawCandidate } from './candidate-generator';
 import { FRESHNESS_DECAY_HALF_LIFE_HOURS } from './constants';
@@ -7,12 +7,11 @@ import { FRESHNESS_DECAY_HALF_LIFE_HOURS } from './constants';
  * Build a PostFeatureVector for each candidate post.
  */
 export async function extractFeatures(
+  supabase: SupabaseClient,
   candidates: RawCandidate[],
   userId: string,
   userProfile: UserInterestProfile | null
 ): Promise<PostFeatureVector[]> {
-  const supabase = createAdminClient();
-
   // Batch fetch post features
   const postIds = candidates.map((c) => c.id);
   const { data: postFeatures } = await supabase

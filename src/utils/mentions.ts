@@ -27,7 +27,7 @@ export function renderMentionsInContent(content: string): string {
 
 export async function notifyMentionedUsers(
   postId: string,
-  mentionerId: string,
+  _mentionerId: string,
   mentionedUserIds: string[]
 ) {
   if (!mentionedUserIds.length) {
@@ -36,11 +36,11 @@ export async function notifyMentionedUsers(
   }
 
   console.log(`Sending notifications to ${mentionedUserIds.length} users`);
-  
+
   const notifications = mentionedUserIds.map(async (userId) => {
     try {
       console.log(`Attempting to notify user ${userId}...`);
-      
+
       const response = await fetch('/api/push-on-mention', {
         method: 'POST',
         headers: {
@@ -48,7 +48,6 @@ export async function notifyMentionedUsers(
         },
         body: JSON.stringify({
           postId,
-          mentionerId,
           mentionedUserId: userId
         })
       });

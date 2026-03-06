@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const getSupabase = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAuthClient } from '@/utils/supabase-server';
 
 // POST /api/users/[username]/projects/[projectId]/slides/normalize
 // Normalizes stored slide_url values from mistakenly saved "https://s3://..." to "s3://..."
@@ -13,12 +8,24 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     const { username, projectId } = await params;
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
+    const supabase = await createAuthClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Resolve user -> project ownership
-    const { data: userRow, error: userErr } = await getSupabase().from('users').select('id').eq('username', username).maybeSingle();
+    const { data: userRow, error: userErr } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
     if (userErr) return NextResponse.json({ error: userErr.message }, { status: 400 });
     if (!userRow) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { data: project, error: projErr } = await getSupabase()
+    // Verify the authenticated user owns this project
+    if (user.id !== userRow.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data: project, error: projErr } = await supabase
       .from('projects')
       .select('id')
       .eq('id', projectId)
@@ -28,7 +35,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
     // Fetch slides
-    const { data: slides, error: listErr } = await getSupabase()
+    const { data: slides, error: listErr } = await supabase
       .from('project_slides')
       .select('id, slide_url, slide_number')
       .eq('project_id', projectId)
@@ -44,7 +51,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
       .map(async (s) => {
         const clean = normalize(s.slide_url as string);
         if (clean === s.slide_url) return null;
-        const { error } = await getSupabase()
+        const { error } = await supabase
           .from('project_slides')
           .update({ slide_url: clean })
           .eq('id', s.id);

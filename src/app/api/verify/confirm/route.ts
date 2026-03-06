@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 // POST /api/verify/confirm
 // Body: { code: string }
 export async function POST(req: NextRequest) {
   try {
     // Get authenticated user via cookie-based client
-    const authClient = await createAuthClient();
-    const { data: auth } = await authClient.auth.getUser();
+    const supabase = await createAuthClient();
+    const { data: auth } = await supabase.auth.getUser();
     const userId = auth?.user?.id;
 
     if (!userId) {
@@ -18,9 +18,6 @@ export async function POST(req: NextRequest) {
     if (!code || typeof code !== 'string' || code.length !== 6) {
       return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
     }
-
-    // Use admin client for DB operations
-    const supabase = createAdminClient();
 
     // Find valid, unused code for this user
     const now = new Date().toISOString();

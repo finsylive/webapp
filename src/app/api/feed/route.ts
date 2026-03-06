@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
     let pipelineDebug: string | undefined;
     try {
-      const feedResponse = await generatePersonalizedFeed(user.id, cursor);
+      const feedResponse = await generatePersonalizedFeed(supabase, user.id, cursor);
       postIds = feedResponse.posts.map((p) => p.post_id);
       feedSource = feedResponse.source;
       hasMore = feedResponse.has_more;

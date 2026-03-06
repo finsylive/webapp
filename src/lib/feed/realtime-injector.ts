@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { extractFeatures } from './feature-extractor';
 import { quickScore } from './scorer';
 import { getUserInterestProfile } from './interest-profile';
@@ -10,24 +10,24 @@ import type { RawCandidate } from './candidate-generator';
  * into the cached feed at strategic positions.
  */
 export async function injectRealtimePosts(
+  supabase: SupabaseClient,
   userId: string,
   cachedPosts: string[],
   cachedScores: number[],
   cacheComputedAt: string
 ): Promise<{ postIds: string[]; scores: number[] }> {
-  const supabase = createAdminClient();
-
   // Fetch new posts since cache was computed
   const { data: newPosts } = await supabase
     .from('posts')
     .select(`
       id, author_id, environment_id, content, post_type, created_at,
-      author:author_id(id, username, full_name, avatar_url, is_verified)
+      author:author_id!inner(id, username, full_name, avatar_url, is_verified, account_status)
     `)
     .eq('deleted', false)
     .is('parent_post_id', null)
     .gt('created_at', cacheComputedAt)
     .neq('author_id', userId)
+    .eq('author.account_status', 'active')
     .order('created_at', { ascending: false })
     .limit(10);
 
@@ -67,8 +67,8 @@ export async function injectRealtimePosts(
     };
   });
 
-  const userProfile = await getUserInterestProfile(userId);
-  const features = await extractFeatures(candidates, userId, userProfile);
+  const userProfile = await getUserInterestProfile(supabase, userId);
+  const features = await extractFeatures(supabase, candidates, userId, userProfile);
   const scored = quickScore(features);
 
   // Inject at strategic positions

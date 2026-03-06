@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { FeedCacheEntry, ScoredPost } from './types';
 import { CACHE_TTL_HOURS, FEED_PAGE_SIZE } from './constants';
 
@@ -6,11 +6,10 @@ import { CACHE_TTL_HOURS, FEED_PAGE_SIZE } from './constants';
  * Get cached feed for a user. Returns null if no valid cache exists.
  */
 export async function getCachedFeed(
+  supabase: SupabaseClient,
   userId: string,
   cursor?: string
 ): Promise<{ posts: string[]; scores: number[]; hasMore: boolean; entry: FeedCacheEntry } | null> {
-  const supabase = createAdminClient();
-
   const { data, error } = await supabase
     .from('feed_cache')
     .select('*')
@@ -54,13 +53,12 @@ export async function getCachedFeed(
  * Write a ranked feed to cache with TTL.
  */
 export async function writeFeedCache(
+  supabase: SupabaseClient,
   userId: string,
   scoredPosts: ScoredPost[],
   experimentId?: string | null,
   variant?: string | null
 ): Promise<void> {
-  const supabase = createAdminClient();
-
   const now = new Date();
   const expiresAt = new Date(now.getTime() + CACHE_TTL_HOURS * 60 * 60 * 1000);
 
@@ -86,7 +84,6 @@ export async function writeFeedCache(
 /**
  * Invalidate feed cache for a user (e.g. on forced refresh).
  */
-export async function invalidateFeedCache(userId: string): Promise<void> {
-  const supabase = createAdminClient();
+export async function invalidateFeedCache(supabase: SupabaseClient, userId: string): Promise<void> {
   await supabase.from('feed_cache').delete().eq('user_id', userId);
 }

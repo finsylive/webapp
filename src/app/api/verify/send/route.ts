@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 // POST /api/verify/send
 // Generates a 6-digit verification code, stores it, and sends via Edge Function
@@ -7,17 +7,14 @@ import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
 export async function POST(_req: NextRequest) {
   try {
     // Get authenticated user via cookie-based client
-    const authClient = await createAuthClient();
-    const { data: auth } = await authClient.auth.getUser();
+    const supabase = await createAuthClient();
+    const { data: auth } = await supabase.auth.getUser();
     const userId = auth?.user?.id;
     const email = auth?.user?.email;
 
     if (!userId || !email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Use admin client for DB operations
-    const supabase = createAdminClient();
 
     // Check if already verified
     const { data: userRow } = await supabase

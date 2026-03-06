@@ -1,26 +1,20 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ postId: string }> }) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !serviceKey) {
-      return NextResponse.json({ error: 'Missing Supabase env vars' }, { status: 500 });
-    }
-
-    const serverSupabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+    const supabase = await createAuthClient();
     const { postId } = await params;
 
-    const { data, error } = await serverSupabase
+    const { data, error } = await supabase
       .from('posts')
       .select(`
         *,
-        author:author_id(id, username, avatar_url, full_name, is_verified),
+        author:author_id!inner(id, username, avatar_url, full_name, is_verified, account_status),
         media:post_media(*)
       `)
       .eq('parent_post_id', postId)
-      // Include deleted to allow placeholders client-side
+      .eq('author.account_status', 'active')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -29,46 +23,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ postId:
 
     const rows = data || [];
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
     // Helper to normalize avatar URLs (handle storage paths)
     const toPublicUrl = (u?: string | null): string | null => {
       if (!u) return null;
       if (/^https?:\/\//i.test(u)) return u;
       if (/^s3:\/\//i.test(u)) return u; // let edge proxy handle s3 scheme
       if (!supabaseUrl) return u; // fallback raw
-      // Assume path within public bucket e.g., avatars/... or users/...
       return `${supabaseUrl}/storage/v1/object/public/${u.replace(/^\//, '')}`;
     };
 
-    // If embed didn't populate author, backfill by fetching users in bulk
-    const missingAuthor = rows.some((r: unknown) => {
-      const post = r as { author?: unknown; author_id?: string };
-      return !post.author && post.author_id;
-    });
-    if (missingAuthor) {
-      const authorIds = Array.from(new Set(rows.map((r: unknown) => {
-        const post = r as { author_id?: string };
-        return post.author_id;
-      }).filter(Boolean))) as string[];
-      if (authorIds.length > 0) {
-        const { data: users, error: usersError } = await serverSupabase
-          .from('users')
-          .select('id, username, avatar_url, full_name, is_verified')
-          .in('id', authorIds);
-        if (!usersError && users) {
-          // Normalize avatar URLs for backfilled users
-          const normalizedUsers = users.map((u: { id: string; username: string; avatar_url?: string | null; full_name?: string; is_verified?: boolean }) => ({ ...u, avatar_url: toPublicUrl(u.avatar_url) }));
-          const byId = new Map(normalizedUsers.map((u: { id: string; username: string; avatar_url?: string | null; full_name?: string; is_verified?: boolean }) => [u.id, u]));
-          for (const r of rows as Array<{ author?: unknown; author_id?: string }>) {
-            if (!r.author && r.author_id) {
-              const u = byId.get(r.author_id);
-              if (u) r.author = u;
-            }
-          }
-        }
-      }
-    }
-
-    // Normalize avatar URLs for already-joined authors as well
+    // Normalize avatar URLs for authors
     for (const r of rows as Array<{ author?: { avatar_url?: string | null } }>) {
       if (r.author) {
         r.author.avatar_url = toPublicUrl(r.author.avatar_url);

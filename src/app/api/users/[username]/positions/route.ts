@@ -1,6 +1,6 @@
 // positions api
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 // Type for the database query result which has work_experiences as an array
 type DatabasePositionRow = {
@@ -50,13 +50,14 @@ export async function GET(
 
     // Create an authenticated Supabase client bound to cookies (so RLS applies)
     // Use the same cookie binding style as other endpoints to avoid subtle session issues
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // First, get the user ID from username
     const { data: userRow, error: userError } = await supabase
       .from('users')
       .select('id')
       .eq('username', username)
+      .eq('account_status', 'active')
       .maybeSingle();
 
     if (userError) {
@@ -163,11 +164,11 @@ export async function PATCH(
   try {
     const { username: rawUsername } = await params;
     const username = (rawUsername || '').trim().toLowerCase();
-    const body = await req.json().catch(() => ({} as { id?: string; position?: string; description?: string|null; startDate?: string|null; endDate?: string|null }));
+    const body = await req.json().catch(() => ({} as { id?: string; position?: string; description?: string | null; startDate?: string | null; endDate?: string | null }));
     const id = body.id || '';
     if (!username || !id) return NextResponse.json({ error: 'Username and id are required' }, { status: 400 });
 
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // Resolve owner and auth
     const { data: userRow } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
@@ -228,7 +229,7 @@ export async function POST(
     if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     if (!experienceId || !position) return NextResponse.json({ error: 'experienceId and position are required' }, { status: 400 });
 
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // requester
     const { data: auth } = await supabase.auth.getUser();

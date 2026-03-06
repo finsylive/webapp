@@ -77,20 +77,22 @@ export default function EnvironmentPage() {
         // Count top-level posts in this environment
         const { count: postsCount, error: postsErr } = await supabase
           .from('posts')
-          .select('*', { count: 'exact', head: true })
+          .select('*, author:author_id!inner(account_status)', { count: 'exact', head: true })
           .eq('deleted', false)
           .is('parent_post_id', null)
-          .eq('environment_id', environmentId);
+          .eq('environment_id', environmentId)
+          .eq('author.account_status', 'active');
 
         if (postsErr) throw postsErr;
 
         // Get post IDs to count likes
         const { data: postIds, error: postsIdsErr } = await supabase
           .from('posts')
-          .select('id')
+          .select('id, author:author_id!inner(account_status)')
           .eq('deleted', false)
           .is('parent_post_id', null)
           .eq('environment_id', environmentId)
+          .eq('author.account_status', 'active')
           .limit(1000); // basic cap
 
         if (postsIdsErr) throw postsIdsErr;

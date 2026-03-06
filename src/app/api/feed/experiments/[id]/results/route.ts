@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { zTestProportions, proportionCI, relativeChange } from '@/lib/feed/statistics';
 import type { FeedExperiment, ExperimentResults, VariantResult, MetricResult } from '@/lib/feed/types';
 
@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Fetch experiment
     const { data: experiment, error: expError } = await admin

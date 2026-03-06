@@ -1,4 +1,4 @@
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { sendCofounderInviteEmail } from '@/utils/cofounder-invite-email';
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
     const { data, error } = await supabase
       .from('startup_founders')
       .select('*')
@@ -38,7 +38,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Use admin client for all DB operations (bypasses RLS so we can send notifications to other users)
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // Enforce ownership — only the startup owner may manage the founders list
     const { data: startup } = await supabase
@@ -111,7 +111,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const { data: ments_users } = await supabase
           .from('users')
           .select('id, username, email')
-          .in('email', emailList);
+          .in('email', emailList)
+          .eq('account_status', 'active');
 
         for (const mu of (ments_users || [])) {
           if (mu.email) {

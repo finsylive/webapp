@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { CANDIDATE_POOL_SIZE } from './constants';
 
 export interface RawCandidate {
@@ -26,12 +26,11 @@ export interface RawCandidate {
  * Falls back to a simple query if RPC is unavailable.
  */
 export async function generateCandidates(
+  supabase: SupabaseClient,
   userId: string,
   limit: number = CANDIDATE_POOL_SIZE,
   maxAgeHours: number = 72
 ): Promise<RawCandidate[]> {
-  const supabase = createAdminClient();
-
   try {
     // Try RPC first
     const { data, error } = await supabase.rpc('get_feed_candidates', {
@@ -61,7 +60,7 @@ export async function generateCandidates(
 }
 
 async function fallbackCandidateQuery(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: SupabaseClient,
   userId: string,
   limit: number
 ): Promise<RawCandidate[]> {
@@ -86,11 +85,12 @@ async function fallbackCandidateQuery(
     .from('posts')
     .select(`
       id, author_id, environment_id, content, post_type, created_at,
-      author:author_id(id, username, full_name, avatar_url, is_verified)
+      author:author_id!inner(id, username, full_name, avatar_url, is_verified, account_status)
     `)
     .eq('deleted', false)
     .is('parent_post_id', null)
     .neq('author_id', userId)
+    .eq('author.account_status', 'active')
     .order('created_at', { ascending: false })
     .limit(limit * 2);
 

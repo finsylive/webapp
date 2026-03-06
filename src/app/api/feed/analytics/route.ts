@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const days = parseInt(searchParams.get('days') || '30', 10);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
 
     // Fetch aggregated daily analytics
     const { data: dailyAnalytics } = await admin

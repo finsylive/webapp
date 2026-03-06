@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import Groq from 'groq-sdk';
 
 type Resource = {
@@ -149,22 +149,21 @@ export async function GET() {
       return NextResponse.json({ recommendations: [] });
     }
 
-    // Use admin client to bypass RLS
-    const supabase = createAdminClient();
+    // Use auth client — reads own user profile, own startups, and public resources (RLS allows all)
 
     // Fetch user profile, startup profiles, and resources in parallel
     const [profileRes, startupsRes, resourcesRes] = await Promise.all([
-      supabase
+      authClient
         .from('users')
         .select('tagline, about, current_city, user_type')
         .eq('id', user.id)
         .single(),
-      supabase
+      authClient
         .from('startup_profiles')
         .select('brand_name, keywords, stage, description, is_actively_raising, city, state, country')
         .eq('owner_id', user.id)
         .limit(3),
-      supabase
+      authClient
         .from('resources')
         .select('id, title, description, category, provider, tags, eligibility')
         .eq('is_active', true)
@@ -236,9 +235,9 @@ export async function GET() {
             // Handle any shape: {picks: [...]}, {recommendations: [...]}, or raw [...]
             const arr = Array.isArray(obj) ? obj
               : Array.isArray(obj.picks) ? obj.picks
-              : Array.isArray(obj.recommendations) ? obj.recommendations
-              : Array.isArray(obj.results) ? obj.results
-              : Object.values(obj).find(v => Array.isArray(v)) || [];
+                : Array.isArray(obj.recommendations) ? obj.recommendations
+                  : Array.isArray(obj.results) ? obj.results
+                    : Object.values(obj).find(v => Array.isArray(v)) || [];
 
             picks = (arr as Array<Record<string, unknown>>).filter(
               (p): p is { index: number; reason: string } =>

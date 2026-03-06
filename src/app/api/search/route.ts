@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
     if (type === 'posts') {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, content, created_at, user_id, users(username, full_name, avatar_url)')
+        .select('id, content, created_at, user_id, users!inner(username, full_name, avatar_url, account_status)')
+        .eq('users.account_status', 'active')
         .ilike('content', pattern)
         .order('created_at', { ascending: false })
         .limit(20);

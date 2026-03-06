@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAuthClient } from '@/utils/supabase-server';
 import { updateExperiment } from '@/lib/feed/experiments';
-import { createAdminClient } from '@/utils/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +17,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const admin = createAdminClient();
+    const admin = await createAuthClient();
     const { data: experiment, error } = await admin
       .from('feed_experiments')
       .select('*')
@@ -59,9 +58,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Only allow designated admin users to update experiments
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) {
+      return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await request.json();
-    const updated = await updateExperiment(id, body);
+    const updated = await updateExperiment(supabase, id, body);
 
     if (!updated) {
       return NextResponse.json({ error: 'Failed to update experiment' }, { status: 500 });

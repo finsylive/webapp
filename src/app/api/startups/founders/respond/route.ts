@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 
 /**
  * POST /api/startups/founders/respond
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     // Use admin client to bypass RLS for DB operations
-    const supabase = createAdminClient();
+    const supabase = await createAuthClient();
 
     // Verify this founder record belongs to the current user
     const { data: founder, error: fetchError } = await supabase

@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/utils/supabase-server';
+import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { upsertFundingRounds } from '@/api/startups';
 import { supabase } from '@/utils/supabase';
@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const authSupabase = createAdminClient();
+    const authSupabase = await createAuthClient();
     const { data: { session } } = await authSupabase.auth.getSession();
 
     if (!session) {
