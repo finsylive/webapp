@@ -1120,7 +1120,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- get_unread_message_count
-CREATE OR REPLACE FUNCTION get_unread_message_count(p_user_id UUID)
+CREATE OR REPLACE FUNCTION get_unread_message_count(user_id UUID)
 RETURNS INT AS $$
 BEGIN
   RETURN (
@@ -1128,8 +1128,8 @@ BEGIN
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     WHERE m.is_read = false
-      AND m.sender_id != p_user_id
-      AND (c.user1_id = p_user_id OR c.user2_id = p_user_id)
+      AND m.sender_id != user_id
+      AND (c.user1_id = user_id OR c.user2_id = user_id)
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

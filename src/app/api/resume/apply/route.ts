@@ -111,14 +111,16 @@ export async function POST(req: NextRequest) {
 
         // Insert positions for this experience
         if (we.positions && we.positions.length > 0 && expData) {
-          const positionsToInsert = we.positions.map((p, j) => ({
-            experience_id: expData.id,
-            position: p.position,
-            start_date: p.start_date || null,
-            end_date: p.end_date || null,
-            description: p.description || null,
-            sort_order: j,
-          }));
+          const positionsToInsert = we.positions
+            .filter(p => p.position)
+            .map((p, j) => ({
+              experience_id: expData.id,
+              position: p.position,
+              start_date: p.start_date || '1900-01-01',
+              end_date: p.end_date || null,
+              description: p.description || null,
+              sort_order: j,
+            }));
 
           const { error: posError } = await supabase
             .from('positions')

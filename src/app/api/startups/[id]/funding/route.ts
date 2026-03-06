@@ -29,9 +29,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const authSupabase = await createAuthClient();
-    const { data: { session } } = await authSupabase.auth.getSession();
+    const { data: { user } } = await authSupabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

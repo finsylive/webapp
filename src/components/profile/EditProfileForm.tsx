@@ -692,7 +692,12 @@ export default function EditProfileForm() {
       setSuccessMsg('Profile saved successfully!');
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Your profile changes couldn\u2019t be saved');
+      const err = e as { code?: string; message?: string };
+      if (err.code === '23505' || err.message?.includes('duplicate') || err.message?.includes('unique')) {
+        setError('This username is already taken. Please choose a different one.');
+      } else {
+        setError(err.message || 'Your profile changes couldn\u2019t be saved');
+      }
     } finally {
       setSaving(false);
     }

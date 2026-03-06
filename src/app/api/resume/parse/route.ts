@@ -39,6 +39,17 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+/** Return a valid YYYY-MM-DD or fallback. */
+function safeDate(v: unknown, fallback: string = ''): string {
+  const s = str(v);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Handle "YYYY" only
+  if (/^\d{4}$/.test(s)) return `${s}-01-01`;
+  // Handle "YYYY-MM"
+  if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+  return fallback;
+}
+
 function sanitizeResult(parsed: Record<string, unknown>): ParsedResume {
   const work_experiences = Array.isArray(parsed.work_experiences)
     ? (parsed.work_experiences as Record<string, unknown>[]).map((we) => ({
@@ -47,8 +58,8 @@ function sanitizeResult(parsed: Record<string, unknown>): ParsedResume {
         positions: Array.isArray(we.positions)
           ? (we.positions as Record<string, unknown>[]).map((p) => ({
               position: str(p.position),
-              start_date: str(p.start_date),
-              end_date: str(p.end_date),
+              start_date: safeDate(p.start_date, '1900-01-01'),
+              end_date: safeDate(p.end_date),
               description: str(p.description),
             }))
           : [],
@@ -60,8 +71,8 @@ function sanitizeResult(parsed: Record<string, unknown>): ParsedResume {
         institution_name: str(ed.institution_name),
         degree: str(ed.degree),
         field_of_study: str(ed.field_of_study),
-        start_date: str(ed.start_date),
-        end_date: str(ed.end_date),
+        start_date: safeDate(ed.start_date),
+        end_date: safeDate(ed.end_date),
         description: str(ed.description),
       }))
     : [];
