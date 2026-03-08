@@ -902,7 +902,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       isVotingRef.current = false;
       setPollState(prev => ({ ...prev, isVoting: false, votingOptionId: null }));
     }
-  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options, post.poll?.poll_type]);
+  }, [user?.id, pollState.isVoting, pollState.votes, pollState.userVotedOptions, pollState.hasUserVoted, onPollVote, post.poll?.options, post.poll?.poll_type, loginPrompt]);
 
   // Lightbox handlers - consolidated state updates
   const openLightbox = useCallback((index: number) => {

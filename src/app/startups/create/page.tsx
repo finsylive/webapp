@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupCreateWizard } from '@/components/startups/StartupCreateWizard';
 
 export default function CreateStartupPage() {
-  const { user, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
