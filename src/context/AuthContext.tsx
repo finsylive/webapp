@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase';
 
 type AuthContextType = {
@@ -29,49 +29,36 @@ export function AuthProvider({ children, initialSession = null }: { children: Re
       initializedRef.current = true;
 
       try {
-        // Set up auth state listener first
+        // Set up auth state listener — use session.user directly instead of
+        // calling getUser() (which makes a ~200-500ms network call) on every event.
+        // The session JWT is already validated locally by Supabase client.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          async (event: any, session: any) => {
+          (_event: AuthChangeEvent, session: Session | null) => {
             if (!mounted) return;
-
-            console.log('Auth state changed:', event);
             setSession(session);
-
-            if (session) {
-              // Verify user by contacting Supabase Auth server
-              const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-              if (mounted) setUser(verifiedUser ?? null);
-            } else {
-              setUser(null);
-            }
+            setUser(session?.user ?? null);
             setIsLoading(false);
           }
         );
 
-        // If we already have a session from the server, skip client refetch
+        // If we already have a session from the server, skip client refetch entirely
         if (!initialSession) {
-          const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
+          // Single call: getSession() validates JWT locally (fast, no network call).
+          // Only use getUser() for write operations that need server verification.
+          const { data: { session }, error } = await supabase.auth.getSession();
 
           if (error) {
-            console.error('Error getting user:', error);
+            console.error('Error getting session:', error);
             setIsLoading(false);
             return () => subscription.unsubscribe();
           }
 
           if (mounted) {
-            setUser(verifiedUser ?? null);
-            // Get session for token/session object if user exists
-            if (verifiedUser) {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (mounted) setSession(session);
-            } else {
-              setSession(null);
-            }
+            setSession(session);
+            setUser(session?.user ?? null);
             setIsLoading(false);
           }
         } else {
-          // We already have session; ensure loading is false
           setIsLoading(false);
         }
 

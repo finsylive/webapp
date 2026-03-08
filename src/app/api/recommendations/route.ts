@@ -12,14 +12,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userLimit = Math.min(Math.max(parseInt(searchParams.get('limit') || '8', 10) || 8, 1), 50);
 
-    const supabase = await createAuthClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Use x-user-id header for reads — avoids getUser() network call
+    const userId = request.headers.get('x-user-id');
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = user.id;
+    const supabase = await createAuthClient();
 
     // Check cache (per-user because recommendations are personalized)
     const cacheKey = `${CACHE_PREFIX}:${userId}:limit=${userLimit}`;
@@ -70,7 +69,7 @@ export async function GET(request: Request) {
           .neq('author_id', userId)
           .gte('created_at', fourteenDaysAgo.toISOString())
           .order('created_at', { ascending: false })
-          .limit(200);
+          .limit(50);
 
         if (!recentPosts || recentPosts.length === 0) return [];
 
@@ -167,7 +166,10 @@ export async function GET(request: Request) {
     cacheSet(cacheKey, result, CACHE_TTL);
 
     return NextResponse.json(result, {
-      headers: { 'X-Cache': 'MISS' },
+      headers: {
+        'X-Cache': 'MISS',
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+      },
     });
   } catch (error) {
     console.error('Error in recommendations API:', error);

@@ -2,6 +2,7 @@
 "use client";
 
 import { ReactNode, useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
@@ -9,8 +10,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { MobileNavBar } from './MobileNavBar';
-import DashboardSidebarWidgets from './DashboardSidebarWidgets';
 import { ArrowLeft, Bell, Settings } from 'lucide-react';
+
+// Lazy-load sidebar widgets — only rendered on xl+ screens on home page
+const DashboardSidebarWidgets = dynamic(() => import('./DashboardSidebarWidgets'), {
+  ssr: false,
+  loading: () => null,
+});
 import { useAuth } from '@/context/AuthContext';
 
 type DashboardLayoutProps = {
@@ -33,17 +39,19 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
   const fetchUnreadCounts = useCallback(async () => {
     if (!user?.id) return;
     try {
+      // Use HEAD for notifications — returns count in header, no body parsing needed.
+      // Much lighter than fetching full notification objects.
       const [msgRes, notifRes] = await Promise.allSettled([
         fetch(`/api/messages/read?userId=${user.id}`),
-        fetch(`/api/notifications?userId=${user.id}&unreadOnly=true&limit=1`),
+        fetch(`/api/notifications?userId=${user.id}`, { method: 'HEAD' }),
       ]);
       if (msgRes.status === 'fulfilled' && msgRes.value.ok) {
         const json = await msgRes.value.json();
         setUnreadMessages(json.total_unread_count ?? 0);
       }
       if (notifRes.status === 'fulfilled' && notifRes.value.ok) {
-        const json = await notifRes.value.json();
-        setUnreadNotifications(json.pagination?.total ?? 0);
+        const count = parseInt(notifRes.value.headers.get('X-Unread-Count') || '0', 10);
+        setUnreadNotifications(count);
       }
     } catch {
       // non-critical
@@ -52,7 +60,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
 
   useEffect(() => {
     fetchUnreadCounts();
-    const interval = setInterval(fetchUnreadCounts, 120_000); // 2 min instead of 30s
+    const interval = setInterval(fetchUnreadCounts, 300_000); // 5 min
     return () => clearInterval(interval);
   }, [fetchUnreadCounts]);
 

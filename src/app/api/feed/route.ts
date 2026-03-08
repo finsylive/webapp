@@ -128,7 +128,7 @@ export async function GET(request: Request) {
 
     // Always signal more posts available — when ranked posts run out,
     // the next request falls through to chronological seamlessly
-    return NextResponse.json({
+    const response = NextResponse.json({
       posts: orderedPosts,
       cursor: feedCursor,
       offset: 0,
@@ -138,6 +138,9 @@ export async function GET(request: Request) {
       variant: variant,
       _debug: pipelineDebug,
     });
+    // Allow browser to serve stale cache for 30s while revalidating in background
+    response.headers.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+    return response;
   } catch (error) {
     console.error('Error in feed API:', error);
     return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
