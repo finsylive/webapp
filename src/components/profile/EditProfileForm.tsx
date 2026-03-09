@@ -10,6 +10,7 @@ import { Loader2, Camera, ArrowLeft, User, AtSign, MessageSquare, FileText, Zap,
 import { toProxyUrl } from '@/utils/imageUtils';
 import Link from 'next/link';
 import ResumeUpload from '@/components/profile/ResumeUpload';
+import { toast } from 'sonner';
 
 const EDGE_FUNCTION_NAME = 'upload-profile-image';
 
@@ -296,7 +297,7 @@ function CityInput({ city, setCity }: { city: string; setCity: React.Dispatch<Re
         setSuggestions(unique);
         setShowDropdown(unique.length > 0);
       } catch {
-        // silently fail
+        toast.error('Location search failed');
       } finally {
         setLoading(false);
       }
@@ -691,12 +692,15 @@ export default function EditProfileForm() {
       }
       setSuccessMsg('Profile saved successfully!');
       setTimeout(() => setSuccessMsg(null), 4000);
+      toast.success('Profile saved successfully!');
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === '23505' || err.message?.includes('duplicate') || err.message?.includes('unique')) {
         setError('This username is already taken. Please choose a different one.');
+        toast.error('This username is already taken.');
       } else {
         setError(err.message || 'Your profile changes couldn\u2019t be saved');
+        toast.error(err.message || 'Your profile changes couldn\u2019t be saved');
       }
     } finally {
       setSaving(false);
@@ -877,9 +881,10 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <User className="h-4 w-4" />
-              <label className="text-sm font-medium">Full Name</label>
+              <label htmlFor="edit-fullname" className="text-sm font-medium">Full Name</label>
             </div>
             <input
+              id="edit-fullname"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -892,11 +897,12 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <AtSign className="h-4 w-4" />
-              <label className="text-sm font-medium">Username</label>
+              <label htmlFor="edit-username" className="text-sm font-medium">Username</label>
             </div>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-medium">@</span>
               <input
+                id="edit-username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -910,9 +916,10 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <MessageSquare className="h-4 w-4" />
-              <label className="text-sm font-medium">Tagline</label>
+              <label htmlFor="edit-tagline" className="text-sm font-medium">Tagline</label>
             </div>
             <input
+              id="edit-tagline"
               type="text"
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
@@ -928,9 +935,10 @@ export default function EditProfileForm() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-emerald-400">
               <FileText className="h-4 w-4" />
-              <label className="text-sm font-medium">About</label>
+              <label htmlFor="edit-about" className="text-sm font-medium">About</label>
             </div>
             <textarea
+              id="edit-about"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={4}

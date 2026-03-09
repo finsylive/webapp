@@ -16,31 +16,31 @@ export function MobileNavBar() {
       <div className="flex items-center justify-around">
         <Link
           href="/"
-          className={`flex flex-col items-center justify-center p-2 ${pathname === '/' ? 'text-primary' : 'text-muted-foreground'}`}
+          className={`flex flex-col items-center justify-center p-3 ${pathname === '/' ? 'text-primary' : 'text-muted-foreground'}`}
         >
           <Image src="/icons/home.svg" alt="Home" width={20} height={20} />
-          <span className="text-[11px] font-medium mt-1">Home</span>
+          <span className="text-xs font-medium mt-1">Home</span>
         </Link>
 
         <Link
           href="/search"
-          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/search') ? 'text-primary' : 'text-muted-foreground'}`}
+          className={`flex flex-col items-center justify-center p-3 ${pathname.startsWith('/search') ? 'text-primary' : 'text-muted-foreground'}`}
         >
           <Image src="/icons/search.svg" alt="Search" width={20} height={20} />
-          <span className="text-[11px] font-medium mt-1">Search</span>
+          <span className="text-xs font-medium mt-1">Search</span>
         </Link>
 
         <Link
           href="/startups"
-          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/startups') ? 'text-primary' : 'text-muted-foreground'}`}
+          className={`flex flex-col items-center justify-center p-3 ${pathname.startsWith('/startups') ? 'text-primary' : 'text-muted-foreground'}`}
         >
           <Rocket className="h-5 w-5" />
-          <span className="text-[11px] font-medium mt-1">Startups</span>
+          <span className="text-xs font-medium mt-1">Startups</span>
         </Link>
 
         <Link
           href="/hub"
-          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/hub') ? 'text-primary' : 'text-muted-foreground'}`}
+          className={`flex flex-col items-center justify-center p-3 ${pathname.startsWith('/hub') ? 'text-primary' : 'text-muted-foreground'}`}
         >
           <svg
             width={20}
@@ -58,12 +58,12 @@ export function MobileNavBar() {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-[11px] font-medium mt-1">Hub</span>
+          <span className="text-xs font-medium mt-1">Hub</span>
         </Link>
 
         <Link
           href={profileHref}
-          className={`flex flex-col items-center justify-center p-2 ${pathname.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
+          className={`flex flex-col items-center justify-center p-3 ${pathname.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
         >
           <UserAvatar
             src={profileAvatar}
@@ -72,7 +72,7 @@ export function MobileNavBar() {
             size={24}
             className={`ring-2 ${pathname.startsWith('/profile') ? 'ring-primary' : 'ring-transparent'}`}
           />
-          <span className="text-[11px] font-medium mt-1">Profile</span>
+          <span className="text-xs font-medium mt-1">Profile</span>
         </Link>
       </div>
     </div>

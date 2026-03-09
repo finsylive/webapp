@@ -13,6 +13,7 @@ import { MentionText } from './MentionText';
 import { EditPostModal } from './EditPostModal';
 import { Trash2, Edit } from 'lucide-react';
 import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
+import { toast } from 'sonner';
 
 type PostCardProps = {
   post: Post;
@@ -729,6 +730,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
       }
     } catch (error) {
       console.error('Error liking/unliking post:', error);
+      toast.error('Action failed. Please try again.');
     } finally {
       setUiState(prev => ({ ...prev, isLiking: false }));
     }
@@ -997,12 +999,15 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     try {
       const { error } = await deletePost(post.id, user.id);
       if (!error) {
+        toast.success('Post deleted');
         window.location.reload();
       } else {
         console.error('Error deleting post:', error);
+        toast.error('Failed to delete post');
       }
     } catch (error) {
       console.error('Error deleting post:', error);
+      toast.error('Failed to delete post');
     } finally {
       setUiState(prev => ({ ...prev, isDeleting: false, showDeleteConfirm: false }));
     }

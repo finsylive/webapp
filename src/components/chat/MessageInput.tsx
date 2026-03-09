@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import type { Message } from '@/types/messaging';
 import { useTypingInput } from '@/hooks/useTyping';
 import { cn } from '@/utils/cn';
+import { toast } from 'sonner';
 
 interface MessageInputProps {
   conversationId: string;
@@ -59,6 +60,7 @@ export function MessageInput({
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message. Please try again.');
     }
   }, [inputValue, disabled, isUploading, onSendMessage, pendingReply, handleSend, onCancelReply]);
 
@@ -85,7 +87,7 @@ export function MessageInput({
 
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
-      alert('File size must be less than 50MB');
+      toast.error('File size must be less than 50MB');
       return;
     }
 
@@ -126,7 +128,7 @@ export function MessageInput({
 
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('File couldn\u2019t be uploaded. Please try again.');
+      toast.error('File couldn\u2019t be uploaded. Please try again.');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

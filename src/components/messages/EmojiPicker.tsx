@@ -131,7 +131,7 @@ export default function EmojiPicker({ onEmojiSelect, onClose, className = '' }: 
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Emoji Picker */}
-      <div className={`absolute bottom-full right-0 mb-2 w-[calc(100vw-2rem)] sm:w-80 max-w-80 h-96 rounded-xl shadow-2xl border z-50 flex flex-col ${
+      <div className={`absolute bottom-full right-0 mb-2 w-[calc(100vw-2rem)] sm:w-80 max-w-80 h-72 sm:h-96 rounded-xl shadow-2xl border z-50 flex flex-col ${
         isDarkMode
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-200'

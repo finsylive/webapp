@@ -184,7 +184,7 @@
 /* Fix message bubbles on mobile */
 @media (max-width: 768px) {
   .message-bubble {
-    max-width: 85% !important;
+    max-width: 85%;
   }
   
   .message-content {
@@ -245,8 +245,8 @@
 
 /* Fix for long URLs and unbreakable content */
 .message-content {
-  word-break: break-all;
-  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-wrap: break-word;
   max-width: 100%;
 }
 
