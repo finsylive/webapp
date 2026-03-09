@@ -12,7 +12,7 @@ import { Step5Edge } from '@/components/startups/Step5Edge';
 import { Step6Financials } from '@/components/startups/Step6Financials';
 import { Step7Media } from '@/components/startups/Step7Media';
 import {
-  fetchStartupById, StartupProfile,
+  fetchStartupById,
 } from '@/api/startups';
 import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
