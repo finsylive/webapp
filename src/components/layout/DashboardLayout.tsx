@@ -112,14 +112,15 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
               )}
             </Link>
 
-            {/* 2. Messages (mobile) / Settings (desktop) */}
+            {/* 2. Messages (mobile only — desktop has it in sidebar) */}
             <Link href="/messages" className="md:hidden relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Image src="/icons/message.svg" alt="Messages" width={20} height={20} className="h-5 w-5" />
               {unreadMessages > 0 && (
                 <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
               )}
             </Link>
-            <Link href="/settings" className="hidden md:inline-flex relative items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
+            {/* 3. Settings */}
+            <Link href="/settings" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Settings className="h-5 w-5" />
             </Link>
           </div>
