@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, X, Check, Copy, UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
 
 type MentsUser = {
   id: string;
@@ -56,6 +57,7 @@ export function MentsUserSearch({ linkedUser, onSelect, onUnlink, placeholder }:
       } catch {
         setResults([]);
         setShowInvite(true);
+        toast.error('Search failed. Please try again.');
       } finally {
         setIsSearching(false);
       }

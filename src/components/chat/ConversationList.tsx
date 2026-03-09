@@ -77,7 +77,7 @@ export function ConversationList({
               "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
               "flex items-center gap-2",
               activeFilter === filter.key ? (
-                "bg-green-600 text-white"
+                "bg-primary text-white"
               ) : (
                 "text-gray-400 hover:text-white hover:bg-gray-700"
               )
@@ -123,7 +123,7 @@ export function ConversationList({
               className={cn(
                 "w-full flex items-center justify-between p-2 text-sm rounded-lg transition-colors text-left",
                 activeFilter === category.id ? (
-                  "bg-green-600 text-white"
+                  "bg-primary text-white"
                 ) : (
                   "text-gray-300 hover:bg-gray-800"
                 )
@@ -161,7 +161,7 @@ export function ConversationList({
         className={cn(
           "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all",
           "hover:bg-gray-800",
-          isSelected ? "bg-green-600/20 border border-green-600/30" : "",
+          isSelected ? "bg-primary/20 border border-green-600/30" : "",
           hasUnread ? "bg-gray-800/50" : ""
         )}
       >

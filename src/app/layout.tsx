@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/context/theme/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +53,7 @@ export default function RootLayout({
             <NotificationProvider>
               <ServiceWorkerRegistration />
               {children}
+              <Toaster richColors position="bottom-right" />
             </NotificationProvider>
           </ThemeProvider>
         </AuthProvider>

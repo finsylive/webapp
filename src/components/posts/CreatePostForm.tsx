@@ -12,6 +12,7 @@ import { notifyMentionedUsers } from '@/utils/mentions';
 import { supabase } from '@/utils/supabase';
 import { extractCleanUsername } from '@/utils/username';
 import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
+import { toast } from 'sonner';
 
 type CreatePostFormProps = {
   environmentId: string;
@@ -292,6 +293,7 @@ export function CreatePostForm({ environmentId, onPostCreated }: CreatePostFormP
       setCompressedResults([]);
       setMentionedUsers(new Map());
       setPollData({ question: '', options: ['', ''] });
+      toast.success('Post published!');
       if (onPostCreated) onPostCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Your post couldn\u2019t be published. Please try again.');

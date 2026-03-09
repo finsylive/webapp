@@ -111,7 +111,7 @@ export async function middleware(req: NextRequest) {
 
     // ── Protected Page Guard ──────────────────────────────
     // Redirect unauthenticated users away from pages that require login
-    const PROTECTED_PREFIXES = ['/messages', '/settings', '/create', '/profile/edit', '/startups', '/search', '/hub', '/posts'];
+    const PROTECTED_PREFIXES = ['/messages', '/settings', '/create', '/profile/edit', '/startups', '/search', '/hub', '/posts', '/onboarding'];
     const pathname = req.nextUrl.pathname;
     const isProtectedPage = PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
 

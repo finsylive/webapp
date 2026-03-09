@@ -18,6 +18,7 @@ const DashboardSidebarWidgets = dynamic(() => import('./DashboardSidebarWidgets'
   loading: () => null,
 });
 import { useAuth } from '@/context/AuthContext';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -104,7 +105,7 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
           {/* Right side actions */}
           <div className="flex items-center gap-2">
             {/* 1. Notifications */}
-            <Link href="/notifications" className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
+            <Link href="/notifications" className="relative inline-flex items-center justify-center h-11 w-11 rounded-xl transition-colors duration-200 active:scale-95 bg-accent/30 hover:bg-accent/60 border border-border">
               <Bell className="h-5 w-5" />
               {unreadNotifications > 0 && (
                 <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full ring-2 ring-background"></div>
@@ -144,7 +145,9 @@ export function DashboardLayout({ children, showSidebar, fullWidth }: DashboardL
         {/* Main Post Section */}
         <main className="flex-1 min-w-0 overflow-visible py-4 px-3 sm:py-6 sm:px-4 md:px-6 min-h-[500px]">
           <div className={fullWidth ? 'w-full' : 'max-w-5xl mx-auto'}>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
 

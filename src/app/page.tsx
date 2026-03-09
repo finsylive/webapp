@@ -108,7 +108,7 @@ const HomePage = () => {
 
   useEffect(() => {
     if (needsOnboarding) {
-      router.push('/onboarding');
+      router.replace('/onboarding');
     }
   }, [needsOnboarding, router]);
 

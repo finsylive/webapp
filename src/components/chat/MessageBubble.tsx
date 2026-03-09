@@ -75,7 +75,7 @@ export function MessageBubble({
               <div className="relative overflow-hidden rounded-lg max-w-sm">
                 <Image
                   src={message.media_url}
-                  alt="Shared image"
+                  alt="Image shared in conversation"
                   width={300}
                   height={300}
                   className="w-full h-auto object-cover"
@@ -210,7 +210,7 @@ export function MessageBubble({
       {!isMe && renderAvatar()}
       
       <div className={cn(
-        "relative max-w-[70%] p-3 rounded-2xl",
+        "relative max-w-[85%] md:max-w-[70%] p-3 rounded-2xl",
         isMe ? (
           "bg-green-600 text-white rounded-br-md"
         ) : (
@@ -220,7 +220,7 @@ export function MessageBubble({
         {/* Message Actions Menu */}
         <div className={cn(
           "absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 bg-gray-900 rounded-full px-2 py-1 text-xs",
-          isMe ? "-left-20" : "-right-20"
+          isMe ? "-left-10 md:-left-20" : "-right-10 md:-right-20"
         )}>
           {onReply && (
             <button

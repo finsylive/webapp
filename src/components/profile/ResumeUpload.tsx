@@ -8,6 +8,7 @@ import {
   User, MapPin, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { toast } from 'sonner';
 
 interface ParsedResume {
   full_name: string;
@@ -203,9 +204,12 @@ export default function ResumeUpload({ onProfileUpdated }: ResumeUploadProps) {
       }
 
       setStep('done');
+      toast.success('Resume data applied to your profile!');
       onProfileUpdated?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to apply resume data');
+      const errMsg = e instanceof Error ? e.message : 'Failed to apply resume data';
+      setError(errMsg);
+      toast.error(errMsg);
       setStep('error');
     }
   };

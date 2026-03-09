@@ -47,7 +47,7 @@ export function LoginPromptModal({
       onClick={handleBackdropClick}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     >
-      <div className="w-full max-w-sm bg-background border border-border rounded-2xl shadow-xl p-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-sm bg-background border border-border rounded-2xl shadow-xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-5">
           <img src="/logo/green_logo.svg" alt="Ments" className="w-9 h-9" />
