@@ -9,6 +9,7 @@ type LoginPromptModalProps = {
   onClose: () => void;
   title?: string;
   description?: string;
+  redirectTo?: string;
 };
 
 export function LoginPromptModal({
@@ -16,6 +17,7 @@ export function LoginPromptModal({
   onClose,
   title = 'Sign in to continue',
   description = 'You need to sign in to perform this action.',
+  redirectTo,
 }: LoginPromptModalProps) {
   const { signInWithGoogle } = useAuth();
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -64,7 +66,7 @@ export function LoginPromptModal({
 
         {/* Google Sign In */}
         <button
-          onClick={signInWithGoogle}
+          onClick={() => signInWithGoogle(redirectTo)}
           className="group w-full bg-neutral-900 dark:bg-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white font-semibold text-sm py-3 px-5 rounded-xl flex items-center justify-center gap-2.5 transition-all duration-200 hover:shadow-lg active:scale-[0.98] mb-4"
         >
           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">

@@ -299,6 +299,7 @@ export default function InvestViaQRPage() {
           onClose={() => setShowLogin(false)}
           title="Sign in to Invest"
           description="Sign in with Google to receive virtual funds and invest in this stall."
+          redirectTo={`/invest/${eventId}/${stallId}`}
         />
 
         {/* Not investment round */}

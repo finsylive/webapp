@@ -178,5 +178,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Redirect to the page the user was on before signing in (if provided)
+  const redirectPath = requestUrl.searchParams.get('redirect');
+  if (redirectPath && redirectPath.startsWith('/')) {
+    return NextResponse.redirect(`${requestUrl.origin}${redirectPath}`);
+  }
+
   return NextResponse.redirect(requestUrl.origin);
 }
