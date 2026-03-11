@@ -275,36 +275,72 @@
   --accent-foreground: 240 5.9% 10%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
+  --border: 240 5.9% 92%;
   --input: 240 5.9% 90%;
   --ring: 142.1 76.2% 36.3%;
   --radius: 0.75rem;
+
+  /* Premium shadows (layered, tinted) */
+  --shadow-color: 220 3% 15%;
+  --shadow-elevation-low:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.08),
+    0.4px 0.8px 1px hsl(var(--shadow-color) / 0.08);
+  --shadow-elevation-medium:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.06),
+    0.8px 1.6px 2px hsl(var(--shadow-color) / 0.06),
+    2px 4px 5px hsl(var(--shadow-color) / 0.06);
+  --shadow-elevation-high:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.05),
+    1.5px 2.9px 3.7px hsl(var(--shadow-color) / 0.05),
+    4px 8px 10px hsl(var(--shadow-color) / 0.05),
+    8px 16px 20px hsl(var(--shadow-color) / 0.05);
+
+  /* Premium easing curves */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark-mode {
-  /* Very dark background inspired by ments app */
-  --background: 155 15% 8%;
-  --foreground: 0 0% 95%;
-  /* Card background - slightly lighter than main background */
-  --card: 155 10% 12%;
-  --card-foreground: 0 0% 95%;
-  --popover: 155 15% 10%;
-  --popover-foreground: 0 0% 95%;
-  /* Green accent color matching ments style */
+  /* Premium cool-tinted dark — subtle blue undertone like X/Discord */
+  --background: 220 6% 4%;        /* near-black with cool tint */
+  --foreground: 220 5% 88%;       /* toned-down white — less glare */
+  /* Card — subtle elevation via lightness + cool tint */
+  --card: 220 5% 8.5%;            /* dark gray card */
+  --card-foreground: 220 5% 88%;
+  --popover: 220 5% 7%;           /* popover surface */
+  --popover-foreground: 220 5% 88%;
+  /* Primary keeps its brand green */
   --primary: 142.1 70.6% 45.3%;
   --primary-foreground: 144.9 80.4% 10%;
-  --secondary: 155 8% 18%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 155 8% 16%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 155 8% 16%;
-  --accent-foreground: 0 0% 98%;
+  /* Cool-tinted grays for secondary surfaces */
+  --secondary: 220 4% 13%;
+  --secondary-foreground: 220 5% 90%;
+  --muted: 220 4% 11%;
+  --muted-foreground: 220 3% 48%;  /* softer mid-gray */
+  --accent: 220 4% 13%;
+  --accent-foreground: 220 5% 90%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 85.7% 97.3%;
-  /* Darker borders for better contrast */
-  --border: 155 8% 20%;
-  --input: 155 8% 16%;
+  /* Cool-tinted borders */
+  --border: 220 4% 15%;
+  --input: 220 4% 13%;
   --ring: 142.4 71.8% 29.2%;
+
+  /* Dark mode shadows — neutral */
+  --shadow-color: 0 0% 0%;
+  --shadow-elevation-low:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.2),
+    0.4px 0.8px 1px hsl(var(--shadow-color) / 0.2);
+  --shadow-elevation-medium:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.16),
+    0.8px 1.6px 2px hsl(var(--shadow-color) / 0.16),
+    2px 4px 5px hsl(var(--shadow-color) / 0.16);
+  --shadow-elevation-high:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.12),
+    1.5px 2.9px 3.7px hsl(var(--shadow-color) / 0.12),
+    4px 8px 10px hsl(var(--shadow-color) / 0.12),
+    8px 16px 20px hsl(var(--shadow-color) / 0.12);
 }
 
 /* Color scheme variations */
@@ -337,6 +373,23 @@ body {
   background: hsl(var(--background));
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   transition: background 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle noise texture for premium tactile feel */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.012;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.dark-mode body::before {
+  opacity: 0.02;
 }
 
 @layer base {
@@ -346,40 +399,124 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Premium typography hierarchy */
+  h1, h2, h3 {
+    letter-spacing: -0.025em;
+    font-weight: 700;
+  }
+  h4, h5, h6 {
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+  p, span, label {
+    letter-spacing: 0.01em;
+  }
+
+  /* Premium focus glow (branded) */
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--background)),
+                0 0 0 4px hsl(var(--primary) / 0.4);
+  }
 }
 
 /* Custom styles for ments-inspired design */
 @layer components {
   .post-card {
-    @apply backdrop-blur-xl bg-card/80 border border-border rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-card/90 hover:scale-[1.01] hover:border-border min-w-0;
+    @apply backdrop-blur-xl bg-card/80 border border-border/60 rounded-2xl p-5 min-w-0;
+    box-shadow: var(--shadow-elevation-medium);
+    transition: transform 0.3s var(--ease-out-expo),
+                box-shadow 0.3s var(--ease-out-expo),
+                background-color 0.3s var(--ease-smooth),
+                border-color 0.3s var(--ease-smooth);
   }
-  
+  .post-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevation-high);
+    @apply bg-card/95 border-border;
+  }
+
   .tag-badge {
-    @apply flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105;
+    @apply flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium;
+    transition: transform 0.2s var(--ease-spring),
+                box-shadow 0.2s var(--ease-smooth);
   }
-  
+  .tag-badge:hover {
+    transform: scale(1.05);
+  }
+
   .tag-app-dev {
     @apply bg-blue-500/10 text-blue-400 border border-blue-500/20;
   }
-  
+
   .tag-collaboration {
     @apply bg-purple-500/10 text-purple-400 border border-purple-500/20;
   }
-  
+
   .tag-ai {
     @apply bg-green-500/10 text-green-400 border border-green-500/20;
   }
-  
+
   .like-button {
-    @apply transition-all duration-200 hover:scale-110;
+    transition: transform 0.2s var(--ease-spring),
+                color 0.2s var(--ease-smooth);
   }
-  
+  .like-button:hover {
+    transform: scale(1.15);
+  }
+
   .like-button.liked {
     @apply text-green-500;
   }
-  
+
   .reply-button {
-    @apply transition-all duration-200 hover:scale-110 hover:text-blue-400;
+    transition: transform 0.2s var(--ease-spring),
+                color 0.2s var(--ease-smooth);
+  }
+  .reply-button:hover {
+    transform: scale(1.15);
+    @apply text-blue-400;
+  }
+
+  /* Premium card base — for any card component */
+  .premium-card {
+    background: linear-gradient(
+      145deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--card) / 0.85) 100%
+    );
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: var(--shadow-elevation-medium);
+    transition: transform 0.3s var(--ease-out-expo),
+                box-shadow 0.3s var(--ease-out-expo),
+                border-color 0.3s var(--ease-smooth);
+  }
+  .premium-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevation-high);
+    border-color: hsl(var(--border) / 0.8);
+  }
+
+  /* Hover lift utility */
+  .hover-lift {
+    transition: transform 0.3s var(--ease-out-expo),
+                box-shadow 0.3s var(--ease-out-expo);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevation-high);
+  }
+
+  /* Premium gradient dividers */
+  .premium-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--border)),
+      transparent
+    );
   }
 }
 

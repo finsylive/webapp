@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MoreVertical, Reply, Copy, Trash2, Edit, Check, CheckCheck } from 'lucide-react';
+import { MoreVertical, Reply, Copy, Trash2, Edit, Smile, Check } from 'lucide-react';
 import Image from 'next/image';
-import { VerifyBadge } from '@/components/ui/VerifyBadge';
 
 interface Message {
   id: string;
@@ -26,17 +25,18 @@ interface MessageBubbleProps {
   parentMessage?: Message | null;
   senderAvatar?: string;
   senderName?: string;
-  senderIsVerified?: boolean;
   reactions: GroupedReaction[];
   myReaction?: string;
   isLastInGroup?: boolean;
-  isLastMessage?: boolean;
   onReact: (messageId: string, emoji: string) => void;
   onRemoveReaction: (messageId: string) => void;
   onReply?: (message: Message) => void;
   onEdit?: (message: Message) => void;
   onDelete?: (messageId: string) => void;
   userId: string;
+  selectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (messageId: string) => void;
 }
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
@@ -48,23 +48,27 @@ export default function MessageBubble({
   parentMessage,
   senderAvatar,
   senderName,
-  senderIsVerified,
   reactions,
   myReaction,
   isLastInGroup,
-  isLastMessage,
   onReact,
   onRemoveReaction,
   onReply,
   onEdit,
   onDelete,
-  userId
+  userId,
+  selectMode,
+  isSelected,
+  onToggleSelect
 }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false);
-  const [actionsPos, setActionsPos] = useState<{ top: number; left: number; right: number } | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [actionsPos, setActionsPos] = useState<{ top: number; left: number; right: number; openUp: boolean } | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchMoved = useRef(false);
 
   // Animation on mount
   useEffect(() => {
@@ -72,7 +76,24 @@ export default function MessageBubble({
     return () => clearTimeout(timer);
   }, []);
 
-  // Handle copy message
+  // Close menus on scroll
+  useEffect(() => {
+    if (!showActions && !showEmojiPicker) return;
+    const onScroll = () => { setShowActions(false); setShowEmojiPicker(false); };
+    window.addEventListener('scroll', onScroll, true);
+    return () => window.removeEventListener('scroll', onScroll, true);
+  }, [showActions, showEmojiPicker]);
+
+  // Close menus on Escape key
+  useEffect(() => {
+    if (!showActions && !showEmojiPicker) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowActions(false); setShowEmojiPicker(false); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showActions, showEmojiPicker]);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
@@ -82,7 +103,6 @@ export default function MessageBubble({
     }
   };
 
-  // Handle message actions
   const handleReply = () => {
     onReply?.(message);
     setShowActions(false);
@@ -100,20 +120,40 @@ export default function MessageBubble({
     setShowActions(false);
   };
 
-  // Open actions menu with fixed positioning
+  // Open the more-actions dropdown (viewport-aware)
   const openActions = useCallback(() => {
     if (contentRef.current) {
       const rect = contentRef.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUp = spaceAbove > 200 || spaceAbove > spaceBelow;
       setActionsPos({
-        top: rect.top,
+        top: openUp ? rect.top : rect.bottom,
         left: rect.left,
         right: window.innerWidth - rect.right,
+        openUp,
       });
     }
     setShowActions(true);
   }, []);
 
-  // Quick reaction handler
+  // Open emoji picker (viewport-aware, positioned near the bubble)
+  const openEmojiPicker = useCallback(() => {
+    if (contentRef.current) {
+      const rect = contentRef.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUp = spaceAbove > 200 || spaceAbove > spaceBelow;
+      setActionsPos({
+        top: openUp ? rect.top : rect.bottom,
+        left: rect.left,
+        right: window.innerWidth - rect.right,
+        openUp,
+      });
+    }
+    setShowEmojiPicker(true);
+  }, []);
+
   const handleQuickReact = (emoji: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (myReaction === emoji) {
@@ -121,45 +161,109 @@ export default function MessageBubble({
     } else {
       onReact(message.id, emoji);
     }
+    setShowEmojiPicker(false);
     setShowActions(false);
   };
 
-  // Format timestamp
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Long-press for mobile
+  const handleTouchStart = useCallback(() => {
+    if (selectMode) return;
+    touchMoved.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      if (!touchMoved.current) openActions();
+    }, 500);
+  }, [selectMode, openActions]);
 
-  // Get proxied image URL
+  const handleTouchMove = useCallback(() => {
+    touchMoved.current = true;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); };
+  }, []);
+
   function getProxiedImageUrl(url: string | null | undefined): string | null {
     if (!url) return null;
-    const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
-    return `${base}${encodeURIComponent(url)}`;
+    if (url.startsWith('s3://')) {
+      const base = 'https://lrgwsbslfqiwoazmitre.supabase.co/functions/v1/get-image?url=';
+      return `${base}${encodeURIComponent(url)}`;
+    }
+    return url;
   }
+
+  // Inline action icons — the 3 icons that appear next to the bubble on hover (like Instagram)
+  const InlineActions = () => (
+    <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ${isOwn ? 'order-first mr-1.5' : 'order-last ml-1.5'}`}>
+      {/* Emoji react */}
+      <button
+        onClick={(e) => { e.stopPropagation(); openEmojiPicker(); }}
+        className="p-1.5 rounded-full hover:bg-accent/60 transition-colors text-muted-foreground/50 hover:text-muted-foreground"
+        title="React"
+      >
+        <Smile className="h-4 w-4" />
+      </button>
+      {/* Reply */}
+      {onReply && (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleReply(); }}
+          className="p-1.5 rounded-full hover:bg-accent/60 transition-colors text-muted-foreground/50 hover:text-muted-foreground"
+          title="Reply"
+        >
+          <Reply className="h-4 w-4" />
+        </button>
+      )}
+      {/* More */}
+      <button
+        onClick={(e) => { e.stopPropagation(); openActions(); }}
+        className="p-1.5 rounded-full hover:bg-accent/60 transition-colors text-muted-foreground/50 hover:text-muted-foreground"
+        title="More"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+    </div>
+  );
 
   return (
     <div
       ref={bubbleRef}
-      className={`flex items-end group transition-all duration-300 ${isOwn ? 'justify-end' : 'justify-start'
-        } ${isGrouped ? 'mt-1' : 'mt-4'} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        } hover:bg-accent/20 rounded-lg px-2 py-1 -mx-2`}
+      onClick={selectMode ? () => onToggleSelect?.(message.id) : undefined}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className={`flex items-center group ${isOwn ? 'justify-end' : 'justify-start'
+        } ${isGrouped ? 'mt-[2px]' : 'mt-2'} ${isVisible ? 'opacity-100' : 'opacity-0'
+        } transition-opacity duration-200 ${selectMode ? (isSelected ? 'bg-primary/10' : 'hover:bg-accent/10 cursor-pointer') : ''} rounded-lg px-2 py-[1px] -mx-2`}
     >
-      {/* Avatar for incoming messages (only show for first in group) */}
-      {!isOwn && !isGrouped && (
-        <div className="mr-3 flex-shrink-0">
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground text-xs">
+      {/* Selection checkbox */}
+      {selectMode && (
+        <div className={`flex-shrink-0 flex items-center self-center ${isOwn ? 'order-last ml-2' : 'mr-2'}`}>
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+            isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary/60'
+          }`}>
+            {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+          </div>
+        </div>
+      )}
+
+      {/* Avatar for incoming messages (last in group only — Instagram style) */}
+      {!isOwn && isLastInGroup && (
+        <div className="mr-1.5 flex-shrink-0 self-end">
+          <div className="w-6 h-6 rounded-full overflow-hidden bg-muted flex items-center justify-center text-muted-foreground text-[10px]">
             {(() => {
               const src = getProxiedImageUrl(senderAvatar ?? null);
               return src ? (
-                <Image
-                  src={src}
-                  alt={senderName || 'Avatar'}
-                  width={32}
-                  height={32}
-                  className="object-cover"
-                />
+                <Image src={src} alt={senderName || 'Avatar'} width={24} height={24} className="object-cover" />
               ) : (
                 <span>{(senderName || 'U').charAt(0).toUpperCase()}</span>
               );
@@ -167,174 +271,157 @@ export default function MessageBubble({
           </div>
         </div>
       )}
+      {!isOwn && !isLastInGroup && <div className="w-6 mr-1.5 flex-shrink-0" />}
 
-      {/* Spacer for grouped messages */}
-      {!isOwn && isGrouped && <div className="w-8 mr-3 flex-shrink-0" />}
+      {/* Inline actions (own messages: actions on left, bubble on right) */}
+      {!selectMode && isOwn && <InlineActions />}
 
-      <div className={`message-bubble relative max-w-[85%] md:max-w-[70%] lg:max-w-[60%] min-w-0 ${isOwn ? 'ml-auto' : 'mr-auto'
-        }`}>
-        {/* Reply context */}
+      {/* Message bubble + reactions */}
+      <div className={`relative max-w-[75%] md:max-w-[65%] lg:max-w-[55%] min-w-0`}>
+        {/* Reply context — Instagram style */}
         {parentMessage && (
-          <div className="mb-2 pl-3 py-2 rounded-lg text-xs border-l-4 bg-muted/50 border-border text-muted-foreground">
-            <div className="font-medium mb-1 opacity-75">
-              {parentMessage.sender_id === userId ? 'You' : senderName}
+          <div className={`mb-1 text-xs ${isOwn ? 'text-right' : 'text-left'}`}>
+            <div className="text-muted-foreground/70 mb-1">
+              {isOwn ? 'You' : senderName} replied to {parentMessage.sender_id === userId ? 'yourself' : isOwn ? (senderName || 'them') : 'you'}
             </div>
-            <div className="opacity-90 truncate">{parentMessage.content}</div>
+            <div className={`inline-block px-3 py-1.5 rounded-xl max-w-full truncate ${
+              isOwn ? 'bg-primary/20 text-primary-foreground/60' : 'bg-muted/60 text-muted-foreground'
+            }`}>
+              {parentMessage.content}
+            </div>
           </div>
         )}
 
-        {/* Quick reactions (show on hover) - positioned relative to message-bubble */}
-        <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-8 opacity-0 group-hover:opacity-100 transition-all duration-200 hidden sm:flex items-center gap-0.5 bg-popover rounded-full px-1.5 py-0.5 shadow-lg border border-border z-10`}>
-          {QUICK_REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={(e) => handleQuickReact(emoji, e)}
-              className={`p-1 rounded-full hover:scale-125 transition-transform ${myReaction === emoji ? 'bg-primary/20' : 'hover:bg-accent/60'
-                }`}
-              title={`React with ${emoji}`}
-            >
-              <span className="text-sm">{emoji}</span>
-            </button>
-          ))}
-          <button
-            onClick={openActions}
-            className="p-1 rounded-full hover:bg-accent/60 transition-colors"
-            title="More actions"
-          >
-            <MoreVertical className="h-3 w-3 text-muted-foreground" />
-          </button>
-        </div>
-
-        {/* Message content */}
+        {/* Bubble */}
         <div
           ref={contentRef}
-          className={`px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 ${isOwn
-              ? `bg-primary text-primary-foreground ${isLastInGroup ? 'rounded-br-md' : ''
-              } hover:bg-primary/90 hover:shadow-md`
-              : `bg-card text-foreground border border-border ${isLastInGroup ? 'rounded-bl-md' : ''
-              } hover:shadow-md`
-            }`}
+          className={`px-3.5 py-2 rounded-[20px] transition-all duration-200 ${isOwn
+            ? `bg-primary text-primary-foreground ${isLastInGroup ? 'rounded-br-md' : ''}`
+            : `bg-muted/70 text-foreground ${isLastInGroup ? 'rounded-bl-md' : ''}`
+          }`}
         >
-          {/* Sender name (for incoming grouped messages) */}
-          {!isOwn && !isGrouped && senderName && (
-            <div className="flex items-center gap-1 mb-1">
-              <span className="text-xs font-medium text-primary">
-                {senderName}
-              </span>
-              {senderIsVerified && (
-                <VerifyBadge size="sm" />
-              )}
-            </div>
-          )}
-
           {/* Message text */}
-          <div className="message-content text-sm leading-relaxed whitespace-pre-wrap break-words">
+          <div className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words">
             {message.content}
-          </div>
-
-          {/* Timestamp and status */}
-          <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'
-            }`}>
-            <span className={`text-[10px] ${isOwn
-                ? 'text-primary-foreground/70'
-                : 'text-muted-foreground'
-              }`}>
-              {formatTime(message.created_at)}
-            </span>
-
-            {/* Read status for own messages */}
-            {isOwn && (
-              <div className="flex items-center">
-                {isLastMessage ? (
-                  <CheckCheck className="h-3 w-3 text-primary-foreground/70" />
-                ) : (
-                  <Check className="h-3 w-3 text-primary-foreground/70" />
-                )}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Reactions display */}
+        {/* Reaction badges — Instagram style, overlapping bottom edge */}
         {reactions.length > 0 && (
-          <div className={`flex flex-wrap gap-1 mt-1.5 ${isOwn ? 'justify-end' : 'justify-start'
-            }`}>
+          <div className={`flex flex-wrap gap-0.5 -mt-2 relative z-[1] ${isOwn ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
             {reactions.map((reaction) => (
               <button
                 key={reaction.emoji}
-                onClick={() => {
-                  if (myReaction === reaction.emoji) {
-                    onRemoveReaction(message.id);
-                  } else {
-                    onReact(message.id, reaction.emoji);
-                  }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (myReaction === reaction.emoji) onRemoveReaction(message.id);
+                  else onReact(message.id, reaction.emoji);
                 }}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all duration-200 ${myReaction === reaction.emoji
-                    ? 'bg-primary/20 border-primary/50 text-foreground'
-                    : 'bg-muted/80 border-border text-muted-foreground hover:bg-accent/60'
-                  } hover:scale-105 active:scale-95`}
-                title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
+                className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-xs shadow-sm transition-all duration-150 ${
+                  myReaction === reaction.emoji
+                    ? 'bg-card border border-primary/40'
+                    : 'bg-card border border-border/60'
+                } hover:scale-110 active:scale-95`}
               >
-                <span className="text-sm leading-none">{reaction.emoji}</span>
-                {reaction.count > 1 && <span className="font-medium">{reaction.count}</span>}
+                <span className="text-[13px] leading-none">{reaction.emoji}</span>
+                {reaction.count > 1 && <span className="text-[9px] font-medium text-muted-foreground">{reaction.count}</span>}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Message Actions Menu - fixed to escape overflow:hidden */}
-      {showActions && actionsPos && (
+      {/* Inline actions (other's messages: bubble on left, actions on right) */}
+      {!selectMode && !isOwn && <InlineActions />}
+
+      {/* Emoji Picker Popup — fixed position */}
+      {showEmojiPicker && actionsPos && (
         <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
           <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowActions(false)}
-          />
-          <div
-            className="fixed z-50 py-2 rounded-xl shadow-2xl border min-w-[160px] bg-popover border-border animate-in fade-in duration-200"
+            className="fixed z-50 rounded-xl shadow-2xl border bg-popover border-border overflow-hidden animate-in fade-in duration-150"
             style={{
-              top: Math.max(8, actionsPos.top - 8),
+              top: actionsPos.openUp ? Math.max(8, actionsPos.top - 8) : actionsPos.top + 4,
               ...(isOwn
-                ? { right: actionsPos.right }
-                : { left: actionsPos.left }
+                ? { right: Math.min(actionsPos.right, window.innerWidth - 260) }
+                : { left: Math.min(actionsPos.left, window.innerWidth - 260) }
               ),
-              transform: 'translateY(-100%)',
+              transform: actionsPos.openUp ? 'translateY(-100%)' : 'none',
             }}
           >
-            {onReply && (
-              <button
-                onClick={handleReply}
-                className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/60 text-popover-foreground"
-              >
-                <Reply className="h-4 w-4" />
-                <span>Reply</span>
+            <div className="flex items-center gap-1 px-2 py-2">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={(e) => handleQuickReact(emoji, e)}
+                  className={`p-2 rounded-full hover:scale-125 transition-all duration-150 ${
+                    myReaction === emoji ? 'bg-primary/20 scale-110' : 'hover:bg-accent/60'
+                  }`}
+                >
+                  <span className="text-xl leading-none">{emoji}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* More Actions Menu — fixed position */}
+      {showActions && actionsPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowActions(false)} />
+          <div
+            className="fixed z-50 rounded-xl shadow-2xl border min-w-[180px] bg-popover border-border overflow-hidden animate-in fade-in duration-150"
+            style={{
+              top: actionsPos.openUp ? Math.max(8, actionsPos.top - 8) : actionsPos.top + 4,
+              ...(isOwn
+                ? { right: Math.min(actionsPos.right, window.innerWidth - 190) }
+                : { left: Math.min(actionsPos.left, window.innerWidth - 190) }
+              ),
+              transform: actionsPos.openUp ? 'translateY(-100%)' : 'none',
+            }}
+          >
+            {/* Quick reactions inside more menu too (for mobile) */}
+            <div className="flex items-center justify-center gap-0.5 px-2 py-2 border-b border-border/50">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={(e) => handleQuickReact(emoji, e)}
+                  className={`p-1.5 rounded-full hover:scale-125 transition-all duration-150 ${
+                    myReaction === emoji ? 'bg-primary/20 scale-110' : 'hover:bg-accent/60'
+                  }`}
+                >
+                  <span className="text-lg leading-none">{emoji}</span>
+                </button>
+              ))}
+            </div>
+            <div className="py-1">
+              {onReply && (
+                <button onClick={handleReply} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/50 text-popover-foreground text-sm">
+                  <Reply className="h-4 w-4 opacity-50" />
+                  <span>Reply</span>
+                </button>
+              )}
+              <button onClick={handleCopy} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/50 text-popover-foreground text-sm">
+                <Copy className="h-4 w-4 opacity-50" />
+                <span>Copy</span>
               </button>
-            )}
-            <button
-              onClick={handleCopy}
-              className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/60 text-popover-foreground"
-            >
-              <Copy className="h-4 w-4" />
-              <span>Copy</span>
-            </button>
-            {isOwn && onEdit && (
-              <button
-                onClick={handleEdit}
-                className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/60 text-popover-foreground"
-              >
-                <Edit className="h-4 w-4" />
-                <span>Edit</span>
-              </button>
-            )}
-            {isOwn && onDelete && (
-              <button
-                onClick={handleDelete}
-                className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-destructive/10 text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete</span>
-              </button>
-            )}
+              {isOwn && onEdit && (
+                <button onClick={handleEdit} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-accent/50 text-popover-foreground text-sm">
+                  <Edit className="h-4 w-4 opacity-50" />
+                  <span>Edit</span>
+                </button>
+              )}
+              {isOwn && onDelete && (
+                <>
+                  <div className="h-px my-0.5 mx-3 bg-border/50" />
+                  <button onClick={handleDelete} className="w-full px-4 py-2 text-left flex items-center gap-3 transition-colors hover:bg-destructive/10 text-destructive text-sm">
+                    <Trash2 className="h-4 w-4 opacity-50" />
+                    <span>Delete</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </>
       )}

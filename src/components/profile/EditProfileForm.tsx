@@ -1195,7 +1195,7 @@ export default function EditProfileForm() {
                 { key: 'youtube', label: 'YouTube', icon: Youtube, placeholder: 'https://youtube.com/@you' },
                 { key: 'figma', label: 'Figma', icon: FigmaIcon, placeholder: 'https://figma.com/@you' },
                 { key: 'substack', label: 'Substack', icon: SubstackIcon, placeholder: 'https://you.substack.com' },
-              ] as const).map(({ key, label, icon: Icon, placeholder }) => (
+              ] as const).map(({ key, icon: Icon, placeholder }) => (
                 <div key={key} className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted/50 flex-shrink-0">
                     <Icon className="h-4 w-4 text-foreground/60" />
@@ -1282,7 +1282,6 @@ export default function EditProfileForm() {
               {/* Logo */}
               <div className="h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {project.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={project.logo_url} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <FolderOpen className="h-4 w-4 text-muted-foreground/50" />
@@ -1449,7 +1448,6 @@ export default function EditProfileForm() {
               {/* Logo */}
               <div className="h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {startup.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={startup.logo_url} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <Rocket className="h-4 w-4 text-muted-foreground/50" />

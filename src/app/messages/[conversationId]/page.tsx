@@ -8,8 +8,9 @@ import TypingIndicator from '@/components/messages/TypingIndicator';
 import MessageSkeleton from '@/components/messages/MessageSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtimeMessages } from '../useRealtimeMessages';
-import { ArrowLeft, Phone, MoreVertical, Search, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Phone, MoreVertical, Search, AlertCircle, Trash2, Ban, CheckSquare, X } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
 import { VerifyBadge } from '@/components/ui/VerifyBadge';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -58,6 +59,13 @@ export default function ConversationPage() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   // Removed unused state variables isOnline, setIsOnline, lastSeen, setLastSeen
+
+  // Select mode & menu state
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -294,6 +302,18 @@ export default function ConversationPage() {
     }
   };
 
+  // Format time for between-message timestamps (Instagram style)
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  // Check if there's a significant time gap between messages (15 min)
+  const shouldShowTimestamp = (current: Message, prev: Message | null) => {
+    if (!prev) return true;
+    const gap = new Date(current.created_at).getTime() - new Date(prev.created_at).getTime();
+    return gap > 15 * 60 * 1000; // 15 minutes
+  };
+
   // Handle message actions
   const handleReply = useCallback((message: Message) => {
     setReplyingTo(message);
@@ -316,6 +336,122 @@ export default function ConversationPage() {
       console.error('Failed to delete message:', error);
     }
   }, []);
+
+  // Close header menu on outside click
+  useEffect(() => {
+    if (!showHeaderMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+        setShowHeaderMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showHeaderMenu]);
+
+  // Toggle message selection
+  const handleToggleSelect = useCallback((messageId: string) => {
+    setSelectedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(messageId)) next.delete(messageId);
+      else next.add(messageId);
+      return next;
+    });
+  }, []);
+
+  // Select all messages
+  const handleSelectAll = useCallback(() => {
+    setSelectedMessages(new Set(messages.map(m => m.id)));
+  }, [messages]);
+
+  // Exit select mode
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedMessages(new Set());
+  }, []);
+
+  // Clear chat handler
+  const handleClearChat = useCallback(async () => {
+    if (!conversationId) return;
+    if (!confirm('Are you sure you want to clear all messages? This cannot be undone.')) return;
+
+    setActionLoading('clear');
+    try {
+      const res = await fetch('/api/messages/clear', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: String(conversationId) }),
+      });
+      if (res.ok) {
+        setMessages([]);
+        setReactions([]);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to clear chat');
+      }
+    } catch {
+      alert('Failed to clear chat');
+    } finally {
+      setActionLoading(null);
+      setShowHeaderMenu(false);
+    }
+  }, [conversationId]);
+
+  // Block user handler
+  const handleBlockUser = useCallback(async () => {
+    if (!otherUser?.id) return;
+    if (!confirm(`Are you sure you want to block ${otherUser.full_name || otherUser.username}? They won't be able to message you.`)) return;
+
+    setActionLoading('block');
+    try {
+      const res = await fetch('/api/users/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked_user_id: otherUser.id }),
+      });
+      if (res.ok) {
+        router.push('/messages');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to block user');
+      }
+    } catch {
+      alert('Failed to block user');
+    } finally {
+      setActionLoading(null);
+      setShowHeaderMenu(false);
+    }
+  }, [otherUser, router]);
+
+  // Delete selected messages
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedMessages.size === 0) return;
+    if (!confirm(`Delete ${selectedMessages.size} selected message${selectedMessages.size > 1 ? 's' : ''}?`)) return;
+
+    setActionLoading('delete-selected');
+    try {
+      const res = await fetch('/api/messages/delete-bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message_ids: Array.from(selectedMessages),
+          conversation_id: String(conversationId),
+        }),
+      });
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => !selectedMessages.has(m.id)));
+        setReactions(prev => prev.filter(r => !selectedMessages.has(r.message_id)));
+        exitSelectMode();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete messages');
+      }
+    } catch {
+      alert('Failed to delete messages');
+    } finally {
+      setActionLoading(null);
+    }
+  }, [selectedMessages, conversationId, exitSelectMode]);
 
   // Typing indicator via Supabase broadcast
   useEffect(() => {
@@ -387,65 +523,128 @@ export default function ConversationPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
 
-          {/* Avatar with status */}
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground font-semibold">
-              {(() => {
-                const src = getProxiedImageUrl(otherUser?.avatar_url ?? null);
-                return src ? (
-                  <Image
-                    src={src}
-                    alt={otherUser?.username || 'Avatar'}
-                    width={40}
-                    height={40}
-                    className="object-cover"
-                  />
-                ) : (
-                  <span>{(otherUser?.full_name || otherUser?.username || 'C').charAt(0).toUpperCase()}</span>
-                );
-              })()}
+          {/* Avatar + name — links to profile */}
+          <Link
+            href={otherUser?.username ? `/profile/${encodeURIComponent(otherUser.username)}` : '#'}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/60 flex items-center justify-center text-primary-foreground font-semibold">
+                {(() => {
+                  const src = getProxiedImageUrl(otherUser?.avatar_url ?? null);
+                  return src ? (
+                    <Image
+                      src={src}
+                      alt={otherUser?.username || 'Avatar'}
+                      width={40}
+                      height={40}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span>{(otherUser?.full_name || otherUser?.username || 'C').charAt(0).toUpperCase()}</span>
+                  );
+                })()}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold leading-5 text-foreground">
-                {otherUser?.full_name || otherUser?.username || 'Loading...'}
-              </span>
-              {otherUser?.is_verified && (
-                <VerifyBadge />
-              )}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold leading-5 text-foreground">
+                  {otherUser?.full_name || otherUser?.username || 'Loading...'}
+                </span>
+                {otherUser?.is_verified && (
+                  <VerifyBadge />
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isTyping ? (
+                  <span className="text-primary">typing...</span>
+                ) : (
+                  otherUser?.username ? `@${otherUser.username}` : 'Online'
+                )}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {isTyping ? (
-                <span className="text-primary">typing...</span>
-              ) : (
-                `${messages.length} message${messages.length === 1 ? '' : 's'}`
-              )}
-            </div>
-          </div>
+          </Link>
         </div>
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5">
-          <button
-            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-            aria-label="Search in conversation"
-          >
-            <Search className="h-5 w-5" />
-          </button>
-          <button
-            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-            aria-label="Voice call"
-          >
-            <Phone className="h-5 w-5" />
-          </button>
-          <button
-            className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-            aria-label="More options"
-          >
-            <MoreVertical className="h-5 w-5" />
-          </button>
+          {selectMode ? (
+            <>
+              <button
+                onClick={handleSelectAll}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+              >
+                Select All
+              </button>
+              <button
+                onClick={exitSelectMode}
+                className="p-2.5 rounded-full transition-colors hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+                aria-label="Cancel selection"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+                aria-label="Search in conversation"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+              <button
+                className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+                aria-label="Voice call"
+              >
+                <Phone className="h-5 w-5" />
+              </button>
+              <div className="relative" ref={headerMenuRef}>
+                <button
+                  onClick={() => setShowHeaderMenu(prev => !prev)}
+                  className="p-2.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+                  aria-label="More options"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showHeaderMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border bg-popover border-border/50 shadow-lg z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2" style={{ boxShadow: 'var(--shadow-elevation-high)' }}>
+                    <div className="py-1.5">
+                      <button
+                        onClick={() => {
+                          setSelectMode(true);
+                          setShowHeaderMenu(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 text-sm font-medium transition-colors hover:bg-accent/50 text-popover-foreground"
+                      >
+                        <CheckSquare className="h-4 w-4 opacity-70" />
+                        <span>Select Messages</span>
+                      </button>
+                      <button
+                        onClick={handleClearChat}
+                        disabled={actionLoading === 'clear'}
+                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 text-sm font-medium transition-colors hover:bg-accent/50 text-popover-foreground disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4 opacity-70" />
+                        <span>{actionLoading === 'clear' ? 'Clearing...' : 'Clear Chat'}</span>
+                      </button>
+                      <div className="h-px my-1" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--border)), transparent)' }} />
+                      <button
+                        onClick={handleBlockUser}
+                        disabled={actionLoading === 'block'}
+                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 text-sm font-medium transition-colors hover:bg-destructive/10 text-destructive disabled:opacity-50"
+                      >
+                        <Ban className="h-4 w-4 opacity-70" />
+                        <span>{actionLoading === 'block' ? 'Blocking...' : 'Block User'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -496,11 +695,11 @@ export default function ConversationPage() {
             ) : (
               Object.entries(groupedMessages).map(([date, msgs]) => (
                 <React.Fragment key={date}>
-                  {/* Date Separator */}
-                  <div className="flex justify-center my-6">
-                    <div className="px-4 py-1.5 rounded-full text-xs font-medium shadow-sm bg-card/50 backdrop-blur-sm text-primary border border-primary/20">
+                  {/* Date Separator — Instagram style */}
+                  <div className="flex justify-center my-4">
+                    <span className="text-xs text-muted-foreground/60 font-normal">
                       {formatDate(date)}
-                    </div>
+                    </span>
                   </div>
 
                   {/* Messages */}
@@ -512,39 +711,57 @@ export default function ConversationPage() {
                     const groupedReactions = getGroupedReactions(message.id);
                     const myReaction = getMyReaction(message.id);
 
-                    // Check if this message should be grouped with the previous one
                     const prevMessage = index > 0 ? msgs[index - 1] : null;
                     const shouldGroup = Boolean(prevMessage &&
                       prevMessage.sender_id === message.sender_id &&
-                      new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000); // 5 minutes
+                      new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 300000);
 
                     const isLastInGroup = !msgs[index + 1] ||
                       msgs[index + 1].sender_id !== message.sender_id ||
                       new Date(msgs[index + 1].created_at).getTime() - new Date(message.created_at).getTime() > 300000;
 
-                    const isLastMessage = index === msgs.length - 1 && date === Object.keys(groupedMessages).slice(-1)[0];
+                    const showTime = shouldShowTimestamp(message, prevMessage);
+                    const isVeryLast = index === msgs.length - 1 && date === Object.keys(groupedMessages).slice(-1)[0];
 
                     return (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        isOwn={isOwn}
-                        isGrouped={shouldGroup}
-                        parentMessage={parentMessage}
-                        senderAvatar={otherUser?.avatar_url || undefined}
-                        senderName={otherUser?.full_name || otherUser?.username || undefined}
-                        senderIsVerified={otherUser?.is_verified}
-                        reactions={groupedReactions}
-                        myReaction={myReaction}
-                        isLastInGroup={isLastInGroup}
-                        isLastMessage={isLastMessage}
-                        onReact={handleReact}
-                        onRemoveReaction={handleRemoveReaction}
-                        onReply={handleReply}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        userId={userId!}
-                      />
+                      <React.Fragment key={message.id}>
+                        {/* Centered timestamp between messages — Instagram style */}
+                        {showTime && index > 0 && (
+                          <div className="flex justify-center my-3">
+                            <span className="text-[11px] text-muted-foreground/60 font-normal">
+                              {formatTime(message.created_at)}
+                            </span>
+                          </div>
+                        )}
+
+                        <MessageBubble
+                          message={message}
+                          isOwn={isOwn}
+                          isGrouped={shouldGroup && !showTime}
+                          parentMessage={parentMessage}
+                          senderAvatar={otherUser?.avatar_url || undefined}
+                          senderName={otherUser?.full_name || otherUser?.username || undefined}
+                          reactions={groupedReactions}
+                          myReaction={myReaction}
+                          isLastInGroup={isLastInGroup}
+                          onReact={handleReact}
+                          onRemoveReaction={handleRemoveReaction}
+                          onReply={handleReply}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          userId={userId!}
+                          selectMode={selectMode}
+                          isSelected={selectedMessages.has(message.id)}
+                          onToggleSelect={handleToggleSelect}
+                        />
+
+                        {/* Seen indicator below last own message — Instagram style */}
+                        {isVeryLast && isOwn && (
+                          <div className="flex justify-end mt-0.5 pr-2">
+                            <span className="text-[11px] text-muted-foreground/50">Seen</span>
+                          </div>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </React.Fragment>
@@ -563,23 +780,52 @@ export default function ConversationPage() {
         )}
       </div>
 
+      {/* Selection Toolbar */}
+      {selectMode && (
+        <div className="flex-shrink-0 backdrop-blur-sm border-t px-4 py-3 flex items-center justify-between bg-card/90 border-border/50">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground/80">
+              {selectedMessages.size} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedMessages.size === 0 || actionLoading === 'delete-selected'}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>{actionLoading === 'delete-selected' ? 'Deleting...' : 'Delete'}</span>
+            </button>
+            <button
+              onClick={exitSelectMode}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-muted/60 text-foreground/70 hover:bg-muted transition-colors"
+            >
+              <span>Cancel</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Chat Input */}
-      <div className="flex-shrink-0 backdrop-blur-sm border-t p-3 md:p-4 min-w-0 bg-card/80 border-border/50">
-        <ChatInput
-          conversationId={String(conversationId)}
-          userId={userId!}
-          onSent={(msg) => {
-            setMessages(msgs => {
-              if (msgs.some(m => m.id === msg.id)) return msgs;
-              return [...msgs, msg];
-            });
-            scrollToBottom();
-          }}
-          replyingTo={replyingTo}
-          onClearReply={handleClearReply}
-          onTyping={handleTyping}
-        />
-      </div>
+      {!selectMode && (
+        <div className="flex-shrink-0 border-t px-3 py-2 md:px-4 min-w-0 bg-background border-border/30">
+          <ChatInput
+            conversationId={String(conversationId)}
+            userId={userId!}
+            onSent={(msg) => {
+              setMessages(msgs => {
+                if (msgs.some(m => m.id === msg.id)) return msgs;
+                return [...msgs, msg];
+              });
+              scrollToBottom();
+            }}
+            replyingTo={replyingTo}
+            onClearReply={handleClearReply}
+            onTyping={handleTyping}
+          />
+        </div>
+      )}
     </div>
   );
 }

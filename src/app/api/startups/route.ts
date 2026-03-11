@@ -1,7 +1,7 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
 import { fetchStartups, createStartup } from '@/api/startups';
-import { cacheGet, cacheSet, cacheClearByPrefix, cacheClearByMatch } from '@/lib/cache';
+import { cacheGet, cacheSet, cacheClearByPrefix } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
