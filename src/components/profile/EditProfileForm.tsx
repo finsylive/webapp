@@ -920,6 +920,7 @@ export default function EditProfileForm() {
         if (newAvatarUrl !== undefined) setAvatarPreview(asPublic(latest.avatar_url) || null);
         if (newBannerUrl !== undefined) setCoverPreview(asPublic(latest.banner_image) || null);
       }
+      router.push(`/profile/${encodeURIComponent(username)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
