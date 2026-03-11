@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -8,7 +8,7 @@ import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles } from 'lucide-react';
+import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban, BarChart3, Clock, Flame, Sparkles, Trophy, Layers } from 'lucide-react';
 import { fetchMyVentures, updateStartup, StartupProfile } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
 import { DealFlowTab } from '@/components/investor/DealFlowTab';
@@ -79,12 +79,25 @@ function StartupsPageContent() {
   const [filterEntityType, setFilterEntityType] = useState<EntityType | null>(null);
   const [sortMode, setSortMode] = useState<'hot' | 'new'>('hot');
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showListMenu, setShowListMenu] = useState(false);
+  const listMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (listMenuRef.current && !listMenuRef.current.contains(e.target as Node)) {
+        setShowListMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // ── Tab system ──
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'directory' | 'my' | 'dealflow'>('directory');
   const [myVentures, setMyVentures] = useState<StartupProfile[]>([]);
   const [investorStatus, setInvestorStatus] = useState<string>('none');
+  const [primaryInterest, setPrimaryInterest] = useState<string | null>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
@@ -98,10 +111,11 @@ function StartupsPageContent() {
     const fetchMeta = async () => {
       const [venturesRes, userRes] = await Promise.all([
         fetchMyVentures(user.id),
-        supabase.from('users').select('investor_status').eq('id', user.id).single(),
+        supabase.from('users').select('investor_status, primary_interest').eq('id', user.id).single(),
       ]);
       setMyVentures(venturesRes.data ?? []);
       setInvestorStatus(userRes.data?.investor_status ?? 'none');
+      setPrimaryInterest(userRes.data?.primary_interest ?? null);
     };
     fetchMeta();
   }, [user]);
@@ -203,13 +217,60 @@ function StartupsPageContent() {
               <p className="text-xs text-muted-foreground">{startups.length} listed · ranked by votes</p>
             )}
           </div>
-          <Link
-            href="/startups/create"
-            className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span>List</span>
-          </Link>
+          <div className="relative shrink-0" ref={listMenuRef}>
+            <button
+              onClick={() => setShowListMenu(v => !v)}
+              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>List</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+            </button>
+            {showListMenu && (
+              <div className="absolute top-full right-0 mt-2 w-56 bg-card border border-border rounded-2xl shadow-lg overflow-hidden py-1.5 z-50">
+                <Link
+                  href="/startups/create?type=startup"
+                  onClick={() => setShowListMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Rocket className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Startup</p>
+                    <p className="text-xs text-muted-foreground">List your venture</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/startups/create?type=org_project"
+                  onClick={() => setShowListMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <FolderKanban className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Org Project</p>
+                    <p className="text-xs text-muted-foreground">Club, team, or group</p>
+                  </div>
+                </Link>
+                <div className="mx-3 my-1 border-t border-border" />
+                <Link
+                  href="/profile/edit"
+                  onClick={() => setShowListMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Layers className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Personal Project</p>
+                    <p className="text-xs text-muted-foreground">Add to your profile</p>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setShowBookmarks(true)}
             className="h-11 w-11 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
@@ -227,7 +288,7 @@ function StartupsPageContent() {
         />
 
         {/* ── Investor Verification CTA ── */}
-        {activeTab === 'directory' && investorStatus === 'none' && (
+        {activeTab === 'directory' && investorStatus === 'none' && primaryInterest === 'investing' && (
           <div className="mb-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -277,28 +338,51 @@ function StartupsPageContent() {
           />
         ) : (
           <>
-            {/* Rankings header */}
-            <div className="flex items-center gap-2 py-3">
-              {sortMode === 'hot' ? <BarChart3 className="h-4 w-4 text-muted-foreground" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
-              <span className="text-sm font-semibold text-foreground">
-                {sortMode === 'hot' ? 'All Rankings' : 'Latest'}
-              </span>
-            </div>
+            {/* Featured Top 3 */}
+            {sortMode === 'hot' && (
+              <>
+                <div className="flex items-center gap-2 py-3">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-semibold text-foreground">Featured</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-4" style={{ scrollbarWidth: 'none' }}>
+                  {startups.slice(0, Math.min(5, startups.length)).map((s, i) => (
+                    <FeaturedCard
+                      key={s.id}
+                      startup={s}
+                      rank={(i + 1) as 1 | 2 | 3 | 4 | 5}
+                      upvoted={upvotedIds.has(s.id)}
+                      loading={votingIds.has(s.id)}
+                      onVote={toggleVote}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Ranked list */}
-            <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
-              {startups.map((s, i) => (
-                <RankedRow
-                  key={s.id}
-                  startup={s}
-                  rank={i + 1}
-                  upvoted={upvotedIds.has(s.id)}
-                  loading={votingIds.has(s.id)}
-                  onVote={toggleVote}
-                  isTop3={sortMode === 'hot' && i < 3}
-                />
-              ))}
-            </div>
+            {(sortMode === 'new' || startups.length > 5) && (
+              <>
+                <div className="flex items-center gap-2 py-3">
+                  {sortMode === 'hot' ? <BarChart3 className="h-4 w-4 text-muted-foreground" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                  <span className="text-sm font-semibold text-foreground">
+                    {sortMode === 'hot' ? 'All Rankings' : 'Latest'}
+                  </span>
+                </div>
+                <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
+                  {(sortMode === 'hot' ? startups.slice(5) : startups).map((s, i) => (
+                    <RankedRow
+                      key={s.id}
+                      startup={s}
+                      rank={sortMode === 'hot' ? i + 6 : i + 1}
+                      upvoted={upvotedIds.has(s.id)}
+                      loading={votingIds.has(s.id)}
+                      onVote={toggleVote}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
           </>
@@ -341,10 +425,29 @@ function Controls({
   filterEntityType: EntityType | null;
   setFilterEntityType: (t: EntityType | null) => void;
 }) {
+  const [stageOpen, setStageOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (stageRef.current && !stageRef.current.contains(event.target as Node)) {
+        setStageOpen(false);
+      }
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setSortOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="flex flex-col sm:flex-row gap-3 pb-4">
-      {/* Category Segmented Control */}
-      <div className="flex p-1 bg-muted rounded-xl">
+    <div className="flex flex-col sm:flex-row gap-3 pb-4 relative z-20">
+      {/* Category Filter Pills */}
+      <div className="flex gap-2">
         {[
           { id: null, label: 'All' },
           { id: 'startup', label: 'Startups' },
@@ -353,10 +456,10 @@ function Controls({
           <button
             key={opt.id || 'all'}
             onClick={() => setFilterEntityType(opt.id as EntityType | null)}
-            className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[36px] ${
+            className={`px-4 py-2 text-sm font-medium rounded-xl transition-all min-h-[36px] border ${
               filterEntityType === opt.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'border-primary/50 text-primary bg-transparent'
+                : 'border-border text-muted-foreground bg-transparent hover:text-foreground hover:border-foreground/30'
             }`}
           >
             {opt.label}
@@ -364,105 +467,201 @@ function Controls({
         ))}
       </div>
       
-      {/* Dropdowns */}
+      {/* Custom Dropdowns */}
       <div className="flex items-center gap-2 sm:ml-auto">
         {/* Stage Dropdown */}
-        <div className="relative flex-1 sm:flex-none">
-          <select
-            value={filterStage || ''}
-            onChange={(e) => setFilterStage(e.target.value || null)}
-            className="w-full appearance-none pl-3 pr-8 py-2 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+        <div className="relative flex-1 sm:flex-none" ref={stageRef}>
+          <button
+            onClick={() => setStageOpen(!stageOpen)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-2 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
           >
-            <option value="">All Stages</option>
-            {STAGES.map(s => (
-              <option key={s} value={s}>{STAGE_LABELS[s]}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <span className="truncate">{filterStage ? STAGE_LABELS[filterStage] : 'All Stages'}</span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${stageOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {stageOpen && (
+            <div className="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-xl shadow-lg overflow-hidden py-1 z-50">
+              <button
+                onClick={() => { setFilterStage(null); setStageOpen(false); }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${filterStage === null ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'}`}
+              >
+                All Stages
+              </button>
+              {STAGES.map(s => (
+                <button
+                  key={s}
+                  onClick={() => { setFilterStage(s); setStageOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${filterStage === s ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'}`}
+                >
+                  {STAGE_LABELS[s]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Sort Dropdown */}
-        <div className="relative flex-1 sm:flex-none">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground flex items-center">
-            {sortMode === 'hot' ? <Flame className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-          </div>
-          <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as 'hot' | 'new')}
-            className="w-full appearance-none pl-9 pr-8 py-2 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+        <div className="relative flex-1 sm:flex-none" ref={sortRef}>
+          <button
+            onClick={() => setSortOpen(!sortOpen)}
+            className="w-full flex items-center justify-between gap-2 pl-3 pr-4 py-2 min-h-[44px] bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
           >
-            <option value="hot">Hot</option>
-            <option value="new">New</option>
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <div className="flex items-center gap-2">
+              {sortMode === 'hot' ? <Flame className="h-4 w-4 text-orange-500" /> : <Sparkles className="h-4 w-4 text-blue-500" />}
+              <span className="truncate">{sortMode === 'hot' ? 'Hot' : 'New'}</span>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {sortOpen && (
+            <div className="absolute top-full right-0 mt-2 w-40 bg-card border border-border rounded-xl shadow-lg overflow-hidden py-1 z-50">
+              <button
+                onClick={() => { setSortMode('hot'); setSortOpen(false); }}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${sortMode === 'hot' ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'}`}
+              >
+                <Flame className={`h-4 w-4 ${sortMode === 'hot' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                Hot
+              </button>
+              <button
+                onClick={() => { setSortMode('new'); setSortOpen(false); }}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${sortMode === 'new' ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'}`}
+              >
+                <Sparkles className={`h-4 w-4 ${sortMode === 'new' ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                New
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
+// ── Rank Config ───────────────────────────────────────────────────────────────
+
+const RANK_CONFIG = {
+  1: { gradient: 'from-amber-500/25 via-orange-400/10 to-transparent', border: 'border-amber-500/20', badge: 'text-amber-500 border-amber-500/30 bg-card/80' },
+  2: { gradient: 'from-slate-400/20 via-blue-400/10 to-transparent', border: 'border-slate-400/20', badge: 'text-slate-400 border-slate-400/30 bg-card/80' },
+  3: { gradient: 'from-orange-400/20 via-rose-400/10 to-transparent', border: 'border-orange-400/20', badge: 'text-orange-400 border-orange-400/30 bg-card/80' },
+  4: { gradient: 'from-violet-400/20 via-purple-400/10 to-transparent', border: 'border-violet-400/20', badge: 'text-violet-400 border-violet-400/30 bg-card/80' },
+  5: { gradient: 'from-teal-400/20 via-emerald-400/10 to-transparent', border: 'border-teal-400/20', badge: 'text-teal-400 border-teal-400/30 bg-card/80' },
+} as const;
+
+// ── Featured Card ─────────────────────────────────────────────────────────────
+
+function FeaturedCard({ startup, rank, upvoted, loading, onVote }: {
+  startup: StartupItem;
+  rank: 1 | 2 | 3 | 4 | 5;
+  upvoted: boolean;
+  loading: boolean;
+  onVote: (id: string) => void;
+}) {
+  const cfg = RANK_CONFIG[rank];
+  const logoSrc = resolveImageUrl(startup.logo_url);
+  const bannerSrc = resolveImageUrl(startup.banner_url);
+  const inits = getInitials(startup.brand_name);
+  const pitch = startup.elevator_pitch || startup.description || '';
+
+  return (
+    <Link
+      href={`/startups/${startup.id}`}
+      className={`shrink-0 w-44 flex flex-col rounded-2xl border ${cfg.border} bg-card overflow-visible hover:scale-[1.02] transition-all duration-200`}
+    >
+      {/* Banner — own overflow-hidden so it clips image/gradient but not the logo */}
+      <div className="relative h-20 w-full rounded-t-2xl overflow-hidden">
+        {bannerSrc ? (
+          <Image src={bannerSrc} alt="" fill className="object-cover" unoptimized />
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br ${cfg.gradient}`}>
+            <span className="absolute inset-0 flex items-center justify-center text-5xl font-black opacity-[0.07] text-foreground select-none tracking-tighter">
+              {inits}
+            </span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-card/60 to-transparent" />
+
+        {/* Rank badge */}
+        <span className={`absolute top-2 left-2 text-[11px] font-bold px-2 py-0.5 rounded-full border backdrop-blur-sm ${cfg.badge}`}>
+          #{rank}
+        </span>
+
+        {/* Vote button */}
+        <button
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
+          className={`absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[11px] font-bold border backdrop-blur-sm transition-colors bg-card/80 ${
+            upvoted ? 'text-primary border-primary/30' : 'text-muted-foreground border-border/50 hover:text-foreground'
+          }`}
+        >
+          {loading ? <div className="h-3 w-3 bg-muted rounded-full animate-pulse" /> : <><ChevronUp className="h-3 w-3" />{startup._votes}</>}
+        </button>
+      </div>
+
+      {/* Logo sits between banner and content — outside the overflow-hidden banner */}
+      <div className="px-3 -mt-5 z-10 relative">
+        <div className="border-2 border-card rounded-xl shadow-sm overflow-hidden w-fit">
+          <LogoWidget logoSrc={logoSrc} inits={inits} size={40} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-3 pt-1.5 pb-3 flex flex-col gap-1">
+        <p className="text-sm font-semibold text-foreground leading-tight line-clamp-1">{startup.brand_name}</p>
+        {pitch && <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{pitch}</p>}
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          <span className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">
+            {STAGE_LABELS[startup.stage] ?? startup.stage}
+          </span>
+          {startup.is_actively_raising && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/10 text-green-600">Raising</span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 // ── Ranked Row ───────────────────────────────────────────────────────────────
 
-function RankedRow({ startup, rank, upvoted, loading, onVote, isTop3 }: {
+function RankedRow({ startup, rank, upvoted, loading, onVote }: {
   startup: StartupItem;
   rank: number;
   upvoted: boolean;
   loading: boolean;
   onVote: (id: string) => void;
-  isTop3?: boolean;
 }) {
   const logoSrc = resolveImageUrl(startup.logo_url);
-  const bannerSrc = resolveImageUrl(startup.banner_url);
   const inits = getInitials(startup.brand_name);
   const pitch = startup.elevator_pitch || startup.description || '';
   const location = [startup.city, startup.country].filter(Boolean).join(', ');
 
   return (
-    <Link href={`/startups/${startup.id}`} className={`block hover:bg-muted/30 transition-all ${isTop3 ? 'bg-primary/5 pb-4' : 'p-4'}`}>
-      {/* Expanded view for Top 3 */}
-      {isTop3 && bannerSrc && (
-        <div className="w-full h-24 sm:h-32 relative mb-4">
-          <Image src={bannerSrc} alt={startup.brand_name} fill className="object-cover" unoptimized />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        </div>
-      )}
-      
-      <div className={`flex items-start gap-4 ${isTop3 && bannerSrc ? 'px-4' : ''}`}>
+    <Link href={`/startups/${startup.id}`} className="block p-4 hover:bg-muted/30 transition-all">
+      <div className="flex items-start gap-4">
         {/* Rank */}
-        <div className={`w-6 shrink-0 text-center ${isTop3 ? (bannerSrc ? '' : 'pt-3') : 'pt-3'}`}>
-          <span className={`text-sm font-bold ${isTop3 ? 'text-primary text-base' : 'text-muted-foreground'}`}>
-            {rank}
-          </span>
+        <div className="w-6 shrink-0 text-center pt-3">
+          <span className="text-sm font-bold text-muted-foreground">{rank}</span>
         </div>
 
         {/* Logo */}
-        <div className={`${isTop3 && bannerSrc ? '-mt-8 relative z-10 rounded-2xl shadow-sm border-[3px] border-card' : ''}`}>
-           <LogoWidget logoSrc={logoSrc} inits={inits} size={isTop3 ? 64 : 48} />
-        </div>
+        <LogoWidget logoSrc={logoSrc} inits={inits} size={48} />
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-            <p className={`${isTop3 ? 'text-lg' : 'text-base'} font-semibold text-foreground truncate`}>{startup.brand_name}</p>
+            <p className="text-base font-semibold text-foreground truncate">{startup.brand_name}</p>
             <div className="flex items-center gap-1.5">
               {startup.entity_type === 'org_project' && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
-                  Project
-                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">Project</span>
               )}
               <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
                 {STAGE_LABELS[startup.stage] ?? startup.stage}
               </span>
               {startup.is_actively_raising && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-600">
-                  Raising
-                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-600">Raising</span>
               )}
             </div>
           </div>
-          {pitch && (
-            <p className={`text-sm text-muted-foreground leading-snug mt-1 ${isTop3 ? 'line-clamp-2' : 'line-clamp-1'}`}>{pitch}</p>
-          )}
+          {pitch && <p className="text-sm text-muted-foreground leading-snug mt-1 line-clamp-1">{pitch}</p>}
           {location && (
             <div className="flex items-center gap-1 mt-1.5">
               <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -471,13 +670,11 @@ function RankedRow({ startup, rank, upvoted, loading, onVote, isTop3 }: {
           )}
         </div>
 
-        {/* Upvote pill */}
+        {/* Upvote */}
         <button
           onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
           className={`shrink-0 min-w-[56px] min-h-[56px] rounded-xl flex flex-col items-center justify-center gap-1 border transition-all ${
-            upvoted
-              ? 'bg-primary/10 border-primary/30 text-primary'
-              : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+            upvoted ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-muted'
           }`}
         >
           {loading ? (
@@ -485,9 +682,7 @@ function RankedRow({ startup, rank, upvoted, loading, onVote, isTop3 }: {
           ) : (
             <>
               <ChevronUp className="h-5 w-5" />
-              <span className="text-[11px] font-bold leading-none">
-                {startup._votes}
-              </span>
+              <span className="text-[11px] font-bold leading-none">{startup._votes}</span>
             </>
           )}
         </button>
@@ -695,10 +890,10 @@ function TabPill({ label, active, onClick }: { label: string; active: boolean; o
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 px-4 py-2 min-h-[44px] rounded-xl text-sm font-medium transition-all ${
+      className={`shrink-0 px-4 py-2 min-h-[44px] rounded-xl text-sm font-medium transition-all border ${
         active
-          ? 'bg-primary/10 border border-primary/30 text-primary'
-          : 'bg-card text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50'
+          ? 'border-foreground/20 text-foreground bg-transparent'
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
       }`}
     >
       {label}

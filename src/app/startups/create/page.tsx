@@ -1,17 +1,35 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupCreateWizard } from '@/components/startups/StartupCreateWizard';
 import { Rocket, FolderKanban, ArrowLeft } from 'lucide-react';
 import type { EntityType } from '@/api/startups';
 
 export default function CreateStartupPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </DashboardLayout>
+    }>
+      <CreateStartupPageContent />
+    </Suspense>
+  );
+}
+
+function CreateStartupPageContent() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [entityType, setEntityType] = useState<EntityType | null>(null);
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get('type') as EntityType | null;
+  const [entityType, setEntityType] = useState<EntityType | null>(
+    typeParam === 'startup' || typeParam === 'org_project' ? typeParam : null
+  );
 
   if (isLoading) {
     return (

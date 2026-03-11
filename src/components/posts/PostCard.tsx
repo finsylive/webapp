@@ -14,6 +14,7 @@ import { EditPostModal } from './EditPostModal';
 import { Trash2, Edit } from 'lucide-react';
 import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
 import { toast } from 'sonner';
+import { resolveEnvironmentPicture } from '@/lib/environmentAssets';
 
 type PostCardProps = {
   post: Post;
@@ -649,6 +650,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
   const router = useRouter();
   const { user } = useAuth();
   const loginPrompt = useLoginPrompt();
+  const environmentPicture = resolveEnvironmentPicture(post.environment?.name, post.environment?.picture);
 
   // Consolidated state management for better performance
   const [uiState, setUiState] = useState({
@@ -1135,9 +1137,9 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                 data-no-nav="true"
                 aria-label={`Open environment ${post.environment?.name || ''}`}
               >
-                {post.environment.picture && !uiState.envImageError ? (
+                {environmentPicture && !uiState.envImageError ? (
                   <Image
-                    src={toProxyUrl(post.environment.picture, { width: 16, quality: 82 })}
+                    src={toProxyUrl(environmentPicture, { width: 16, quality: 82 })}
                     alt={post.environment.name}
                     width={16}
                     height={16}

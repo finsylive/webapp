@@ -6,9 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { PostList } from '@/components/posts/PostList';
 import Image from 'next/image';
-import { ChevronLeft, Info, Heart, Share2, Plus, Calendar, FileText, Clock, List as ListIcon, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Info, Heart, Share2, Plus, Calendar, FileText, Clock, List as ListIcon, ChevronDown, Globe } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { toProxyUrl } from '@/utils/imageUtils';
+import { resolveEnvironmentBanner, resolveEnvironmentPicture } from '@/lib/environmentAssets';
 
 // Minimal type for environment
 type Environment = {
@@ -16,6 +17,7 @@ type Environment = {
   name: string;
   description?: string | null;
   picture?: string | null;
+  banner?: string | null;
   created_at?: string | null;
 };
 
@@ -68,7 +70,7 @@ export default function EnvironmentPage() {
         // Fetch environment details
         const { data: envData, error: envError } = await supabase
           .from('environments')
-          .select('id, name, description, picture, created_at')
+          .select('id, name, description, picture, banner, created_at')
           .eq('id', environmentId)
           .single();
 
@@ -143,6 +145,8 @@ export default function EnvironmentPage() {
   const headerBg = useMemo(() => ({
     background: 'linear-gradient(180deg, rgba(0,255,162,0.20) 0%, rgba(0,0,0,0.00) 100%)',
   }), []);
+  const envPicture = useMemo(() => resolveEnvironmentPicture(env?.name, env?.picture), [env?.name, env?.picture]);
+  const envBanner = useMemo(() => resolveEnvironmentBanner(env?.name, env?.banner), [env?.name, env?.banner]);
 
   if (!environmentId) {
     return (
@@ -158,6 +162,16 @@ export default function EnvironmentPage() {
       {/* Top banner (constrained and rounded) */}
       <div className="max-w-2xl mx-auto px-4">
         <div className="relative w-full h-36 md:h-40 rounded-2xl border border-white/10 overflow-hidden" style={headerBg}>
+          {envBanner && (
+            <Image
+              src={toProxyUrl(envBanner, { width: 1200, quality: 82 })}
+              alt={env?.name || 'Environment banner'}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 768px"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
           <div className="absolute inset-0 z-20 flex items-start justify-between p-3 pointer-events-auto">
             <button
               className="inline-flex items-center gap-2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5 border border-white/10"
@@ -176,9 +190,9 @@ export default function EnvironmentPage() {
           {/* Center emblem */}
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
-              {env?.picture && !envImgError ? (
+              {envPicture && !envImgError ? (
                 <Image
-                  src={toProxyUrl(env.picture, { width: 64, quality: 82 })}
+                  src={toProxyUrl(envPicture, { width: 64, quality: 82 })}
                   alt={env?.name || 'Environment'}
                   width={64}
                   height={64}
@@ -188,7 +202,7 @@ export default function EnvironmentPage() {
                   loading="lazy"
                 />
               ) : (
-                <span className="text-xl md:text-2xl">🌐</span>
+                <Globe className="h-7 w-7 md:h-8 md:w-8 text-white/80" />
               )}
             </div>
           </div>
@@ -208,10 +222,10 @@ export default function EnvironmentPage() {
           ) : (
             <>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/30 bg-muted/20 flex items-center justify-center">
-                  {env?.picture && !envImgError ? (
+              <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/30 bg-muted/20 flex items-center justify-center">
+                  {envPicture && !envImgError ? (
                     <Image
-                      src={toProxyUrl(env.picture, { width: 40, quality: 82 })}
+                      src={toProxyUrl(envPicture, { width: 40, quality: 82 })}
                       alt={env?.name || 'Environment'}
                       width={40}
                       height={40}
@@ -221,7 +235,7 @@ export default function EnvironmentPage() {
                       loading="lazy"
                     />
                   ) : (
-                    <span className="text-lg">🌐</span>
+                    <Globe className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
                 <div>

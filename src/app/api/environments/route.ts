@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getProcessedImageUrl } from '@/utils/imageUtils';
 import { cacheGet, cacheSet } from '@/lib/cache';
+import { resolveEnvironmentBanner, resolveEnvironmentPicture } from '@/lib/environmentAssets';
 
 export const runtime = 'nodejs';
 
@@ -56,14 +57,20 @@ export async function GET() {
     const processed = await Promise.all(
       list.map(async (env) => {
         try {
+          const picture = resolveEnvironmentPicture(env.name, env.picture);
+          const banner = resolveEnvironmentBanner(env.name, env.banner);
           const [processedPicture, processedBanner] = await Promise.all([
-            getProcessedImageUrl(env.picture),
-            getProcessedImageUrl(env.banner),
+            getProcessedImageUrl(picture),
+            getProcessedImageUrl(banner),
           ]);
           return { ...env, picture: processedPicture, banner: processedBanner } as Environment;
         } catch (e) {
           console.warn('Image processing failed for env', env.id, e);
-          return env as Environment;
+          return {
+            ...env,
+            picture: resolveEnvironmentPicture(env.name, env.picture),
+            banner: resolveEnvironmentBanner(env.name, env.banner),
+          } as Environment;
         }
       })
     );
