@@ -50,7 +50,13 @@ export function ConfirmDialog({
         if (e.target === e.currentTarget && !loading) onCancel();
       }}
     >
-      <div className="w-full max-w-sm bg-background border border-border rounded-2xl shadow-xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200">
+      <div
+        className="w-full max-w-sm border border-border/50 rounded-2xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200"
+        style={{
+          background: 'linear-gradient(145deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%)',
+          boxShadow: 'var(--shadow-elevation-high)',
+        }}
+      >
         <h3 className="text-lg font-semibold text-foreground">{title}</h3>
         {description && (
           <p className="mt-2 text-sm text-muted-foreground">{description}</p>
@@ -59,7 +65,8 @@ export function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-border/60 hover:bg-muted disabled:opacity-50"
+            style={{ transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-color 0.2s ease' }}
           >
             {cancelLabel}
           </button>
@@ -67,11 +74,15 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={loading}
             className={cn(
-              'px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50',
+              'px-4 py-2 text-sm font-medium rounded-lg disabled:opacity-50 active:scale-[0.97]',
               variant === 'destructive'
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'
             )}
+            style={{
+              boxShadow: 'var(--shadow-elevation-low)',
+              transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background-color 0.2s ease',
+            }}
           >
             {loading ? 'Please wait...' : confirmLabel}
           </button>

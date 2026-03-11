@@ -127,11 +127,11 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
     <div ref={containerRef} className="sticky space-y-4" style={{ top: `${stickyTop}px` }}>
       {/* Communities / Environments Widget */}
       {environments.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users className="w-[18px] h-[18px] text-muted-foreground" />
-              <h2 className="text-sm font-bold text-foreground">Communities</h2>
+              <h2 className="text-sm font-bold text-foreground/80">Communities</h2>
             </div>
             <Link href="/environments" className="text-xs font-medium text-primary hover:underline">View all</Link>
           </div>
@@ -140,7 +140,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
               <Link
                 key={env.id}
                 href={`/environments/${env.id}`}
-                className="flex items-center gap-3 rounded-lg px-2 py-[7px] text-sm font-medium text-foreground hover:bg-accent/60 transition-colors"
+                className="flex items-center gap-3 rounded-lg px-2 py-[7px] text-sm font-medium text-foreground/70 hover:text-foreground/90 hover:bg-accent/60 transition-colors"
               >
                 <UserAvatar
                   src={env.picture}
@@ -156,11 +156,11 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       )}
 
       {/* Recent Activity Widget — Real notifications */}
-      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Bell className="w-[18px] h-[18px] text-muted-foreground" />
-            <h2 className="text-sm font-bold text-foreground">Recent Activity</h2>
+            <h2 className="text-sm font-bold text-foreground/80">Recent Activity</h2>
           </div>
           <Link href="/notifications" className="text-xs font-medium text-primary hover:underline">View all</Link>
         </div>
@@ -176,7 +176,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
               >
                 <div className="mt-0.5">{getActivityIcon(notif.type)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground leading-snug">
+                  <p className="text-xs text-foreground/75 leading-snug">
                     {truncateText(notif.content, 70)}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(notif.created_at)}</p>
@@ -193,11 +193,11 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
       </div>
 
       {/* People to Connect Widget */}
-      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-4" style={{ boxShadow: 'var(--shadow-elevation-low)', transition: 'box-shadow 0.3s ease' }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Users className="w-[18px] h-[18px] text-muted-foreground" />
-            <h2 className="text-sm font-bold text-foreground">People to Connect</h2>
+            <h2 className="text-sm font-bold text-foreground/80">People to Connect</h2>
           </div>
           <Link href="/people" className="text-xs font-medium text-primary hover:underline">View all</Link>
         </div>
@@ -218,7 +218,7 @@ const DashboardSidebarWidgets = React.memo(function DashboardSidebarWidgets() {
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
-                        <h3 className="font-semibold text-sm text-foreground truncate">{person.full_name || person.username}</h3>
+                        <h3 className="font-semibold text-sm text-foreground/80 truncate">{person.full_name || person.username}</h3>
                         {person.is_verified && <CheckCircle className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">

@@ -1099,7 +1099,13 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
   return (
     <article
-      className="group relative bg-card border border-border rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-black/5 dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/50 dark:hover:bg-card/80 dark:hover:border-border/80 dark:hover:shadow-white/5 hover:-translate-y-1"
+      className="group relative bg-card border border-border/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 cursor-pointer dark:bg-card/50 dark:backdrop-blur-sm dark:border-border/40 dark:hover:bg-card/80 dark:hover:border-border/60"
+      style={{
+        boxShadow: 'var(--shadow-elevation-medium)',
+        transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-elevation-high)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-elevation-medium)'; }}
       data-post-id={post.id}
       data-author-id={post.author_id}
       onClick={onCardClick}
@@ -1261,7 +1267,7 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
         {/* Poll */}
         {post.poll && (
-          <div className="mb-3 sm:mb-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 dark:from-card dark:to-card/50 border border-border p-3 sm:p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="mb-3 sm:mb-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 dark:from-card dark:to-card/50 border border-border/50 p-3 sm:p-5" style={{ boxShadow: 'var(--shadow-elevation-low)' }} onClick={(e) => e.stopPropagation()}>
             <div className="font-bold mb-3 sm:mb-4 text-foreground text-base sm:text-lg">{post.poll.question}</div>
             <div className="space-y-3">
               {post.poll.options?.map(option => {

@@ -18,7 +18,13 @@ export function EmptyState({ icon, title, description, action, className }: Empt
   return (
     <div className={cn('text-center py-8', className)}>
       {icon && (
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/20 flex items-center justify-center">
+        <div
+          className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(145deg, hsl(var(--muted) / 0.3) 0%, hsl(var(--muted) / 0.1) 100%)',
+            boxShadow: 'var(--shadow-elevation-low)',
+          }}
+        >
           {icon}
         </div>
       )}
@@ -29,7 +35,11 @@ export function EmptyState({ icon, title, description, action, className }: Empt
       {action && (
         <button
           onClick={action.onClick}
-          className="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.97]"
+          style={{
+            boxShadow: 'var(--shadow-elevation-low)',
+            transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background-color 0.2s ease',
+          }}
         >
           {action.label}
         </button>

@@ -95,10 +95,14 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
     return (
       <Link
         href={href}
-        className={`group flex items-center gap-4 rounded-xl px-4 py-3.5 text-base transition-all duration-200 ${isActive
-            ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md font-semibold'
-            : 'text-muted-foreground font-medium hover:bg-accent/80 hover:text-accent-foreground active:scale-95'
+        className={`group flex items-center gap-4 rounded-xl px-4 py-3.5 text-base ${isActive
+            ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold'
+            : 'text-muted-foreground font-medium hover:bg-accent/80 hover:text-accent-foreground active:scale-[0.97]'
           }`}
+        style={{
+          boxShadow: isActive ? 'var(--shadow-elevation-medium)' : 'none',
+          transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease',
+        }}
       >
         <div className={`${isActive
             ? '[&_img]:brightness-0 [&_img]:invert [&_svg]:text-white text-white'
@@ -170,7 +174,7 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
           <div className="p-3 relative" ref={dropdownRef}>
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
+              <div className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border/50 rounded-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2" style={{ boxShadow: 'var(--shadow-elevation-high)' }}>
                 <div className="py-1.5">
                   <Link
                     href={profileHref}
@@ -188,7 +192,7 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
                     <Settings className="h-5 w-5 opacity-80" />
                     <span>Settings</span>
                   </Link>
-                  <div className="h-px bg-border/60 my-1.5" />
+                  <div className="h-px my-1.5" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--border)), transparent)' }} />
                   <button
                     className="w-full flex items-center gap-3.5 px-4 py-3 text-[15px] font-medium hover:bg-red-500/10 hover:text-red-500 transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
                     onClick={async (e) => {
@@ -218,7 +222,11 @@ export const Sidebar = React.memo(function Sidebar({ unreadMessages }: { unreadM
             {/* User Profile Button */}
             <button
               onClick={toggleDropdown}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border/50 hover:bg-muted/60 focus:outline-none"
+              style={{
+                boxShadow: 'var(--shadow-elevation-low)',
+                transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease',
+              }}
             >
               <div className="relative">
                 <UserAvatar
