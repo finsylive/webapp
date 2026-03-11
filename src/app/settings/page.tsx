@@ -52,7 +52,7 @@ const INTEREST_OPTIONS = [
 
 const SettingsPage = () => {
   const { theme, setTheme, colorScheme, setColorScheme, isDarkMode } = useTheme();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState('main');
   const [primaryInterest, setPrimaryInterest] = useState<string>('exploring');
   const [savingInterest, setSavingInterest] = useState(false);
@@ -283,7 +283,7 @@ const SettingsPage = () => {
             icon={<div className="w-full h-full bg-destructive/10 rounded-xl flex items-center justify-center"><LogOut className="h-6 w-6 text-destructive" /></div>}
             title="Sign Out"
             description="Sign out of your account"
-            onClick={() => alert('Signing out...')}
+            onClick={() => signOut()}
           />
         </div>
       </div>

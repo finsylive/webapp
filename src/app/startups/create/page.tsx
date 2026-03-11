@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupCreateWizard } from '@/components/startups/StartupCreateWizard';
-import { Rocket, FolderKanban } from 'lucide-react';
+import { Rocket, FolderKanban, ArrowLeft } from 'lucide-react';
 import type { EntityType } from '@/api/startups';
 
 export default function CreateStartupPage() {
   const { user, isLoading } = useAuth();
+  const router = useRouter();
   const [entityType, setEntityType] = useState<EntityType | null>(null);
 
   if (isLoading) {
@@ -37,6 +39,12 @@ export default function CreateStartupPage() {
       <DashboardLayout>
         <div className="py-6 sm:py-10">
           <div className="max-w-2xl mx-auto px-4 sm:px-0">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </button>
             <h1 className="text-xl font-bold text-foreground">What are you building?</h1>
             <p className="text-sm text-muted-foreground mt-1">Pick the type that fits. You can change this later.</p>
 

@@ -52,7 +52,7 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
             </div>
             {isOwner && (
               <Link
-                href={`/profile/${encodeURIComponent(username)}`}
+                href={`/profile/${encodeURIComponent(username)}/edit`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
               >
                 <Plus className="h-4 w-4" /> New Project
@@ -74,7 +74,7 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
               <p className="text-sm text-muted-foreground mb-4">No projects yet.</p>
               {isOwner && (
                 <Link
-                  href={`/profile/${encodeURIComponent(username)}`}
+                  href={`/profile/${encodeURIComponent(username)}/edit`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                 >
                   <Plus className="h-4 w-4" /> Create your first project
