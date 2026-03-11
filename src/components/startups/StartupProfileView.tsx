@@ -4,8 +4,9 @@ import { StartupProfile } from '@/api/startups';
 import {
   Rocket, Globe, Mail, Phone, FileText, TrendingUp, Users, Award,
   Building, Bookmark, BookmarkCheck, ExternalLink, Eye, MapPin,
-  Calendar, Zap, Target, BarChart3, ChevronUp,
-  Briefcase, Hash, Lightbulb, Crown, Gem, ChevronRight, Mic, Clock
+  Calendar, Zap, Target, BarChart3,
+  Briefcase, Hash, Lightbulb, Crown, Gem, ChevronRight, Mic, Clock,
+  FolderKanban, Link2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -38,7 +39,6 @@ type Props = {
   isCofounder?: boolean;
   onBookmark?: () => void;
   onUnbookmark?: () => void;
-  onUpvote?: () => void;
 };
 
 // Helper: build location string
@@ -71,9 +71,10 @@ function hasContactDetails(startup: StartupProfile): boolean {
   );
 }
 
-export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, onUnbookmark, onUpvote }: Props) {
+export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, onUnbookmark }: Props) {
   const location = buildLocation(startup);
   const StageIcon = stageIcons[startup.stage] || Rocket;
+  const isOrgProject = startup.entity_type === 'org_project';
 
   return (
     <div className="space-y-5">
@@ -111,7 +112,7 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
 
               {/* Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {startup.is_actively_raising && (
+                {!isOrgProject && startup.is_actively_raising && (
                   <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                     <TrendingUp className="h-3 w-3" /> Raising
                   </span>
@@ -124,54 +125,46 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
                     Edit Profile
                   </Link>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    {/* Upvote */}
-                    <button
-                      onClick={onUpvote}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors ${
-                        startup.is_upvoted
-                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600'
-                          : 'border-border hover:bg-accent/50 text-muted-foreground'
-                      }`}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                      <span className="text-sm font-semibold">{startup.upvote_count || 0}</span>
-                    </button>
-                    {/* Bookmark */}
-                    <button
-                      onClick={startup.is_bookmarked ? onUnbookmark : onBookmark}
-                      className={`p-2 rounded-xl border transition-colors ${
-                        startup.is_bookmarked
-                          ? 'border-amber-500/30 bg-amber-500/5'
-                          : 'border-border hover:bg-accent/50'
-                      }`}
-                    >
-                      {startup.is_bookmarked ? (
-                        <BookmarkCheck className="h-5 w-5 text-amber-500" />
-                      ) : (
-                        <Bookmark className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    onClick={startup.is_bookmarked ? onUnbookmark : onBookmark}
+                    className={`p-2 rounded-xl border transition-colors ${
+                      startup.is_bookmarked
+                        ? 'border-primary/30 bg-primary/5'
+                        : 'border-border hover:bg-accent/50'
+                    }`}
+                  >
+                    {startup.is_bookmarked ? (
+                      <BookmarkCheck className="h-5 w-5 text-primary" />
+                    ) : (
+                      <Bookmark className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </button>
                 )}
               </div>
             </div>
 
             {/* Meta badges */}
             <div className="flex items-center flex-wrap gap-2 mt-3">
+              {isOrgProject && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <FolderKanban className="h-3 w-3" />
+                  Org Project
+                </span>
+              )}
+
               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r ${stageColors[startup.stage] || 'from-primary to-primary/80'} text-white`}>
                 <StageIcon className="h-3 w-3" />
                 {stageLabels[startup.stage] || startup.stage}
               </span>
 
-              {startup.legal_status && startup.legal_status !== 'not_registered' && (
+              {!isOrgProject && startup.legal_status && startup.legal_status !== 'not_registered' && (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-accent/40 text-foreground/70">
                   {legalLabels[startup.legal_status]}
                   {startup.cin && <span className="ml-1 text-muted-foreground">({startup.cin})</span>}
                 </span>
               )}
 
-              {startup.business_model && (
+              {!isOrgProject && startup.business_model && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-accent/40 text-foreground/70">
                   <Briefcase className="h-3 w-3" />
                   {businessModelLabels[startup.business_model] || startup.business_model}
@@ -181,7 +174,7 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
               {startup.team_size && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-accent/40 text-foreground/70">
                   <Users className="h-3 w-3" />
-                  {startup.team_size === '1' ? 'Solo Founder' : `${startup.team_size} people`}
+                  {startup.team_size === '1' ? (isOrgProject ? 'Solo' : 'Solo Founder') : `${startup.team_size} people`}
                 </span>
               )}
 
@@ -294,7 +287,7 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
       }).length > 0 && (
         <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-4">
-            <Users className="h-4 w-4 text-muted-foreground" /> Founders
+            <Users className="h-4 w-4 text-muted-foreground" /> {isOrgProject ? 'Team' : 'Founders'}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {startup.founders.filter(f => {
@@ -361,8 +354,8 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
         </div>
       )}
 
-      {/* ─── Traction & Financials ─── */}
-      {hasFinancialData(startup) && (
+      {/* ─── Traction & Financials (startups only) ─── */}
+      {!isOrgProject && hasFinancialData(startup) && (
         <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm space-y-5">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <BarChart3 className="h-4 w-4 text-muted-foreground" /> Traction & Financials
@@ -484,6 +477,69 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
                 </span>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Text Sections (showcase content) ─── */}
+      {startup.text_sections && startup.text_sections.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm space-y-5">
+          {startup.text_sections
+            .sort((a, b) => a.display_order - b.display_order)
+            .map((section) => (
+              <div key={section.id}>
+                <h3 className="text-sm font-semibold text-foreground mb-2">{section.heading}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{section.content}</p>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* ─── Slides (showcase gallery) ─── */}
+      {startup.slides && startup.slides.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Gallery</h3>
+          <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            {startup.slides
+              .sort((a, b) => a.slide_number - b.slide_number)
+              .map((slide) => (
+                <div key={slide.id} className="shrink-0 space-y-1.5" style={{ width: 240 }}>
+                  <div className="w-full h-36 rounded-xl overflow-hidden border border-border/30">
+                    <img src={slide.slide_url} alt={slide.caption || `Slide ${slide.slide_number}`} className="w-full h-full object-cover" />
+                  </div>
+                  {slide.caption && (
+                    <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{slide.caption}</p>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Links ─── */}
+      {startup.links && startup.links.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-6 shadow-sm">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-4">
+            <Link2 className="h-4 w-4 text-muted-foreground" /> Links
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {startup.links
+              .sort((a, b) => a.display_order - b.display_order)
+              .map((link) => (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-accent/10 hover:bg-accent/25 transition-colors group"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/40 flex-shrink-0">
+                    <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span className="text-sm text-primary group-hover:underline truncate flex-1">{link.title}</span>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                </a>
+              ))}
           </div>
         </div>
       )}

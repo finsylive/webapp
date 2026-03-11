@@ -1,7 +1,7 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
-import { fetchStartups } from '@/api/startups';
-import { cacheGet, cacheSet, cacheClearByPrefix } from '@/lib/cache';
+import { fetchStartups, createStartup } from '@/api/startups';
+import { cacheGet, cacheSet, cacheClearByPrefix, cacheClearByMatch } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,9 +17,10 @@ export async function GET(request: Request) {
     const raising = searchParams.get('raising') === 'true' ? true : undefined;
     const keyword = searchParams.get('keyword') || undefined;
     const search = searchParams.get('search') || undefined;
+    const entity_type = (searchParams.get('entity_type') as 'org_project' | 'startup' | null) || undefined;
 
     // Check cache
-    const cacheKey = `${CACHE_PREFIX}:limit=${limit}&offset=${offset}&stage=${stage || ''}&raising=${raising || ''}&kw=${keyword || ''}&search=${search || ''}`;
+    const cacheKey = `${CACHE_PREFIX}:limit=${limit}&offset=${offset}&stage=${stage || ''}&raising=${raising || ''}&kw=${keyword || ''}&search=${search || ''}&type=${entity_type || ''}`;
     const cached = cacheGet<{ data: unknown; hasMore: boolean }>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const { data, error, hasMore } = await fetchStartups({ limit, offset, stage, raising, keyword, search });
+    const { data, error, hasMore } = await fetchStartups({ limit, offset, stage, raising, keyword, search, entity_type });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -55,13 +56,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-
-    // Insert directly with the auth client so RLS sees the authenticated user
-    const { data, error } = await authClient
-      .from('startup_profiles')
-      .insert([{ ...body, owner_id: user.id }])
-      .select()
-      .single();
+    const { data, error } = await createStartup({
+      ...body,
+      owner_id: user.id,
+    });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

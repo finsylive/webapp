@@ -70,7 +70,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 
     const { data: project, error } = await supabase
       .from('projects')
-      .select('*')
+      .select('id, owner_id, title, category, tagline, url, cover_url, logo_url, visibility, created_at')
       .eq('id', projectId)
       .eq('owner_id', userRow.id)
       .maybeSingle();
@@ -96,8 +96,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     if (!username || !projectId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
     const body = await req.json().catch(() => ({}));
-    const { title, category, tagline, cover_url, logo_url, visibility } = body || {};
-    const hasAny = [title, category, tagline, cover_url, logo_url, visibility].some((v) => typeof v !== 'undefined');
+    const { title, category, tagline, url, cover_url, logo_url, visibility } = body || {};
+    const hasAny = [title, category, tagline, url, cover_url, logo_url, visibility].some((v) => typeof v !== 'undefined');
     if (!hasAny) return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
 
     const normUrl = (u?: string | null) => {
@@ -142,13 +142,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ user
     if (typeof cover_url !== 'undefined') patch.cover_url = normUrl(cover_url);
     if (typeof logo_url !== 'undefined') patch.logo_url = normUrl(logo_url);
     if (typeof visibility !== 'undefined') patch.visibility = visibility;
+    if (typeof url !== 'undefined') patch.url = normUrl(url);
 
     const { data: updated, error: updErr } = await supabase
       .from('projects')
       .update(patch)
       .eq('id', projectId)
       .eq('owner_id', authUserId)
-      .select('id, owner_id, title, category, tagline, cover_url, logo_url, visibility, created_at')
+      .select('id, owner_id, title, category, tagline, url, cover_url, logo_url, visibility, created_at')
       .maybeSingle();
     if (updErr) return NextResponse.json({ error: updErr.message }, { status: 400 });
     if (!updated) return NextResponse.json({ error: 'Project not found or not owned by user' }, { status: 404 });

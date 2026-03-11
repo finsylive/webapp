@@ -19,6 +19,11 @@ type Step6Props = {
     total_raised: string;
     investor_count: string;
     is_actively_raising: boolean;
+    raise_target: string;
+    equity_offered: string;
+    min_ticket_size: string;
+    funding_stage: string;
+    sector: string;
   };
   fundingRounds: FundingRound[];
   onChange: (field: string, value: string | boolean) => void;
@@ -35,6 +40,15 @@ const roundTypes = [
 ];
 
 const currencies = ['USD', 'INR', 'EUR', 'GBP', 'SGD', 'AED'];
+
+const fundingStages = [
+  { value: 'pre_seed', label: 'Pre-Seed' },
+  { value: 'seed', label: 'Seed' },
+  { value: 'series_a', label: 'Series A' },
+  { value: 'series_b', label: 'Series B' },
+  { value: 'series_c', label: 'Series C' },
+  { value: 'bridge', label: 'Bridge' },
+];
 
 const inputClass = "w-full px-3.5 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 const selectClass = `${inputClass} appearance-none pr-9 cursor-pointer`;
@@ -181,6 +195,68 @@ export function Step6Financials({ data, fundingRounds, onChange, onFundingChange
           <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${data.is_actively_raising ? 'translate-x-5' : ''}`} />
         </div>
       </button>
+
+      {/* Fundraising Details — visible when actively raising */}
+      {data.is_actively_raising && (
+        <div className="p-5 bg-emerald-500/5 border border-emerald-500/15 rounded-2xl space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">Fundraising Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Raise Target</label>
+              <input
+                type="text"
+                value={data.raise_target}
+                onChange={(e) => onChange('raise_target', e.target.value)}
+                placeholder="e.g. $500K"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Equity Offered</label>
+              <input
+                type="text"
+                value={data.equity_offered}
+                onChange={(e) => onChange('equity_offered', e.target.value)}
+                placeholder="e.g. 10%"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Min Ticket Size</label>
+              <input
+                type="text"
+                value={data.min_ticket_size}
+                onChange={(e) => onChange('min_ticket_size', e.target.value)}
+                placeholder="e.g. $25K"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Funding Stage</label>
+              <SelectWrapper>
+                <select
+                  value={data.funding_stage}
+                  onChange={(e) => onChange('funding_stage', e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">Select stage</option>
+                  {fundingStages.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </SelectWrapper>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Sector</label>
+            <input
+              type="text"
+              value={data.sector}
+              onChange={(e) => onChange('sector', e.target.value)}
+              placeholder="e.g. FinTech, HealthTech, SaaS"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Funding Rounds */}
       <div>

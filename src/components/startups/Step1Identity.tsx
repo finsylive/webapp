@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Country, State, City, ICountry, IState, ICity } from 'country-state-city';
 import { Building2, User, Handshake, ShieldCheck, Lightbulb, Rocket, TrendingUp, Crown, Gem, ChevronDown, MapPin } from 'lucide-react';
+import type { EntityType } from '@/api/startups';
 
 type Step1Props = {
   data: {
@@ -21,6 +22,7 @@ type Step1Props = {
     stage: string;
   };
   onChange: (field: string, value: string) => void;
+  entityType?: EntityType;
 };
 
 const legalStatuses = [
@@ -56,7 +58,8 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Step1Identity({ data, onChange }: Step1Props) {
+export function Step1Identity({ data, onChange, entityType }: Step1Props) {
+  const isOrgProject = entityType === 'org_project';
   const [countries] = useState<ICountry[]>(() => Country.getAllCountries());
   const [states, setStates] = useState<IState[]>([]);
   const [cities, setCities] = useState<ICity[]>([]);
@@ -119,76 +122,82 @@ export function Step1Identity({ data, onChange }: Step1Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-bold text-foreground">Startup Identity</h2>
+        <h2 className="text-xl font-bold text-foreground">
+          {isOrgProject ? 'Project Identity' : 'Startup Identity'}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">The essentials — tell us who you are</p>
       </div>
 
       {/* Brand & Legal Section */}
       <div className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className={isOrgProject ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
           <div>
             <label className={labelClass}>
-              Brand Name <span className="text-red-400">*</span>
+              {isOrgProject ? 'Project Name' : 'Brand Name'} <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={data.brand_name}
               onChange={(e) => onChange('brand_name', e.target.value)}
-              placeholder="e.g. Acme Technologies"
+              placeholder={isOrgProject ? 'e.g. Avishkar Hyperloop' : 'e.g. Acme Technologies'}
               className={inputClass}
             />
           </div>
+          {!isOrgProject && (
+            <div>
+              <label className={labelClass}>
+                Registered / Legal Name
+              </label>
+              <input
+                type="text"
+                value={data.registered_name}
+                onChange={(e) => onChange('registered_name', e.target.value)}
+                placeholder="e.g. Acme Technologies Pvt. Ltd."
+                className={inputClass}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Legal Structure — hidden for org projects */}
+        {!isOrgProject && (
           <div>
             <label className={labelClass}>
-              Registered / Legal Name
+              Legal Structure <span className="text-red-400">*</span>
             </label>
-            <input
-              type="text"
-              value={data.registered_name}
-              onChange={(e) => onChange('registered_name', e.target.value)}
-              placeholder="e.g. Acme Technologies Pvt. Ltd."
-              className={inputClass}
-            />
+            <div className="grid grid-cols-2 gap-2.5">
+              {legalStatuses.map((ls) => {
+                const Icon = ls.icon;
+                const selected = data.legal_status === ls.value;
+                return (
+                  <button
+                    key={ls.value}
+                    type="button"
+                    onClick={() => onChange('legal_status', ls.value)}
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-200 ${
+                      selected
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : 'border-transparent bg-accent/30 hover:bg-accent/50'
+                    }`}
+                  >
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0 transition-colors ${
+                      selected ? 'bg-primary/10 text-primary' : 'bg-background text-muted-foreground'
+                    }`}>
+                      <Icon className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className={`text-sm font-semibold block ${selected ? 'text-foreground' : 'text-foreground/80'}`}>{ls.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-tight">{ls.desc}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Legal Structure */}
-        <div>
-          <label className={labelClass}>
-            Legal Structure <span className="text-red-400">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2.5">
-            {legalStatuses.map((ls) => {
-              const Icon = ls.icon;
-              const selected = data.legal_status === ls.value;
-              return (
-                <button
-                  key={ls.value}
-                  type="button"
-                  onClick={() => onChange('legal_status', ls.value)}
-                  className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-200 ${
-                    selected
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-transparent bg-accent/30 hover:bg-accent/50'
-                  }`}
-                >
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0 transition-colors ${
-                    selected ? 'bg-primary/10 text-primary' : 'bg-background text-muted-foreground'
-                  }`}>
-                    <Icon className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className={`text-sm font-semibold block ${selected ? 'text-foreground' : 'text-foreground/80'}`}>{ls.label}</span>
-                    <span className="text-[11px] text-muted-foreground leading-tight">{ls.desc}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* CIN (conditional) */}
-        {(data.legal_status === 'llp' || data.legal_status === 'pvt_ltd') && (
+        {/* CIN (conditional — startups only) */}
+        {!isOrgProject && (data.legal_status === 'llp' || data.legal_status === 'pvt_ltd') && (
           <div>
             <label className={labelClass}>
               <ShieldCheck className="inline h-3.5 w-3.5 mr-1 text-muted-foreground" />
@@ -234,28 +243,30 @@ export function Step1Identity({ data, onChange }: Step1Props) {
           </div>
         </div>
 
-        <div>
-          <label className={labelClass}>Business Model</label>
-          <div className="flex gap-2">
-            {businessModels.map((bm) => {
-              const selected = data.business_model === bm.value;
-              return (
-                <button
-                  key={bm.value}
-                  type="button"
-                  onClick={() => onChange('business_model', selected ? '' : bm.value)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    selected
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-accent/40 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
-                  }`}
-                >
-                  {bm.label}
-                </button>
-              );
-            })}
+        {!isOrgProject && (
+          <div>
+            <label className={labelClass}>Business Model</label>
+            <div className="flex gap-2">
+              {businessModels.map((bm) => {
+                const selected = data.business_model === bm.value;
+                return (
+                  <button
+                    key={bm.value}
+                    type="button"
+                    onClick={() => onChange('business_model', selected ? '' : bm.value)}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      selected
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-accent/40 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                    }`}
+                  >
+                    {bm.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Contact & Location */}
@@ -268,13 +279,15 @@ export function Step1Identity({ data, onChange }: Step1Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>
-              Startup Email <span className="text-red-400">*</span>
+              {isOrgProject ? 'Contact Email' : 'Startup Email'}
+              {!isOrgProject && <span className="text-red-400"> *</span>}
+              {isOrgProject && <span className="text-muted-foreground/60 font-normal text-xs"> (Optional)</span>}
             </label>
             <input
               type="email"
               value={data.startup_email}
               onChange={(e) => onChange('startup_email', e.target.value)}
-              placeholder="hello@startup.com"
+              placeholder={isOrgProject ? 'team@project.com' : 'hello@startup.com'}
               className={inputClass}
             />
           </div>

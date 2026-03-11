@@ -3,6 +3,8 @@ import { PostgrestError } from '@supabase/supabase-js';
 
 // --- Types ---
 
+export type EntityType = 'org_project' | 'startup';
+
 export type StartupProfile = {
   id: string;
   owner_id: string;
@@ -18,8 +20,8 @@ export type StartupProfile = {
   address_line1: string | null;
   address_line2: string | null;
   state: string | null;
-  startup_email: string;
-  startup_phone: string;
+  startup_email: string | null;
+  startup_phone: string | null;
   pitch_deck_url: string | null;
   is_actively_raising: boolean;
   visibility: 'public' | 'investors_only' | 'private';
@@ -27,7 +29,9 @@ export type StartupProfile = {
   is_featured: boolean;
   created_at: string;
   updated_at: string;
-  // New onboarding fields
+  // Entity type (org_project or startup)
+  entity_type: EntityType;
+  // Onboarding fields
   business_model: string | null;
   city: string | null;
   country: string | null;
@@ -44,14 +48,21 @@ export type StartupProfile = {
   elevator_pitch: string | null;
   logo_url: string | null;
   banner_url: string | null;
+  // Fundraising fields
+  raise_target: string | null;
+  equity_offered: string | null;
+  min_ticket_size: string | null;
+  funding_stage: 'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'bridge' | null;
+  sector: string | null;
   // Relations
   founders?: StartupFounder[];
   funding_rounds?: StartupFundingRound[];
   incubators?: StartupIncubator[];
   awards?: StartupAward[];
+  slides?: StartupSlide[];
+  links?: StartupLink[];
+  text_sections?: StartupTextSection[];
   is_bookmarked?: boolean;
-  is_upvoted?: boolean;
-  upvote_count?: number;
   view_count?: number;
 };
 
@@ -97,6 +108,34 @@ export type StartupAward = {
   created_at: string;
 };
 
+export type StartupSlide = {
+  id: string;
+  startup_id: string;
+  slide_url: string;
+  caption: string | null;
+  slide_number: number;
+  created_at: string;
+};
+
+export type StartupLink = {
+  id: string;
+  startup_id: string;
+  title: string;
+  url: string;
+  icon_name: string | null;
+  display_order: number;
+  created_at: string;
+};
+
+export type StartupTextSection = {
+  id: string;
+  startup_id: string;
+  heading: string;
+  content: string;
+  display_order: number;
+  created_at: string;
+};
+
 export type StartupsResponse = {
   data: StartupProfile[] | null;
   error: PostgrestError | null;
@@ -117,6 +156,7 @@ export async function fetchStartups(opts: {
   raising?: boolean;
   keyword?: string;
   search?: string;
+  entity_type?: EntityType;
 } = {}): Promise<StartupsResponse> {
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
@@ -133,6 +173,9 @@ export async function fetchStartups(opts: {
       `, { count: 'exact' })
       .eq('is_published', true);
 
+    if (opts.entity_type) {
+      query = query.eq('entity_type', opts.entity_type);
+    }
     if (opts.stage) {
       query = query.eq('stage', opts.stage);
     }
@@ -143,7 +186,8 @@ export async function fetchStartups(opts: {
       query = query.contains('keywords', [opts.keyword]);
     }
     if (opts.search) {
-      query = query.or(`brand_name.ilike.%${opts.search}%,description.ilike.%${opts.search}%`);
+      // Search across brand name, description, elevator pitch, and key strengths
+      query = query.or(`brand_name.ilike.%${opts.search}%,description.ilike.%${opts.search}%,elevator_pitch.ilike.%${opts.search}%,key_strengths.ilike.%${opts.search}%`);
     }
 
     const { data, error, count } = await query
@@ -173,7 +217,10 @@ export async function fetchStartupById(id: string, userId?: string): Promise<Sta
         founders:startup_founders(*),
         funding_rounds:startup_funding_rounds(*),
         incubators:startup_incubators(*),
-        awards:startup_awards(*)
+        awards:startup_awards(*),
+        slides:startup_slides(*),
+        links:startup_links(*),
+        text_sections:startup_text_sections(*)
       `)
       .eq('id', id)
       .single();
@@ -184,22 +231,25 @@ export async function fetchStartupById(id: string, userId?: string): Promise<Sta
 
     const startup = data as StartupProfile;
 
-    // Fetch bookmark status, upvote status, upvote count, and view count in parallel
-    const [bookmarkRes, upvoteRes, upvoteCountRes, viewCountRes] = await Promise.all([
-      userId
-        ? supabase.from('startup_bookmarks').select('id').eq('startup_id', id).eq('user_id', userId).maybeSingle()
-        : Promise.resolve({ data: null }),
-      userId
-        ? supabase.from('startup_upvotes').select('id').eq('startup_id', id).eq('user_id', userId).maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase.from('startup_upvotes').select('*', { count: 'exact', head: true }).eq('startup_id', id),
-      supabase.from('startup_profile_views').select('*', { count: 'exact', head: true }).eq('startup_id', id),
-    ]);
+    // Check if bookmarked by current user
+    if (userId) {
+      const { data: bookmark } = await supabase
+        .from('startup_bookmarks')
+        .select('id')
+        .eq('startup_id', id)
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    startup.is_bookmarked = !!bookmarkRes.data;
-    startup.is_upvoted = !!upvoteRes.data;
-    startup.upvote_count = upvoteCountRes.count || 0;
-    startup.view_count = viewCountRes.count || 0;
+      startup.is_bookmarked = !!bookmark;
+    }
+
+    // Get view count
+    const { count } = await supabase
+      .from('startup_profile_views')
+      .select('*', { count: 'exact', head: true })
+      .eq('startup_id', id);
+
+    startup.view_count = count || 0;
 
     return { data: startup, error: null };
   } catch (err) {
@@ -227,7 +277,6 @@ export async function fetchMyStartup(ownerId: string): Promise<StartupResponse> 
     }
 
     if (data) {
-      // Get view count for owner
       const { count } = await supabase
         .from('startup_profile_views')
         .select('*', { count: 'exact', head: true })
@@ -243,10 +292,48 @@ export async function fetchMyStartup(ownerId: string): Promise<StartupResponse> 
   }
 }
 
+export async function fetchMyVentures(ownerId: string): Promise<StartupsResponse> {
+  try {
+    const { data, error } = await supabase
+      .from('startup_profiles')
+      .select(`
+        *,
+        founders:startup_founders(*),
+        funding_rounds:startup_funding_rounds(*),
+        incubators:startup_incubators(*),
+        awards:startup_awards(*)
+      `)
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Enrich with view counts
+    if (data && data.length > 0) {
+      await Promise.all(
+        data.map(async (item: Record<string, unknown>) => {
+          const { count } = await supabase
+            .from('startup_profile_views')
+            .select('*', { count: 'exact', head: true })
+            .eq('startup_id', item.id);
+          (item as StartupProfile).view_count = count || 0;
+        })
+      );
+    }
+
+    return { data: data as StartupProfile[], error: null };
+  } catch (err) {
+    console.error('Error in fetchMyVentures:', err);
+    return { data: null, error: err as PostgrestError };
+  }
+}
+
 // --- Mutations ---
 
 export async function createStartup(
-  profile: Omit<StartupProfile, 'id' | 'created_at' | 'updated_at' | 'founders' | 'funding_rounds' | 'incubators' | 'awards' | 'is_bookmarked' | 'view_count'>
+  profile: Omit<StartupProfile, 'id' | 'created_at' | 'updated_at' | 'founders' | 'funding_rounds' | 'incubators' | 'awards' | 'slides' | 'links' | 'text_sections' | 'is_bookmarked' | 'view_count'>
 ): Promise<StartupResponse> {
   const { data, error } = await supabase
     .from('startup_profiles')
@@ -259,7 +346,7 @@ export async function createStartup(
 
 export async function updateStartup(
   id: string,
-  updates: Partial<Omit<StartupProfile, 'id' | 'owner_id' | 'created_at' | 'founders' | 'funding_rounds' | 'incubators' | 'awards' | 'is_bookmarked' | 'view_count'>>
+  updates: Partial<Omit<StartupProfile, 'id' | 'owner_id' | 'created_at' | 'founders' | 'funding_rounds' | 'incubators' | 'awards' | 'slides' | 'links' | 'text_sections' | 'is_bookmarked' | 'view_count'>>
 ): Promise<StartupResponse> {
   const { data, error } = await supabase
     .from('startup_profiles')
@@ -396,25 +483,7 @@ export async function upsertAwards(
   return { error };
 }
 
-// --- Upvotes (public votes) ---
-
-export async function upvoteStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
-  const { error } = await supabase
-    .from('startup_upvotes')
-    .insert([{ user_id: userId, startup_id: startupId }]);
-  return { error };
-}
-
-export async function removeUpvoteStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
-  const { error } = await supabase
-    .from('startup_upvotes')
-    .delete()
-    .eq('user_id', userId)
-    .eq('startup_id', startupId);
-  return { error };
-}
-
-// --- Bookmarks (private saves) ---
+// --- Bookmarks ---
 
 export async function bookmarkStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
   const { error } = await supabase
@@ -442,6 +511,119 @@ export async function recordView(startupId: string, viewerId?: string): Promise<
     .insert([{ startup_id: startupId, viewer_id: viewerId || null }]);
 
   return { error };
+}
+
+// --- Showcase Limits ---
+
+export const SHOWCASE_LIMITS = {
+  sections: 20,
+  links: 30,
+  slides: 50,
+} as const;
+
+// --- Slides ---
+
+export async function upsertSlides(
+  startupId: string,
+  slides: { slide_url: string; caption?: string; slide_number: number }[]
+): Promise<{ error: PostgrestError | null }> {
+  if (slides.length > SHOWCASE_LIMITS.slides) {
+    return { error: { message: `Maximum ${SHOWCASE_LIMITS.slides} slides allowed` } as PostgrestError };
+  }
+
+  const { error: deleteError } = await supabase
+    .from('startup_slides')
+    .delete()
+    .eq('startup_id', startupId);
+
+  if (deleteError) return { error: deleteError };
+  if (slides.length === 0) return { error: null };
+
+  const { error } = await supabase
+    .from('startup_slides')
+    .insert(slides.map(s => ({ ...s, startup_id: startupId })));
+
+  return { error };
+}
+
+// --- Links ---
+
+export async function upsertLinks(
+  startupId: string,
+  links: { title: string; url: string; icon_name?: string; display_order: number }[]
+): Promise<{ error: PostgrestError | null }> {
+  if (links.length > SHOWCASE_LIMITS.links) {
+    return { error: { message: `Maximum ${SHOWCASE_LIMITS.links} links allowed` } as PostgrestError };
+  }
+
+  const { error: deleteError } = await supabase
+    .from('startup_links')
+    .delete()
+    .eq('startup_id', startupId);
+
+  if (deleteError) return { error: deleteError };
+  if (links.length === 0) return { error: null };
+
+  const { error } = await supabase
+    .from('startup_links')
+    .insert(links.map(l => ({ ...l, startup_id: startupId })));
+
+  return { error };
+}
+
+// --- Text Sections ---
+
+export async function upsertTextSections(
+  startupId: string,
+  sections: { heading: string; content: string; display_order: number }[]
+): Promise<{ error: PostgrestError | null }> {
+  if (sections.length > SHOWCASE_LIMITS.sections) {
+    return { error: { message: `Maximum ${SHOWCASE_LIMITS.sections} sections allowed` } as PostgrestError };
+  }
+
+  const { error: deleteError } = await supabase
+    .from('startup_text_sections')
+    .delete()
+    .eq('startup_id', startupId);
+
+  if (deleteError) return { error: deleteError };
+  if (sections.length === 0) return { error: null };
+
+  const { error } = await supabase
+    .from('startup_text_sections')
+    .insert(sections.map(s => ({ ...s, startup_id: startupId })));
+
+  return { error };
+}
+
+// --- Slide Image Upload ---
+
+export async function uploadSlideImage(file: File): Promise<{ url: string; error?: string }> {
+  try {
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (!userId) throw new Error('User not authenticated');
+
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const filePath = `startup-slides/${userId}/${fileName}`;
+
+    const { error: storageError } = await supabase.storage
+      .from('media')
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (storageError) throw storageError;
+
+    const { data: publicUrlData } = supabase.storage
+      .from('media')
+      .getPublicUrl(filePath);
+
+    return { url: publicUrlData.publicUrl };
+  } catch (error) {
+    console.error('Error uploading slide image:', error);
+    return { url: '', error: error instanceof Error ? error.message : 'Failed to upload slide' };
+  }
 }
 
 // --- File Uploads ---

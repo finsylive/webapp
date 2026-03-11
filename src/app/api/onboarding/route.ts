@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthClient } from '@/utils/supabase-server';
+import { createAuthClient, createAdminClient } from '@/utils/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_ROLES = ['explorer', 'investor', 'founder'] as const;
-type UserRole = typeof VALID_ROLES[number];
+const VALID_INTERESTS = ['exploring', 'building', 'investing', 'hiring'] as const;
+type Interest = typeof VALID_INTERESTS[number];
+
+const INTEREST_TO_PRIMARY: Record<Interest, string> = {
+  exploring: 'exploring',
+  building: 'building',
+  investing: 'investing',
+  hiring: 'exploring',
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,92 +22,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user has already completed onboarding — prevent role change via back button
-    const { data: existingUser } = await authClient
-      .from('users')
-      .select('is_onboarding_done')
-      .eq('id', user.id)
-      .single();
-
-    if (existingUser?.is_onboarding_done) {
-      return NextResponse.json(
-        { error: 'Onboarding already completed' },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
-    const { user_type, username } = body as { user_type: UserRole; username?: string };
+    const { interests } = body as { interests: string[] };
 
-    if (!user_type || !VALID_ROLES.includes(user_type)) {
+    if (!interests || !Array.isArray(interests) || interests.length === 0) {
       return NextResponse.json(
-        { error: 'Invalid role. Must be one of: explorer, investor, founder' },
+        { error: 'Select at least one interest' },
         { status: 400 }
       );
     }
 
-    // Build update payload
-    const updatePayload: Record<string, unknown> = {
-      user_type,
-      is_onboarding_done: true,
-    };
+    const validInterests = interests.filter((i): i is Interest =>
+      VALID_INTERESTS.includes(i as Interest)
+    );
 
-    // Validate and set username if provided
-    if (username) {
-      const trimmed = username.trim().toLowerCase();
-
-      if (trimmed.length < 3 || trimmed.length > 20) {
-        return NextResponse.json(
-          { error: 'Username must be between 3 and 20 characters' },
-          { status: 400 }
-        );
-      }
-
-      if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-        return NextResponse.json(
-          { error: 'Username can only contain letters, numbers, and underscores' },
-          { status: 400 }
-        );
-      }
-
-      // Check uniqueness (exclude current user)
-      const { data: taken } = await authClient
-        .from('users')
-        .select('id')
-        .eq('username', trimmed)
-        .neq('id', user.id)
-        .single();
-
-      if (taken) {
-        return NextResponse.json(
-          { error: 'This username is already taken' },
-          { status: 409 }
-        );
-      }
-
-      updatePayload.username = trimmed;
+    if (validInterests.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid interests provided' },
+        { status: 400 }
+      );
     }
 
-    const { error: updateError } = await authClient
+    const primaryInterest = INTEREST_TO_PRIMARY[validInterests[0]];
+
+    const admin = createAdminClient();
+
+    // Try with new columns first, fall back to base columns if PostgREST
+    // schema cache hasn't picked up the migration yet
+    const { error: updateError } = await admin
       .from('users')
-      .update(updatePayload)
+      .update({
+        user_type: 'normal_user',
+        primary_interest: primaryInterest,
+        is_onboarding_done: true,
+      })
       .eq('id', user.id);
 
-    if (updateError) {
-      console.error('Error updating user onboarding:', updateError);
-      return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
-    }
+    if (updateError && (updateError.code === 'PGRST204' || updateError.message?.includes('does not exist') || updateError.message?.includes('schema cache'))) {
+      // Schema cache stale or columns not visible — fall back to base columns only
+      const { error: fallbackError } = await admin
+        .from('users')
+        .update({
+          user_type: 'normal_user',
+          is_onboarding_done: true,
+        })
+        .eq('id', user.id);
 
-    // Return redirect path based on role
-    const redirectMap: Record<UserRole, string> = {
-      explorer: '/',
-      investor: '/startups',
-      founder: '/startups/my',
-    };
+      if (fallbackError) {
+        console.error('Error updating user onboarding (fallback):', fallbackError);
+        return NextResponse.json({ error: `Failed to update user: ${fallbackError.message}` }, { status: 500 });
+      }
+    } else if (updateError) {
+      console.error('Error updating user onboarding:', updateError);
+      return NextResponse.json({ error: `Failed to update user: ${updateError.message} (code: ${updateError.code})` }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      redirect: redirectMap[user_type],
+      redirect: '/',
     });
   } catch (error) {
     console.error('Error in onboarding API:', error);

@@ -1,12 +1,13 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateCandidates } from './candidate-generator';
 import { extractFeatures } from './feature-extractor';
 import { scorePostsDeterministic } from './scorer';
+import { groqRerank } from './groq-ranker';
 import { applyDiversityRules } from './reranker';
 import { getCachedFeed, writeFeedCache } from './cache-manager';
 import { injectRealtimePosts } from './realtime-injector';
 import { getUserInterestProfile } from './interest-profile';
 import { getExperimentConfig } from './experiments';
-import { PipelineTimer } from './pipeline-timer';
 import { FEED_PAGE_SIZE } from './constants';
 import type { FeedResponse, ScoredPost } from './types';
 
@@ -16,6 +17,7 @@ import type { FeedResponse, ScoredPost } from './types';
  * Designed to never throw — always returns a response (even if empty).
  */
 export async function generatePersonalizedFeed(
+  supabase: SupabaseClient,
   userId: string,
   cursor?: string,
   forceRefresh: boolean = false
@@ -23,7 +25,7 @@ export async function generatePersonalizedFeed(
   // Step 0: Check for active experiments (non-critical, safe to fail)
   let experiment: { experimentId: string; variant: string; config: Record<string, number> } | null = null;
   try {
-    experiment = await getExperimentConfig(userId);
+    experiment = await getExperimentConfig(supabase, userId);
   } catch (err) {
     console.warn('Failed to get experiment config (non-critical):', err);
   }
@@ -31,10 +33,8 @@ export async function generatePersonalizedFeed(
   // Step 1: Check cache (unless force refresh)
   if (!forceRefresh) {
     try {
-      const cached = await getCachedFeed(userId, cursor);
+      const cached = await getCachedFeed(supabase, userId, cursor);
       if (cached) {
-        console.log(`[Feed] Cache HIT for user=${userId.substring(0, 8)} posts=${cached.posts.length}`);
-
         // Real-time injection for page 1 only (no cursor)
         let postIds = cached.posts;
         let scores = cached.scores;
@@ -42,6 +42,7 @@ export async function generatePersonalizedFeed(
         if (!cursor) {
           try {
             const injected = await injectRealtimePosts(
+              supabase,
               userId,
               cached.entry.post_ids,
               cached.entry.scores,
@@ -73,12 +74,15 @@ export async function generatePersonalizedFeed(
 
   // Step 2: Run full pipeline
   try {
-    const scored = await runFullPipeline(userId, experiment);
+    console.log('[Feed] Running full pipeline for user:', userId);
+    const scored = await runFullPipeline(supabase, userId, experiment);
+    console.log(`[Feed] Pipeline returned ${scored.length} scored posts`);
 
     if (scored.length > 0) {
       // Step 3: Cache the result (non-critical)
       try {
         await writeFeedCache(
+          supabase,
           userId,
           scored,
           experiment?.experimentId,
@@ -119,43 +123,78 @@ export async function generatePersonalizedFeed(
 }
 
 async function runFullPipeline(
+  supabase: SupabaseClient,
   userId: string,
   experiment: { experimentId: string; variant: string; config: Record<string, number> } | null
 ): Promise<ScoredPost[]> {
-  const timer = new PipelineTimer(userId);
-
   // Stage 1: Candidate generation
-  timer.start('candidates');
-  const candidates = await generateCandidates(userId);
-  timer.end({ count: candidates.length });
+  const candidates = await generateCandidates(supabase, userId);
 
   if (candidates.length === 0) {
-    timer.log();
     return [];
   }
 
-  // Stage 2: Get user interest profile
-  timer.start('profile');
-  const userProfile = await getUserInterestProfile(userId);
-  timer.end({ source: userProfile ? 'loaded' : 'null' });
+  // Stage 2: Get user interest profile (non-blocking — null is fine)
+  let userProfile: Awaited<ReturnType<typeof getUserInterestProfile>> = null;
+  try {
+    userProfile = await getUserInterestProfile(supabase, userId);
+  } catch (err) {
+    console.warn('[Feed] Interest profile failed (non-critical):', err);
+  }
 
-  // Stage 3: Feature extraction
-  timer.start('features');
-  const features = await extractFeatures(candidates, userId, userProfile);
-  timer.end({ count: features.length });
+  // Stage 3: Feature extraction (resilient — works without ML tables)
+  let features: Awaited<ReturnType<typeof extractFeatures>>;
+  try {
+    features = await extractFeatures(supabase, candidates, userId, userProfile);
+  } catch (err) {
+    console.warn('[Feed] Feature extraction failed, using basic features:', err);
+    // Build basic features from candidate data alone
+    features = candidates.map((c) => {
+      const ageHours = (Date.now() - new Date(c.created_at).getTime()) / (1000 * 60 * 60);
+      const maxLikes = Math.max(1, ...candidates.map(x => x.likes_count));
+      const maxReplies = Math.max(1, ...candidates.map(x => x.replies_count));
+      return {
+        post_id: c.id,
+        author_id: c.author_id,
+        engagement_score: 0,
+        virality_velocity: 0,
+        likes_normalized: c.likes_count / maxLikes,
+        replies_normalized: c.replies_count / maxReplies,
+        is_following: c.is_following,
+        is_fof: c.is_fof,
+        interaction_affinity: 0,
+        creator_affinity: 0,
+        topic_overlap_score: 0,
+        content_type_preference: 0.5,
+        keyword_match: 0,
+        freshness: Math.exp(-ageHours / 24),
+        age_hours: ageHours,
+        is_verified: c.author_is_verified,
+        follower_count_normalized: 0,
+        has_media: c.has_media,
+        has_poll: c.has_poll,
+        content_quality: 0.5,
+      };
+    });
+  }
 
   // Stage 4: Tier 1 - Deterministic scoring
-  timer.start('tier1');
   const weightOverrides = experiment?.config;
   const tier1Scored = scorePostsDeterministic(features, weightOverrides);
-  timer.end({ count: tier1Scored.length });
 
-  // Stage 5: Diversity rules
-  timer.start('diversity');
-  const finalScored = applyDiversityRules(tier1Scored, experiment?.config);
-  timer.end({ count: finalScored.length });
+  // Stage 5: Tier 2 - Groq LLM re-ranking (top 50, non-blocking)
+  let tier2Scored = tier1Scored;
+  try {
+    const postSummaries = new Map(
+      candidates.map((c) => [c.id, c.content || ''])
+    );
+    tier2Scored = await groqRerank(tier1Scored, userProfile, postSummaries);
+  } catch (err) {
+    console.warn('[Feed] Groq re-ranking failed (non-critical):', err);
+  }
 
-  timer.log();
+  // Stage 6: Diversity rules
+  const finalScored = applyDiversityRules(tier2Scored, experiment?.config);
 
   return finalScored;
 }

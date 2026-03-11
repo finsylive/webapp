@@ -1,14 +1,14 @@
 import { createAuthClient } from '@/utils/supabase-server';
 import { NextResponse } from 'next/server';
+import { upsertFundingRounds } from '@/api/startups';
+import { supabase } from '@/utils/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const authClient = await createAuthClient();
-
-    const { data, error } = await authClient
+    const { data, error } = await supabase
       .from('startup_funding_rounds')
       .select('*')
       .eq('startup_id', id)
@@ -28,33 +28,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const authClient = await createAuthClient();
-    const { data: { user } } = await authClient.auth.getUser();
+    const authSupabase = await createAuthClient();
+    const { data: { user } } = await authSupabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { rounds } = await request.json();
+    const { error } = await upsertFundingRounds(id, rounds);
 
-    // Delete existing rounds and re-insert using the auth client (respects RLS)
-    const { error: deleteError } = await authClient
-      .from('startup_funding_rounds')
-      .delete()
-      .eq('startup_id', id);
-
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
-
-    if (rounds && rounds.length > 0) {
-      const { error: insertError } = await authClient
-        .from('startup_funding_rounds')
-        .insert(rounds.map((r: { investor?: string; amount?: string; round_type?: string; round_date?: string; is_public?: boolean }) => ({ ...r, startup_id: id })));
-
-      if (insertError) {
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
-      }
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

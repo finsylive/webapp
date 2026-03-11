@@ -2,16 +2,15 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap } from 'lucide-react';
+import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap, Target, TrendingUp, Github, Globe, Youtube, Linkedin, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { UserActivityFeed } from '@/components/posts/UserActivityFeed';
 import { toProxyUrl } from '@/utils/imageUtils';
-import { LoginPromptModal, useLoginPrompt } from '@/components/auth/LoginPromptModal';
+import { DribbbleIcon, BehanceIcon, FigmaIcon, SubstackIcon, InstagramIcon } from '@/components/ui/SocialIcons';
 
 type PositionRow = {
   id: string;
@@ -51,6 +50,16 @@ type EducationRow = {
   sort_order?: number | null;
 };
 
+type ProjectRow = {
+  id: string;
+  title: string | null;
+  tagline: string | null;
+  cover_url: string | null;
+  logo_url: string | null;
+  url: string | null;
+  created_at: string | null;
+};
+
 type ProfileData = {
   user: {
     id: string;
@@ -66,7 +75,12 @@ type ProfileData = {
     about?: string | null;
     bio?: string | null;
     skills?: string[] | null;
-    account_status?: string | null;
+    looking_for?: string[] | null;
+    investor_status?: string | null;
+    linkedin?: string | null;
+    social_links?: Record<string, string> | null;
+    show_projects?: boolean | null;
+    show_startups?: boolean | null;
   };
   counts: {
     followers: number;
@@ -78,6 +92,7 @@ type ProfileData = {
   experiences: ExperienceRow[];
   education: EducationRow[];
   startups: StartupRow[];
+  projects?: ProjectRow[];
   viewer: { is_following: boolean };
 } | null;
 
@@ -98,7 +113,6 @@ export default function PublicProfilePage() {
 
   const { user: viewer, isLoading: authLoading } = useAuth();
   const viewerId = viewer?.id ?? null;
-  const loginPrompt = useLoginPrompt();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [data, setData] = useState<ProfileData>(null);
@@ -165,17 +179,10 @@ export default function PublicProfilePage() {
     const cachedData = getFromCache(cacheKey);
 
     if (cachedData) {
-      // For own profile, use cache immediately (no deactivated risk).
-      // For other profiles, skip cache entirely — always show loading spinner
-      // until fresh API data confirms account_status. This prevents any flash
-      // of profile content for deactivated accounts.
-      const isLikelyOwnProfile = viewerId && cachedData?.user?.id === viewerId;
-      if (isLikelyOwnProfile) {
-        setData(cachedData);
-        setLoading(false);
-        setError(null);
-        return;
-      }
+      setData(cachedData);
+      setLoading(false);
+      setError(null);
+      return;
     }
 
     abortControllerRef.current = new AbortController();
@@ -295,6 +302,7 @@ export default function PublicProfilePage() {
   const experiences = useMemo(() => data?.experiences ?? [], [data?.experiences]);
   const education = useMemo(() => data?.education ?? [], [data?.education]);
   const startups = useMemo(() => data?.startups ?? [], [data?.startups]);
+  const projects = useMemo(() => data?.projects ?? [], [data?.projects]);
   const isOwnProfile = viewerId && data?.user?.id && viewerId === data.user.id;
 
   const diffInMonths = (start: Date, end: Date) => {
@@ -317,33 +325,11 @@ export default function PublicProfilePage() {
     return parts.join(' ');
   };
 
-  if (!username || loading) {
+  if (!username || (loading && !data)) {
     return (
       <DashboardLayout>
         <div className="min-h-screen flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Deactivated account — show immediately, before any profile content
-  if (data?.user?.account_status && data.user.account_status !== 'active') {
-    return (
-      <DashboardLayout>
-        <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-            <User className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-xl font-semibold text-foreground mb-2">Account Deactivated</h1>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              This account has been deactivated by the user. Their profile and content are currently hidden.
-            </p>
-          </div>
-          <Button onClick={() => router.back()} size="sm" variant="outline" className="rounded-full">
-            Go Back
-          </Button>
         </div>
       </DashboardLayout>
     );
@@ -360,18 +346,16 @@ export default function PublicProfilePage() {
     );
   }
 
-
-
   return (
     <DashboardLayout>
       <div className="min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
-          {/* Profile hero — banner + avatar + info */}
-          <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm mb-6 overflow-hidden">
-            {/* Cover image */}
+          {/* Cover image — using <img> to bypass Next.js Image restrictions */}
+          <div className="rounded-2xl overflow-hidden">
             <div className="relative h-36 sm:h-44 md:h-52 w-full">
               {coverUrl && !imgError.cover ? (
+
                 <img
                   src={coverUrl}
                   alt="Cover image"
@@ -379,31 +363,59 @@ export default function PublicProfilePage() {
                   onError={() => setImgError(prev => ({ ...prev, cover: true }))}
                 />
               ) : (
-                <div className="h-full w-full bg-gradient-to-br from-emerald-600 via-teal-500 to-cyan-500" />
+                <div className="h-full w-full bg-emerald-600" />
               )}
             </div>
+          </div>
 
-            {/* Avatar + info */}
-            <div className="px-4 sm:px-6">
-              {/* Avatar overlapping cover */}
-              <div className="relative -mt-14 sm:-mt-16 mb-3 flex items-end justify-between">
-                <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
-                  {avatarUrl && !imgError.avatar ? (
-                    <img
-                      src={avatarUrl}
-                      alt={fullName}
-                      className="w-full h-full object-cover"
-                      onError={() => setImgError(prev => ({ ...prev, avatar: true }))}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-                      <User className="h-12 w-12 text-white" />
-                    </div>
+          {/* Avatar overlapping cover bottom */}
+          <div className="relative -mt-12 ml-3 sm:-mt-14 sm:ml-5 mb-3 z-10">
+            <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
+              {avatarUrl && !imgError.avatar ? (
+
+                <img
+                  src={avatarUrl}
+                  alt={fullName}
+                  className="w-full h-full object-cover"
+                  onError={() => setImgError(prev => ({ ...prev, avatar: true }))}
+                />
+              ) : (
+                <div className="w-full h-full bg-emerald-600 flex items-center justify-center">
+                  <User className="h-12 w-12 text-white" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Profile info card */}
+          <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm -mt-2 mb-6">
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+                    <span className="truncate">{fullName}</span>
+                    {data?.user?.is_verified && (
+                      <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
+                    )}
+                  </h1>
+                  <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                    @{data?.user?.username || username}
+                  </span>
+                  {data?.user?.tagline && (
+                    <p className={`text-sm mt-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {data.user.tagline}
+                    </p>
+                  )}
+                  {city && (
+                    <p className={`text-sm mt-1 flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <MapPin className="h-3.5 w-3.5" />
+                      {city}
+                    </p>
                   )}
                 </div>
 
-                {/* Edit / Follow / Message — aligned to the right of the avatar row */}
-                <div className="flex items-center gap-2 pb-1">
+                {/* Edit / Follow / Message */}
+                <div className="flex-shrink-0 flex items-center gap-2">
                   {authLoading || loading ? (
                     <Button disabled size="sm" className="rounded-full">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -425,44 +437,13 @@ export default function PublicProfilePage() {
                         {messagePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
                       </Button>
                     </>
-                  ) : !viewerId && data?.user?.id ? (
-                    <>
-                      <Button onClick={() => loginPrompt.open('Sign in to follow', 'Sign in to follow this user and see their posts in your feed.')} size="sm" className="rounded-full">
-                        Follow
-                      </Button>
-                      <Button onClick={() => loginPrompt.open('Sign in to message', 'Sign in to send a message to this user.')} size="sm" variant="outline" className="rounded-full">
-                        <MessageCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
                   ) : null}
                 </div>
               </div>
 
-              {/* Name, username, tagline, city */}
-              <div className="pb-4 sm:pb-5">
-                <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
-                  <span className="truncate">{fullName}</span>
-                  {data?.user?.is_verified && (
-                    <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
-                  )}
-                </h1>
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                  @{data?.user?.username || username}
-                </span>
-                {data?.user?.tagline && (
-                  <p className={`text-sm mt-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {data.user.tagline}
-                  </p>
-                )}
-                {city && (
-                  <p className={`text-sm mt-1 flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <MapPin className="h-3.5 w-3.5" />
-                    {city}
-                  </p>
-                )}
-
-                {/* Follower / Following stats */}
-                <div className="flex items-center gap-3 sm:gap-5 mt-3">
+              {/* Follower / Following stats + Social Links */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center gap-3 sm:gap-5">
                   <Link
                     href={`/profile/${encodeURIComponent(username)}/followers`}
                     className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
@@ -482,6 +463,40 @@ export default function PublicProfilePage() {
                     <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</span>
                   </Link>
                 </div>
+
+                {/* Social / Portfolio Icons */}
+                {(() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const links: { url: string; icon: any; label: string }[] = [];
+                  const sl = data?.user?.social_links;
+                  const li = data?.user?.linkedin;
+                  if (li) links.push({ url: li, icon: Linkedin, label: 'LinkedIn' });
+                  if (sl?.github) links.push({ url: sl.github, icon: Github, label: 'GitHub' });
+                  if (sl?.instagram) links.push({ url: sl.instagram, icon: InstagramIcon, label: 'Instagram' });
+                  if (sl?.website) links.push({ url: sl.website, icon: Globe, label: 'Website' });
+                  if (sl?.youtube) links.push({ url: sl.youtube, icon: Youtube, label: 'YouTube' });
+                  if (sl?.dribbble) links.push({ url: sl.dribbble, icon: DribbbleIcon, label: 'Dribbble' });
+                  if (sl?.behance) links.push({ url: sl.behance, icon: BehanceIcon, label: 'Behance' });
+                  if (sl?.figma) links.push({ url: sl.figma, icon: FigmaIcon, label: 'Figma' });
+                  if (sl?.substack) links.push({ url: sl.substack, icon: SubstackIcon, label: 'Substack' });
+                  if (links.length === 0) return null;
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      {links.map(({ url, icon: Icon, label }) => (
+                        <a
+                          key={label}
+                          href={url.startsWith('http') ? url : `https://${url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={label}
+                          className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </a>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -562,19 +577,19 @@ export default function PublicProfilePage() {
                   </div>
 
                   {/* Startups Section — timeline style like Experience */}
-                  {(startups.length > 0 || isOwnProfile) && (
+                  {(isOwnProfile || data?.user?.show_startups !== false) && (startups.length > 0 || isOwnProfile) && (
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
-                          <Rocket className="h-4 w-4 text-orange-500" />
+                          <Rocket className="h-4 w-4 text-emerald-500" />
                           Startups
                         </h2>
                         {isOwnProfile && (
                           <Link
                             href="/startups/create"
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDarkMode
-                              ? 'border-orange-500/30 text-orange-300 hover:bg-orange-500/10'
-                              : 'border-orange-300 text-orange-700 hover:bg-orange-50'
+                              ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
                               }`}
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -591,8 +606,8 @@ export default function PublicProfilePage() {
                             <Link key={startup.id} href={`/startups/${startup.id}`} className="flex gap-3 group">
                               {/* Timeline */}
                               <div className="flex flex-col items-center pt-1">
-                                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-orange-500/10' : 'bg-orange-50'}`}>
-                                  <Rocket className="h-4 w-4 text-orange-500" />
+                                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                                  <Rocket className="h-4 w-4 text-emerald-500" />
                                 </div>
                                 {index < (startups.length - 1) && (
                                   <div className={`w-px flex-1 mt-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
@@ -610,8 +625,8 @@ export default function PublicProfilePage() {
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {startup.stage && (
                                       <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode
-                                        ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                        : 'bg-orange-50 text-orange-700'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                        : 'bg-emerald-50 text-emerald-700'
                                         }`}>
                                         {startup.stage}
                                       </span>
@@ -633,56 +648,107 @@ export default function PublicProfilePage() {
                     </div>
                   )}
 
-                  {/* Showcase (Portfolio + Projects) */}
-                  <div>
-                    <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4 flex items-center gap-2`}>
-                      <Diamond className="h-4 w-4 text-emerald-500" />
-                      Showcase
-                    </h2>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                      {/* Portfolio */}
-                      <Link
-                        href={isOwnProfile ? `/profile/${encodeURIComponent(username)}/portfolios/edit` : `/profile/${encodeURIComponent(username)}/portfolios`}
-                        className={`group relative overflow-hidden rounded-xl border ${isDarkMode ? 'border-teal-500/30 hover:border-teal-500/50' : 'border-teal-300 hover:border-teal-400'
-                          } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                              {loading ? '—' : data?.counts?.portfolios ?? 0}
-                            </div>
-                            <h3 className={`text-sm font-medium mt-1 ${isDarkMode ? 'text-teal-300' : 'text-teal-700'}`}>
-                              Portfolio
-                            </h3>
-                          </div>
-                          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50'}`}>
-                            <Image src="/icons/project.svg" alt="Portfolio" width={24} height={24} />
-                          </div>
+                  {/* Projects — inline cards */}
+                  {(isOwnProfile || data?.user?.show_projects !== false) && (projects.length > 0 || isOwnProfile) && (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+                          <Diamond className="h-4 w-4 text-emerald-500" />
+                          Projects
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          {projects.length > 3 && (
+                            <Link
+                              href={`/profile/${encodeURIComponent(username)}/projects`}
+                              className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'}`}
+                            >
+                              View all
+                            </Link>
+                          )}
+                          {isOwnProfile && (
+                            <Link
+                              href={`/profile/${encodeURIComponent(username)}/projects`}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDarkMode
+                                ? 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                                : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                                }`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Add
+                            </Link>
+                          )}
                         </div>
-                      </Link>
+                      </div>
 
-                      {/* Projects */}
-                      <Link
-                        href={`/profile/${encodeURIComponent(username)}/projects`}
-                        className={`group relative overflow-hidden rounded-xl border ${isDarkMode ? 'border-emerald-500/30 hover:border-emerald-500/50' : 'border-emerald-300 hover:border-emerald-400'
-                          } bg-card/50 p-3 sm:p-5 transition-all hover:shadow-md`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                              {loading ? '—' : data?.counts?.projects ?? 0}
+                      {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {[1, 2].map((i) => (
+                            <div key={i} className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-gray-200'} p-3 animate-pulse`}>
+                              <div className={`h-28 rounded-lg mb-3 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+                              <div className={`h-4 rounded w-3/4 mb-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+                              <div className={`h-3 rounded w-1/2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
                             </div>
-                            <h3 className={`text-sm font-medium mt-1 ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
-                              Projects
-                            </h3>
-                          </div>
-                          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                            <Rocket className="h-5 w-5 text-emerald-500" />
-                          </div>
+                          ))}
                         </div>
-                      </Link>
+                      ) : projects.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {projects.slice(0, 4).map((project) => (
+                            <Link
+                              key={project.id}
+                              href={`/profile/${encodeURIComponent(username)}/projects/${project.id}`}
+                              className={`group rounded-xl border overflow-hidden transition-all hover:shadow-md ${isDarkMode
+                                ? 'border-gray-800 hover:border-emerald-500/40 bg-card/50'
+                                : 'border-gray-200 hover:border-emerald-300 bg-card/50'
+                                }`}
+                            >
+                              {/* Cover image */}
+                              <div className={`relative h-28 w-full ${isDarkMode ? 'bg-emerald-500/5' : 'bg-emerald-50/50'}`}>
+                                {project.cover_url ? (
+                                  <img
+                                    src={toProxyUrl(project.cover_url, { width: 400, quality: 75 })}
+                                    alt={project.title || 'Project'}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : project.logo_url ? (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <img
+                                      src={toProxyUrl(project.logo_url, { width: 96, quality: 80 })}
+                                      alt={project.title || 'Project'}
+                                      className="h-12 w-12 object-contain"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Rocket className="h-8 w-8 text-emerald-500/40" />
+                                  </div>
+                                )}
+                              </div>
+                              {/* Info */}
+                              <div className="p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <h3 className={`text-sm font-semibold truncate group-hover:underline ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                      {project.title || 'Untitled'}
+                                    </h3>
+                                    {project.tagline && (
+                                      <p className={`text-xs mt-0.5 line-clamp-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {project.tagline}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {project.url && (
+                                    <ExternalLink className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                                  )}
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No projects yet.</p>
+                      )}
                     </div>
-                  </div>
+                  )}
 
                   {/* Experience */}
                   <div>
@@ -918,7 +984,7 @@ export default function PublicProfilePage() {
                   {(data?.user?.skills && data.user.skills.length > 0) && (
                     <div>
                       <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3 flex items-center gap-2`}>
-                        <Zap className="h-4 w-4 text-amber-500" />
+                        <Zap className="h-4 w-4 text-emerald-500" />
                         Skills
                       </h2>
                       <div className="flex flex-wrap gap-2">
@@ -934,6 +1000,48 @@ export default function PublicProfilePage() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Looking For — additive section, shown when array is non-empty */}
+                  {(data?.user?.looking_for && data.user.looking_for.length > 0) && (
+                    <div>
+                      <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3 flex items-center gap-2`}>
+                        <Target className="h-4 w-4 text-emerald-500" />
+                        Looking for
+                      </h2>
+                      <div className="flex flex-wrap gap-2">
+                        {data.user.looking_for.map((item) => (
+                          <span
+                            key={item}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${isDarkMode
+                              ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
+                          >
+                            {item.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Investor Info — additive section, shown only for verified investors */}
+                  {data?.user?.investor_status === 'verified' && (
+                    <div>
+                      <h2 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3 flex items-center gap-2`}>
+                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        Investor
+                        <span className={`ml-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${isDarkMode
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : 'bg-emerald-50 text-emerald-700'
+                          }`}>
+                          Verified
+                        </span>
+                      </h2>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Verified investor on Ments
+                      </p>
                     </div>
                   )}
                 </div>
@@ -965,7 +1073,6 @@ export default function PublicProfilePage() {
 
         </div>
       </div>
-      <LoginPromptModal {...loginPrompt.modalProps} />
     </DashboardLayout>
   );
 }

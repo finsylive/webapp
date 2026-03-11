@@ -82,6 +82,21 @@ export function cacheClearByPrefix(prefix: string): number {
 }
 
 /**
+ * Clear cache entries matching a prefix that also contain a specific substring.
+ * Example: cacheClearByMatch('startups', 'type=org_project') clears only org project list caches.
+ */
+export function cacheClearByMatch(prefix: string, match: string): number {
+    let count = 0;
+    for (const key of store.keys()) {
+        if (key.startsWith(prefix) && key.includes(match)) {
+            store.delete(key);
+            count++;
+        }
+    }
+    return count;
+}
+
+/**
  * Clear the entire cache.
  */
 export function cacheClearAll(): number {

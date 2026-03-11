@@ -13,7 +13,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       .from('users')
       .select('id, username')
       .eq('username', username)
-      .eq('account_status', 'active')
       .maybeSingle();
 
     if (userError) console.warn('[projects API] user fetch error:', userError.message);
@@ -24,7 +23,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       .from('projects')
       .select('*')
       .eq('owner_id', userRow.id)
-      .order('created_at', { ascending: false })
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
       .limit(50);
 
     if (projError) {
@@ -39,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 }
 
 // POST /api/users/[username]/projects
-// Body: { title: string, category: string(uuid), tagline?: string, cover_url?: string, logo_url?: string, visibility?: 'public'|'private'|'unlisted' }
+// Body: { title: string, category: string (e.g. "Web App"), tagline?: string, cover_url?: string, logo_url?: string, visibility?: 'public'|'private'|'unlisted' }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   try {
     const supabase = await createAuthClient();

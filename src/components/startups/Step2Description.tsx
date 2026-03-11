@@ -2,6 +2,7 @@
 
 import { Plus, X, UserCircle, Mail } from 'lucide-react';
 import { MentsUserSearch } from './MentsUserSearch';
+import type { EntityType } from '@/api/startups';
 
 type Founder = {
   name: string;
@@ -20,11 +21,13 @@ type Step2Props = {
   founders: Founder[];
   onChange: (field: string, value: string) => void;
   onFoundersChange: (founders: Founder[]) => void;
+  entityType?: EntityType;
 };
 
 const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 
-export function Step2Description({ data, founders, onChange, onFoundersChange }: Step2Props) {
+export function Step2Description({ data, founders, onChange, onFoundersChange, entityType }: Step2Props) {
+  const isOrg = entityType === 'org_project';
   const addFounder = () => {
     onFoundersChange([...founders, { name: '', role: '', email: '', user_id: '', ments_username: '', avatar_url: '', display_order: founders.length }]);
   };
@@ -103,7 +106,7 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
       {/* Founders */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-3">
-          Founders <span className="text-red-400">*</span>
+          {isOrg ? 'Team Members' : 'Founders'} <span className="text-red-400">*</span>
         </label>
         <div className="space-y-3">
           {founders.map((founder, index) => (
@@ -117,7 +120,7 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
                   </div>
                 )}
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Founder {index + 1}
+                  {isOrg ? 'Member' : 'Founder'} {index + 1}
                   {founder.ments_username && (
                     <span className="normal-case tracking-normal font-medium text-primary ml-1.5">
                       @{founder.ments_username}
@@ -146,7 +149,7 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
                   type="text"
                   value={founder.role}
                   onChange={(e) => updateFounder(index, 'role', e.target.value)}
-                  placeholder="Role (e.g. CEO, CTO, CPO)"
+                  placeholder={isOrg ? 'Role (e.g. Lead, Coordinator, Designer)' : 'Role (e.g. CEO, CTO, CPO)'}
                   className={inputClass}
                 />
                 <MentsUserSearch
@@ -183,7 +186,7 @@ export function Step2Description({ data, founders, onChange, onFoundersChange }:
           className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground bg-accent/20 hover:bg-accent/40 hover:text-foreground border border-dashed border-border/50 hover:border-border transition-all"
         >
           <Plus className="h-4 w-4" />
-          Add Co-Founder
+          {isOrg ? 'Add Member' : 'Add Co-Founder'}
         </button>
       </div>
     </div>

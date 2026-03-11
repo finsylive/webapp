@@ -2,43 +2,20 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
-import Image from 'next/image';
-import { use, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, RefreshCcw, BadgeCheck } from 'lucide-react';
+import { use, useEffect, useState } from 'react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { listProjects } from '@/api/projects';
-import { ProjectCard, ProjectCardSkeleton } from '@/components/projects/ProjectCard';
-import { toProxyUrl } from '@/utils/imageUtils';
+import { ProjectCard, ProjectCardSkeleton, type ProjectItem } from '@/components/projects/ProjectCard';
+import { useUserData } from '@/hooks/useUserData';
 
 export default function UserProjectsPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
-  type ProjectItem = {
-    id: string;
-    title?: string | null;
-    name?: string | null;
-    tagline?: string | null;
-    description?: string | null;
-    status?: string | null;
-    url?: string | null;
-    created_at?: string | null;
-    visibility?: string | null;
-    image_url?: string | null;
-    thumbnail?: string | null;
-    thumbnail_url?: string | null;
-    logo_url?: string | null;
-    cover_url?: string | null;
-    category?: string | null;
-  };
 
-  type ProjectsResponse = {
-    data: ProjectItem[];
-  };
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [profile, setProfile] = useState<{ user: { avatar_url?: string | null; full_name?: string | null; username: string; is_verified?: boolean | null }; counts?: { projects?: number } } | null>(null);
-  const [environments, setEnvironments] = useState<Array<{ id: string; name: string }>>([]);
-  const [avatarError, setAvatarError] = useState(false);
+  const { userData } = useUserData();
+  const isOwner = userData?.username?.toLowerCase() === username?.toLowerCase();
 
   useEffect(() => {
     let cancelled = false;
@@ -46,27 +23,9 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
       try {
         setLoading(true);
         setError(null);
-        const [projectsResp, resProfile, envRes] = await Promise.all([
-          listProjects(username),
-          fetch(`/api/users/${encodeURIComponent(username)}/profile`),
-          fetch('/api/environments').then(r=>r.ok?r.json():[]).catch(()=>[]),
-        ]);
-        const pjson = await resProfile.json().catch(() => null);
+        const resp = await listProjects(username);
         if (!cancelled) {
-          setItems((projectsResp as ProjectsResponse)?.data ?? []);
-          if (pjson && pjson.data) setProfile(pjson.data);
-          try {
-            const envList = Array.isArray(envRes) ? envRes : [];
-            setEnvironments(
-              envList
-                .filter((e: unknown): e is { id: string; name: string } => {
-                  if (typeof e !== 'object' || e === null) return false;
-                  const maybe = e as { id?: unknown; name?: unknown };
-                  return typeof maybe.id === 'string' && typeof maybe.name === 'string';
-                })
-                .map((e) => ({ id: e.id, name: e.name }))
-            );
-          } catch {}
+          setItems((resp as { data: ProjectItem[] })?.data ?? []);
         }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to load projects';
@@ -78,27 +37,6 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
     if (username) run();
     return () => { cancelled = true; };
   }, [username]);
-
-  const countLabel = useMemo(() => {
-    const c = profile?.counts?.projects ?? items.length;
-    return `${c} Project${c === 1 ? '' : 's'}`;
-  }, [profile?.counts?.projects, items.length]);
-
-  // removed unused helper ensureProtocol
-
-  const refetch = async () => {
-    if (refreshing) return;
-    try {
-      setRefreshing(true);
-      setError(null);
-      const resp = await listProjects(username);
-      setItems((resp as ProjectsResponse)?.data ?? []);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh');
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   return (
     <DashboardLayout>
@@ -112,56 +50,42 @@ export default function UserProjectsPage({ params }: { params: Promise<{ usernam
               </Link>
               <h1 className="text-2xl font-semibold">Projects</h1>
             </div>
-            <button onClick={refetch} className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground" title="Refresh" aria-label="Refresh projects">
-              <RefreshCcw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          {/* Profile Row */}
-          <div className="flex items-center gap-4 mb-6">
-            {profile?.user?.avatar_url && !avatarError ? (
-              <div className="relative h-12 w-12 rounded-full overflow-hidden border border-emerald-500/30 bg-black/20">
-                <Image src={toProxyUrl(profile.user.avatar_url)} alt={profile.user.full_name || profile.user.username} fill className="object-cover" sizes="48px" onError={() => setAvatarError(true)} />
-              </div>
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 font-semibold">
-                {username?.[0]?.toUpperCase() || 'U'}
-              </div>
+            {isOwner && (
+              <Link
+                href={`/profile/${encodeURIComponent(username)}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+              >
+                <Plus className="h-4 w-4" /> New Project
+              </Link>
             )}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{profile?.user?.full_name || username}</span>
-                {profile?.user?.is_verified ? <BadgeCheck className="h-4 w-4 text-emerald-400" /> : null}
-              </div>
-              <div className="text-sm text-muted-foreground">{countLabel}</div>
-            </div>
-          </div>
-
-          {/* Showcase */}
-          <div className="mb-3">
-            <h2 className="text-emerald-400 text-lg font-semibold">Showcase</h2>
-            <p className="text-sm text-muted-foreground">Explore {username}&apos;s creative projects</p>
           </div>
 
           {/* Content */}
           {loading ? (
-            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {Array.from({ length: 6 }).map((_, i) => (
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {Array.from({ length: 4 }).map((_, i) => (
                 <ProjectCardSkeleton key={i} />
               ))}
             </ul>
           ) : error ? (
             <div className="text-sm text-red-400">{error}</div>
           ) : items.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No projects yet.</div>
+            <div className="py-16 text-center">
+              <p className="text-sm text-muted-foreground mb-4">No projects yet.</p>
+              {isOwner && (
+                <Link
+                  href={`/profile/${encodeURIComponent(username)}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                >
+                  <Plus className="h-4 w-4" /> Create your first project
+                </Link>
+              )}
+            </div>
           ) : (
-            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {items.map((p) => {
-                const envName = environments.find(e=> e.id === (p.category || ''))?.name;
-                return (
-                  <ProjectCard key={p.id} item={p} username={username} categoryName={envName} />
-                );
-              })}
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {items.map((p) => (
+                <ProjectCard key={p.id} item={p} username={username} />
+              ))}
             </ul>
           )}
         </div>

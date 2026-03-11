@@ -2,12 +2,17 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/utils/supabase';
 import { toProxyUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Rocket, Plus, ChevronUp, Bookmark, BookmarkCheck, MapPin, Zap, Loader2, X } from 'lucide-react';
+import { Rocket, Plus, ChevronUp, Bookmark, MapPin, Zap, Loader2, X, TrendingUp, Eye, Edit, ExternalLink, FolderKanban } from 'lucide-react';
+import { fetchMyVentures, updateStartup, StartupProfile } from '@/api/startups';
+import type { EntityType } from '@/api/startups';
+import { DealFlowTab } from '@/components/investor/DealFlowTab';
+import { InvestorVerifyModal } from '@/components/investor/InvestorVerifyModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,6 +22,7 @@ type StartupItem = {
   description: string | null;
   elevator_pitch: string | null;
   stage: string;
+  entity_type: EntityType;
   is_actively_raising: boolean;
   logo_url: string | null;
   banner_url: string | null;
@@ -81,21 +87,47 @@ function StartupsPageContent() {
   const [startups, setStartups] = useState<StartupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
-  const [bookmarkingIds, setBookmarkingIds] = useState<Set<string>>(new Set());
   const [filterStage, setFilterStage] = useState<string | null>(null);
+  const [filterEntityType, setFilterEntityType] = useState<EntityType | null>(null);
   const [sortMode, setSortMode] = useState<'hot' | 'new'>('hot');
   const [showBookmarks, setShowBookmarks] = useState(false);
+
+  // ── Tab system ──
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'directory' | 'my' | 'dealflow'>('directory');
+  const [myVentures, setMyVentures] = useState<StartupProfile[]>([]);
+  const [investorStatus, setInvestorStatus] = useState<string>('none');
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'my') setActiveTab('my');
+    else if (tab === 'dealflow') setActiveTab('dealflow');
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchMeta = async () => {
+      const [venturesRes, userRes] = await Promise.all([
+        fetchMyVentures(user.id),
+        supabase.from('users').select('investor_status').eq('id', user.id).single(),
+      ]);
+      setMyVentures(venturesRes.data ?? []);
+      setInvestorStatus(userRes.data?.investor_status ?? 'none');
+    };
+    fetchMeta();
+  }, [user]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('startup_profiles')
-        .select('id, brand_name, description, elevator_pitch, stage, is_actively_raising, logo_url, banner_url, city, country, created_at')
+        .select('id, brand_name, description, elevator_pitch, stage, entity_type, is_actively_raising, logo_url, banner_url, city, country, created_at')
         .eq('is_published', true);
 
+      if (filterEntityType) query = (query as typeof query).eq('entity_type', filterEntityType);
       if (filterStage) query = (query as typeof query).eq('stage', filterStage);
 
       const { data: rows } = await query.order('created_at', { ascending: false }).limit(60);
@@ -104,31 +136,23 @@ function StartupsPageContent() {
       const ids = list.map(s => s.id);
       const userId = user?.id;
 
-      // Fetch upvotes (public votes) and bookmarks (private saves) separately
-      const [allUpvotesRes, userUpvotesRes, userBookmarksRes] = await Promise.all([
+      const [allVotesRes, userVotesRes] = await Promise.all([
         ids.length > 0
-          ? supabase.from('startup_upvotes').select('startup_id').in('startup_id', ids)
-          : Promise.resolve({ data: [] as { startup_id: string }[] }),
-        userId
-          ? supabase.from('startup_upvotes').select('startup_id').eq('user_id', userId)
+          ? supabase.from('startup_bookmarks').select('startup_id').in('startup_id', ids)
           : Promise.resolve({ data: [] as { startup_id: string }[] }),
         userId
           ? supabase.from('startup_bookmarks').select('startup_id').eq('user_id', userId)
           : Promise.resolve({ data: [] as { startup_id: string }[] }),
       ]);
 
-      // Count upvotes per startup
       const counts: Record<string, number> = {};
-      for (const row of (allUpvotesRes.data ?? [])) {
+      for (const row of (allVotesRes.data ?? [])) {
         const sid = row.startup_id;
         if (sid) counts[sid] = (counts[sid] ?? 0) + 1;
       }
 
       const upvoted = new Set<string>(
-        (userUpvotesRes.data ?? []).map((r: { startup_id: string }) => r.startup_id).filter(Boolean)
-      );
-      const bookmarked = new Set<string>(
-        (userBookmarksRes.data ?? []).map((r: { startup_id: string }) => r.startup_id).filter(Boolean)
+        (userVotesRes.data ?? []).map((r: { startup_id: string }) => r.startup_id).filter(Boolean)
       );
 
       const merged = list.map(s => ({ ...s, _votes: counts[s.id] ?? 0 }));
@@ -136,17 +160,15 @@ function StartupsPageContent() {
 
       setStartups(merged);
       setUpvotedIds(upvoted);
-      setBookmarkedIds(bookmarked);
     } catch (e) {
       console.error('[Startups] load error:', e);
     } finally {
       setLoading(false);
     }
-  }, [filterStage, sortMode, user?.id]);
+  }, [filterStage, filterEntityType, sortMode, user?.id]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Toggle upvote (public vote)
   const toggleVote = useCallback(async (startupId: string) => {
     if (!user?.id) return;
     const wasUpvoted = upvotedIds.has(startupId);
@@ -157,9 +179,9 @@ function StartupsPageContent() {
 
     try {
       if (wasUpvoted) {
-        await supabase.from('startup_upvotes').delete().eq('user_id', user.id).eq('startup_id', startupId);
+        await supabase.from('startup_bookmarks').delete().eq('user_id', user.id).eq('startup_id', startupId);
       } else {
-        await supabase.from('startup_upvotes').insert({ user_id: user.id, startup_id: startupId });
+        await supabase.from('startup_bookmarks').insert({ user_id: user.id, startup_id: startupId });
       }
     } catch {
       // Revert optimistic update on error
@@ -170,28 +192,15 @@ function StartupsPageContent() {
     }
   }, [user?.id, upvotedIds]);
 
-  // Toggle bookmark (private save)
-  const toggleBookmark = useCallback(async (startupId: string) => {
-    if (!user?.id) return;
-    const wasBookmarked = bookmarkedIds.has(startupId);
-
-    setBookmarkedIds(prev => { const n = new Set(prev); if (wasBookmarked) { n.delete(startupId); } else { n.add(startupId); } return n; });
-    setBookmarkingIds(prev => new Set(prev).add(startupId));
-
-    try {
-      if (wasBookmarked) {
-        await supabase.from('startup_bookmarks').delete().eq('user_id', user.id).eq('startup_id', startupId);
-      } else {
-        await supabase.from('startup_bookmarks').insert({ user_id: user.id, startup_id: startupId });
-      }
-    } catch {
-      setBookmarkedIds(prev => { const n = new Set(prev); if (wasBookmarked) { n.add(startupId); } else { n.delete(startupId); } return n; });
-    } finally {
-      setBookmarkingIds(prev => { const n = new Set(prev); n.delete(startupId); return n; });
-    }
-  }, [user?.id, bookmarkedIds]);
-
-  // Middleware redirects unauthenticated users to login
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center py-20">
+          <p className="text-muted-foreground">Please sign in to view startups.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const showPodium = sortMode === 'hot' && startups.length >= 3;
   const top3 = showPodium ? startups.slice(0, 3) : [];
@@ -206,7 +215,7 @@ function StartupsPageContent() {
             <Rocket className="h-5 w-5 text-emerald-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-foreground leading-tight">Startups</h1>
+            <h1 className="text-xl font-bold text-foreground leading-tight">Directory</h1>
             {!loading && (
               <p className="text-xs text-muted-foreground">{startups.length} listed · ranked by votes</p>
             )}
@@ -226,12 +235,43 @@ function StartupsPageContent() {
           </button>
         </div>
 
-        {/* ── Sort + Filter Controls ── */}
+        {/* ── Tab Bar ── */}
+        <TabBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          showMyVentures={myVentures.length > 0}
+          showDealFlow={investorStatus === 'verified'}
+        />
+
+        {/* ── Investor Verification CTA ── */}
+        {activeTab === 'directory' && investorStatus === 'none' && (
+          <div className="mb-3 p-3.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Verify as investor</p>
+              <p className="text-xs text-muted-foreground">Access deal flow and pipeline tools</p>
+            </div>
+            <button
+              onClick={() => setShowVerifyModal(true)}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
+            >
+              Get Verified
+            </button>
+          </div>
+        )}
+
+        {/* ── Directory Tab ── */}
+        {activeTab === 'directory' && (
+          <>
         <Controls
           sortMode={sortMode}
           setSortMode={setSortMode}
           filterStage={filterStage}
           setFilterStage={setFilterStage}
+          filterEntityType={filterEntityType}
+          setFilterEntityType={setFilterEntityType}
         />
 
         {/* ── Content ── */}
@@ -249,7 +289,7 @@ function StartupsPageContent() {
           <>
             {/* Podium */}
             {showPodium && (
-              <Podium top3={top3} upvotedIds={upvotedIds} bookmarkedIds={bookmarkedIds} votingIds={votingIds} bookmarkingIds={bookmarkingIds} onVote={toggleVote} onBookmark={toggleBookmark} />
+              <Podium top3={top3} upvotedIds={upvotedIds} votingIds={votingIds} onVote={toggleVote} />
             )}
 
             {/* Rankings header */}
@@ -271,15 +311,24 @@ function StartupsPageContent() {
                   startup={s}
                   rank={showPodium ? i + 4 : i + 1}
                   upvoted={upvotedIds.has(s.id)}
-                  bookmarked={bookmarkedIds.has(s.id)}
                   loading={votingIds.has(s.id)}
-                  bookmarking={bookmarkingIds.has(s.id)}
                   onVote={toggleVote}
-                  onBookmark={toggleBookmark}
                 />
               ))}
             </div>
           </>
+        )}
+          </>
+        )}
+
+        {/* ── My Ventures Tab ── */}
+        {activeTab === 'my' && myVentures.length > 0 && (
+          <MyVenturesTab ventures={myVentures} onUpdate={setMyVentures} />
+        )}
+
+        {/* ── Deal Flow Tab ── */}
+        {activeTab === 'dealflow' && user && (
+          <DealFlowTab userId={user.id} />
         )}
       </div>
 
@@ -287,6 +336,12 @@ function StartupsPageContent() {
       {showBookmarks && user && (
         <BookmarksSheet userId={user.id} onClose={() => setShowBookmarks(false)} />
       )}
+
+      <InvestorVerifyModal
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        onSuccess={() => { setShowVerifyModal(false); setInvestorStatus('applied'); }}
+      />
     </DashboardLayout>
   );
 }
@@ -294,32 +349,42 @@ function StartupsPageContent() {
 // ── Controls ──────────────────────────────────────────────────────────────────
 
 function Controls({
-  sortMode, setSortMode, filterStage, setFilterStage,
+  sortMode, setSortMode, filterStage, setFilterStage, filterEntityType, setFilterEntityType,
 }: {
   sortMode: 'hot' | 'new';
   setSortMode: (m: 'hot' | 'new') => void;
   filterStage: string | null;
   setFilterStage: (s: string | null) => void;
+  filterEntityType: EntityType | null;
+  setFilterEntityType: (t: EntityType | null) => void;
 }) {
   return (
     <div className="space-y-2 pb-3">
-      {/* Sort pills */}
+      {/* Sort pills + entity type filter */}
       <div className="flex items-center gap-2">
         <SortPill emoji="🔥" label="Hot" active={sortMode === 'hot'} onClick={() => setSortMode('hot')} />
         <SortPill emoji="✨" label="New" active={sortMode === 'new'} onClick={() => setSortMode('new')} />
-        {filterStage && (
-          <button
-            onClick={() => setFilterStage(null)}
-            className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium"
-          >
-            {STAGE_LABELS[filterStage] ?? filterStage}
-            <X className="h-3 w-3" />
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          {filterStage && (
+            <button
+              onClick={() => setFilterStage(null)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium"
+            >
+              {STAGE_LABELS[filterStage] ?? filterStage}
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+      {/* Entity type pills */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        <StageChip label="All" active={filterEntityType === null} onClick={() => setFilterEntityType(null)} />
+        <StageChip label="Startups" active={filterEntityType === 'startup'} onClick={() => setFilterEntityType('startup')} />
+        <StageChip label="Org Projects" active={filterEntityType === 'org_project'} onClick={() => setFilterEntityType('org_project')} />
       </div>
       {/* Stage chips — horizontally scrollable */}
       <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-        <StageChip label="All" active={filterStage === null} onClick={() => setFilterStage(null)} />
+        <StageChip label="All Stages" active={filterStage === null} onClick={() => setFilterStage(null)} />
         {STAGES.map(s => (
           <StageChip key={s} label={STAGE_LABELS[s]!} active={filterStage === s} onClick={() => setFilterStage(s)} />
         ))}
@@ -361,14 +426,11 @@ function StageChip({ label, active, onClick }: { label: string; active: boolean;
 
 // ── Podium ────────────────────────────────────────────────────────────────────
 
-function Podium({ top3, upvotedIds, bookmarkedIds, votingIds, bookmarkingIds, onVote, onBookmark }: {
+function Podium({ top3, upvotedIds, votingIds, onVote }: {
   top3: StartupItem[];
   upvotedIds: Set<string>;
-  bookmarkedIds: Set<string>;
   votingIds: Set<string>;
-  bookmarkingIds: Set<string>;
   onVote: (id: string) => void;
-  onBookmark: (id: string) => void;
 }) {
   return (
     <div className="mb-1">
@@ -387,11 +449,8 @@ function Podium({ top3, upvotedIds, bookmarkedIds, votingIds, bookmarkingIds, on
             startup={s}
             rank={i + 1}
             upvoted={upvotedIds.has(s.id)}
-            bookmarked={bookmarkedIds.has(s.id)}
             loading={votingIds.has(s.id)}
-            bookmarking={bookmarkingIds.has(s.id)}
             onVote={onVote}
-            onBookmark={onBookmark}
           />
         ))}
       </div>
@@ -400,15 +459,12 @@ function Podium({ top3, upvotedIds, bookmarkedIds, votingIds, bookmarkingIds, on
   );
 }
 
-function PodiumCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, onVote, onBookmark }: {
+function PodiumCard({ startup, rank, upvoted, loading, onVote }: {
   startup: StartupItem;
   rank: number;
   upvoted: boolean;
-  bookmarked: boolean;
   loading: boolean;
-  bookmarking: boolean;
   onVote: (id: string) => void;
-  onBookmark: (id: string) => void;
 }) {
   const hex = stageHex(startup.stage);
   const bannerSrc = resolveImageUrl(startup.banner_url);
@@ -442,19 +498,6 @@ function PodiumCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, 
             <span className="text-[10px]">{medal}</span>
             <span className="text-[10px] font-extrabold" style={{ color: medalColor }}>#{rank}</span>
           </div>
-          {/* Bookmark button */}
-          <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); onBookmark(startup.id); }}
-            className="absolute top-2 right-2 h-6 w-6 rounded-md bg-black/50 flex items-center justify-center transition-colors hover:bg-black/70"
-          >
-            {bookmarking ? (
-              <Loader2 className="h-3 w-3 text-white animate-spin" />
-            ) : bookmarked ? (
-              <BookmarkCheck className="h-3 w-3 text-amber-400" />
-            ) : (
-              <Bookmark className="h-3 w-3 text-white/70" />
-            )}
-          </button>
           {/* Name */}
           <p className="absolute bottom-2 left-2.5 right-2.5 text-[13px] font-bold text-white leading-tight truncate drop-shadow">
             {startup.brand_name}
@@ -467,6 +510,12 @@ function PodiumCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, 
           <div className="flex items-center gap-2">
             <LogoWidget logoSrc={logoSrc} inits={inits} hex={hex} size={30} />
             <div className="flex flex-wrap gap-1">
+              {startup.entity_type === 'org_project' && (
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/25">
+                  <FolderKanban className="h-2.5 w-2.5" />
+                  Project
+                </span>
+              )}
               {stageStyle && (
                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${stageStyle.pill}`}>
                   {STAGE_LABELS[startup.stage] ?? startup.stage}
@@ -512,15 +561,12 @@ function PodiumCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, 
 
 // ── Ranked Card ───────────────────────────────────────────────────────────────
 
-function RankedCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, onVote, onBookmark }: {
+function RankedCard({ startup, rank, upvoted, loading, onVote }: {
   startup: StartupItem;
   rank: number;
   upvoted: boolean;
-  bookmarked: boolean;
   loading: boolean;
-  bookmarking: boolean;
   onVote: (id: string) => void;
-  onBookmark: (id: string) => void;
 }) {
   const hex = stageHex(startup.stage);
   const logoSrc = resolveImageUrl(startup.logo_url);
@@ -550,6 +596,12 @@ function RankedCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, 
         <div className="flex-1 min-w-0 ml-1">
           <p className="text-sm font-semibold text-foreground truncate">{startup.brand_name}</p>
           <div className="flex flex-wrap gap-1 mt-1.5">
+            {startup.entity_type === 'org_project' && (
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/25">
+                <FolderKanban className="h-2.5 w-2.5" />
+                Project
+              </span>
+            )}
             {stageStyle && (
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${stageStyle.pill}`}>
                 {STAGE_LABELS[startup.stage] ?? startup.stage}
@@ -573,53 +625,33 @@ function RankedCard({ startup, rank, upvoted, bookmarked, loading, bookmarking, 
           )}
         </div>
 
-        {/* Actions: Bookmark + Upvote */}
-        <div className="shrink-0 flex flex-col items-center gap-1.5">
-          {/* Upvote pill */}
-          <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
-            className={`py-2 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all ${
-              upvoted
-                ? 'bg-emerald-500/10 border-emerald-500/45'
-                : 'bg-muted/40 border-border hover:border-muted-foreground/30'
-            }`}
-            style={{ width: 44 }}
-          >
-            {loading ? (
-              <Loader2
-                className="h-3.5 w-3.5 animate-spin"
+        {/* Upvote pill */}
+        <button
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onVote(startup.id); }}
+          className={`shrink-0 py-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all ${
+            upvoted
+              ? 'bg-emerald-500/10 border-emerald-500/45'
+              : 'bg-muted/40 border-border hover:border-muted-foreground/30'
+          }`}
+          style={{ width: 44 }}
+        >
+          {loading ? (
+            <Loader2
+              className="h-3.5 w-3.5 animate-spin"
+              style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
+            />
+          ) : (
+            <>
+              <ChevronUp className="h-4 w-4" style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }} />
+              <span
+                className="text-[11px] font-bold leading-none"
                 style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
-              />
-            ) : (
-              <>
-                <ChevronUp className="h-4 w-4" style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }} />
-                <span
-                  className="text-[11px] font-bold leading-none"
-                  style={{ color: upvoted ? '#34D399' : 'var(--muted-foreground)' }}
-                >
-                  {startup._votes}
-                </span>
-              </>
-            )}
-          </button>
-          {/* Bookmark button */}
-          <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); onBookmark(startup.id); }}
-            className={`h-7 w-7 rounded-lg flex items-center justify-center border transition-all ${
-              bookmarked
-                ? 'bg-amber-500/10 border-amber-500/40 text-amber-500'
-                : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {bookmarking ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : bookmarked ? (
-              <BookmarkCheck className="h-3.5 w-3.5" />
-            ) : (
-              <Bookmark className="h-3.5 w-3.5" />
-            )}
-          </button>
-        </div>
+              >
+                {startup._votes}
+              </span>
+            </>
+          )}
+        </button>
       </div>
     </Link>
   );
@@ -723,11 +755,11 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
 
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-3 border-b border-border shrink-0">
-          <Bookmark className="h-4 w-4 text-amber-400" />
-          <span className="text-base font-bold text-foreground">Saved Startups</span>
+          <Bookmark className="h-4 w-4 text-emerald-400" />
+          <span className="text-base font-bold text-foreground">Upvoted Startups</span>
           {!loading && (
-            <div className="ml-auto px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
-              <span className="text-xs font-semibold text-amber-400">{bookmarked.length}</span>
+            <div className="ml-auto px-2.5 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+              <span className="text-xs font-semibold text-emerald-400">{bookmarked.length}</span>
             </div>
           )}
         </div>
@@ -736,13 +768,13 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="h-6 w-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : bookmarked.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3">
               <Bookmark className="h-11 w-11 text-muted-foreground/40" />
-              <p className="text-base text-foreground">No saved startups yet</p>
-              <p className="text-sm text-muted-foreground">Bookmark startups to save them here</p>
+              <p className="text-base text-foreground">No upvoted startups yet</p>
+              <p className="text-sm text-muted-foreground">Upvote startups you find interesting</p>
             </div>
           ) : (
             <div className="p-4 space-y-2 pb-10">
@@ -789,6 +821,149 @@ function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
       </div>
       <p className="text-base font-semibold text-foreground">{title}</p>
       <p className="text-sm text-muted-foreground">{subtitle}</p>
+    </div>
+  );
+}
+
+// ── Tab Bar ──────────────────────────────────────────────────────────────────
+
+function TabBar({ activeTab, setActiveTab, showMyVentures, showDealFlow }: {
+  activeTab: string;
+  setActiveTab: (tab: 'directory' | 'my' | 'dealflow') => void;
+  showMyVentures: boolean;
+  showDealFlow: boolean;
+}) {
+  return (
+    <div className="flex gap-1 pb-3 mb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+      <TabPill label="Directory" active={activeTab === 'directory'} onClick={() => setActiveTab('directory')} />
+      {showMyVentures && (
+        <TabPill label="My Ventures" active={activeTab === 'my'} onClick={() => setActiveTab('my')} />
+      )}
+      {showDealFlow && (
+        <TabPill label="Deal Flow" active={activeTab === 'dealflow'} onClick={() => setActiveTab('dealflow')} />
+      )}
+    </div>
+  );
+}
+
+function TabPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+        active
+          ? 'bg-emerald-500/10 border border-emerald-500/40 text-emerald-400'
+          : 'text-muted-foreground hover:text-foreground border border-transparent'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ── My Ventures Tab ──────────────────────────────────────────────────────────
+
+const MY_STAGE_COLORS: Record<string, string> = {
+  ideation: 'from-blue-500 to-cyan-500', mvp: 'from-purple-500 to-pink-500',
+  scaling: 'from-green-500 to-emerald-500', expansion: 'from-orange-500 to-amber-500',
+  maturity: 'from-red-500 to-rose-500',
+};
+
+function MyVenturesTab({ ventures, onUpdate }: { ventures: StartupProfile[]; onUpdate: (v: StartupProfile[]) => void }) {
+  const togglePublish = async (venture: StartupProfile) => {
+    const { data } = await updateStartup(venture.id, { is_published: !venture.is_published });
+    if (data) {
+      onUpdate(ventures.map(v => v.id === data.id ? data : v));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {ventures.map((startup) => {
+        const isProject = startup.entity_type === 'org_project';
+        return (
+          <div key={startup.id} className="space-y-4">
+            {/* Venture Overview */}
+            <div className="bg-card border border-border/50 rounded-2xl p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${MY_STAGE_COLORS[startup.stage] || 'from-primary to-primary/80'} shadow-lg`}>
+                    {isProject ? <FolderKanban className="h-6 w-6 text-white" /> : <Rocket className="h-6 w-6 text-white" />}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground">{startup.brand_name}</h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        isProject ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : `bg-gradient-to-r ${MY_STAGE_COLORS[startup.stage]} text-white`
+                      }`}>
+                        {isProject ? 'Project' : STAGE_LABELS[startup.stage]}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${startup.is_published ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                        {startup.is_published ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {!isProject && startup.is_actively_raising && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500/10 text-green-500 border border-green-500/20">
+                    <TrendingUp className="h-3 w-3" /> Raising
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className={`grid gap-3 ${isProject ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              <div className="bg-card border border-border/50 rounded-xl p-3 text-center">
+                <Eye className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                <p className="text-xl font-bold text-foreground">{startup.view_count || 0}</p>
+                <p className="text-[10px] text-muted-foreground">Views</p>
+              </div>
+              <div className="bg-card border border-border/50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-foreground">{startup.founders?.length || 0}</p>
+                <p className="text-[10px] text-muted-foreground">Team</p>
+              </div>
+              {!isProject && (
+                <div className="bg-card border border-border/50 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-foreground">{startup.funding_rounds?.length || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Rounds</p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-3 gap-2">
+              <Link
+                href={`/startups/${startup.id}`}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-card border border-border/50 rounded-xl text-xs font-medium text-foreground hover:bg-accent/50 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> View
+              </Link>
+              <Link
+                href={`/startups/${startup.id}/edit`}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-card border border-border/50 rounded-xl text-xs font-medium text-foreground hover:bg-accent/50 transition-colors"
+              >
+                <Edit className="h-3.5 w-3.5" /> Edit
+              </Link>
+              <button
+                onClick={() => togglePublish(startup)}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
+                  startup.is_published
+                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                }`}
+              >
+                {startup.is_published ? 'Unpublish' : 'Publish'}
+              </button>
+            </div>
+
+            {/* Separator between ventures */}
+            {ventures.indexOf(startup) < ventures.length - 1 && (
+              <div className="border-b border-border/40" />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

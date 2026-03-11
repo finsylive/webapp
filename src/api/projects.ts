@@ -6,8 +6,9 @@ export type Project = {
   id: UUID;
   owner_id: UUID;
   title: string;
-  category: UUID;
+  category: string | null;
   tagline: string | null;
+  url: string | null;
   cover_url: string | null;
   logo_url: string | null;
   visibility: 'public' | 'private' | 'unlisted';
@@ -91,7 +92,7 @@ export async function getProject(
 export async function updateProject(
   username: string,
   projectId: UUID,
-  patch: Partial<Pick<Project, 'title' | 'category' | 'tagline' | 'cover_url' | 'logo_url' | 'visibility'>>
+  patch: Partial<Pick<Project, 'title' | 'category' | 'tagline' | 'url' | 'cover_url' | 'logo_url' | 'visibility'>> & { category?: string | null }
 ): Promise<{ data: Project }>
 {
   return jsonFetch(`/api/users/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}`, {
