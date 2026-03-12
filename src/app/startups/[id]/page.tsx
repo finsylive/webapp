@@ -280,7 +280,7 @@ export default function StartupDetailPage() {
 
         {/* Virtual Money Investment Modal */}
         {showInvestModal && fromArena && arenaEventId && arenaStallId && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowInvestModal(false); setInvestError(null); }} />
             <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-border/60 bg-background shadow-2xl mx-auto">
               {/* Modal Header */}
@@ -326,7 +326,7 @@ export default function StartupDetailPage() {
                 {/* Not audience yet — join first */}
                 {!isAudience && !isStallOwner && (
                   <div className="rounded-xl border border-border/60 bg-card/70 p-5 text-center space-y-3">
-                    <Wallet className="h-10 w-10 text-blue-500 mx-auto" />
+                    <Wallet className="h-10 w-10 text-emerald-500 mx-auto" />
                     <h4 className="font-bold text-lg">Join as Investor</h4>
                     <p className="text-sm text-muted-foreground">
                       Get <strong>₹{virtualFundAmount.toLocaleString('en-IN')}</strong> virtual cash to invest!
@@ -335,7 +335,7 @@ export default function StartupDetailPage() {
                     <button
                       onClick={handleJoinAudience}
                       disabled={joiningAudience}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
                     >
                       {joiningAudience ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
                       {joiningAudience ? 'Joining...' : 'Join & Get Virtual Cash'}
@@ -347,16 +347,16 @@ export default function StartupDetailPage() {
                 {isAudience && (
                   <>
                     {/* Balance Card */}
-                    <div className="rounded-xl border-2 border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-4">
+                    <div className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">Your Virtual Balance</p>
-                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                             <IndianRupee className="h-5 w-5" />
                             {arenaBalance.toLocaleString('en-IN')}
                           </p>
                         </div>
-                        <Wallet className="h-8 w-8 text-blue-500/50" />
+                        <Wallet className="h-8 w-8 text-emerald-500/50" />
                       </div>
                     </div>
 
