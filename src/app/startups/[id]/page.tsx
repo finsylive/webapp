@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupProfileView } from '@/components/startups/StartupProfileView';
-import { fetchStartupById, bookmarkStartup, unbookmarkStartup, recordView, StartupProfile } from '@/api/startups';
+import { fetchStartupById, bookmarkStartup, unbookmarkStartup, upvoteStartup, unupvoteStartup, recordView, StartupProfile } from '@/api/startups';
 import { createDeal, getDealForStartup, updateDealStage, removeDeal, InvestorDeal } from '@/api/investor-deals';
 import { supabase } from '@/utils/supabase';
 import { ArrowLeft, Plus, ChevronDown, Trash2, IndianRupee, Wallet, TrendingUp, Loader2, CheckCircle, X } from 'lucide-react';
@@ -191,6 +191,26 @@ export default function StartupDetailPage() {
     if (!user || !startup) return;
     await unbookmarkStartup(user.id, startup.id);
     setStartup(prev => prev ? { ...prev, is_bookmarked: false } : prev);
+  };
+
+  const handleUpvote = async () => {
+    if (!user || !startup) return;
+    await upvoteStartup(user.id, startup.id);
+    setStartup(prev => prev ? { 
+      ...prev, 
+      is_upvoted: true, 
+      upvote_count: (prev.upvote_count || 0) + 1 
+    } : prev);
+  };
+
+  const handleUnupvote = async () => {
+    if (!user || !startup) return;
+    await unupvoteStartup(user.id, startup.id);
+    setStartup(prev => prev ? { 
+      ...prev, 
+      is_upvoted: false, 
+      upvote_count: Math.max(0, (prev.upvote_count || 0) - 1) 
+    } : prev);
   };
 
   const isOwner = user?.id === startup?.owner_id;
@@ -454,6 +474,8 @@ export default function StartupDetailPage() {
             isCofounder={isCofounder}
             onBookmark={handleBookmark}
             onUnbookmark={handleUnbookmark}
+            onUpvote={handleUpvote}
+            onUnupvote={handleUnupvote}
           />
         ) : (
           <div className="flex flex-col items-center justify-center py-20">

@@ -9,7 +9,7 @@ import {
   Briefcase, Hash, BrainCircuit, DraftingCompass, Globe2, Medal,
   ChevronRight, Mic, Clock, FolderKanban, Link2, Github, Linkedin,
   Twitter, Youtube, Info, Component, UsersRound, CircleDollarSign,
-  Video
+  Video, ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -56,6 +56,8 @@ type Props = {
   isCofounder?: boolean;
   onBookmark?: () => void;
   onUnbookmark?: () => void;
+  onUpvote?: () => void;
+  onUnupvote?: () => void;
 };
 
 // Helper: build location string
@@ -88,7 +90,7 @@ function hasContactDetails(startup: StartupProfile): boolean {
   );
 }
 
-export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, onUnbookmark }: Props) {
+export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, onUnbookmark, onUpvote, onUnupvote }: Props) {
   const location = buildLocation(startup);
   const StageIcon = stageIcons[startup.stage] || Rocket;
   const isOrgProject = startup.entity_type === 'org_project';
@@ -152,20 +154,33 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
                     Edit Profile
                   </Link>
                 ) : (
-                  <button
-                    onClick={startup.is_bookmarked ? onUnbookmark : onBookmark}
-                    className={`p-2.5 rounded-xl border transition-all shadow-sm active:scale-95 ${
-                      startup.is_bookmarked
-                        ? 'border-primary/30 bg-primary/10'
-                        : 'border-border bg-background/50 hover:bg-accent'
-                    }`}
-                  >
-                    {startup.is_bookmarked ? (
-                      <BookmarkCheck className="h-5 w-5 text-primary" />
-                    ) : (
-                      <Bookmark className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={startup.is_upvoted ? onUnupvote : onUpvote}
+                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all shadow-sm active:scale-95 ${
+                        startup.is_upvoted
+                          ? 'border-primary/30 bg-primary/10 text-primary'
+                          : 'border-border bg-background/50 hover:bg-accent text-muted-foreground'
+                      }`}
+                    >
+                      <ChevronUp className={`h-5 w-5 ${startup.is_upvoted ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className="text-sm font-bold">{startup.upvote_count || 0}</span>
+                    </button>
+                    <button
+                      onClick={startup.is_bookmarked ? onUnbookmark : onBookmark}
+                      className={`p-2.5 rounded-xl border transition-all shadow-sm active:scale-95 ${
+                        startup.is_bookmarked
+                          ? 'border-primary/30 bg-primary/10'
+                          : 'border-border bg-background/50 hover:bg-accent'
+                      }`}
+                    >
+                      {startup.is_bookmarked ? (
+                        <BookmarkCheck className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Bookmark className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

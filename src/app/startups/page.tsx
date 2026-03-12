@@ -153,10 +153,10 @@ function StartupsPageContent() {
 
       const [allVotesRes, userVotesRes] = await Promise.all([
         ids.length > 0
-          ? supabase.from('startup_bookmarks').select('startup_id').in('startup_id', ids)
+          ? supabase.from('startup_upvotes').select('startup_id').in('startup_id', ids)
           : Promise.resolve({ data: [] as { startup_id: string }[] }),
         userId
-          ? supabase.from('startup_bookmarks').select('startup_id').eq('user_id', userId)
+          ? supabase.from('startup_upvotes').select('startup_id').eq('user_id', userId)
           : Promise.resolve({ data: [] as { startup_id: string }[] }),
       ]);
 
@@ -194,9 +194,9 @@ function StartupsPageContent() {
 
     try {
       if (wasUpvoted) {
-        await supabase.from('startup_bookmarks').delete().eq('user_id', user.id).eq('startup_id', startupId);
+        await supabase.from('startup_upvotes').delete().eq('user_id', user.id).eq('startup_id', startupId);
       } else {
-        await supabase.from('startup_bookmarks').insert({ user_id: user.id, startup_id: startupId });
+        await supabase.from('startup_upvotes').insert({ user_id: user.id, startup_id: startupId });
       }
     } catch {
       // Revert optimistic update on error
@@ -816,7 +816,7 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
           <div className="p-2 bg-muted rounded-xl">
             <Bookmark className="h-5 w-5 text-foreground" />
           </div>
-          <span className="text-lg font-bold text-foreground">Upvoted Startups</span>
+          <span className="text-lg font-bold text-foreground">Bookmarked Startups</span>
           {!loading && (
             <div className="ml-auto px-3 py-1 rounded-lg bg-muted border border-border">
               <span className="text-sm font-semibold text-foreground">{bookmarked.length}</span>
@@ -843,8 +843,8 @@ function BookmarksSheet({ userId, onClose }: { userId: string; onClose: () => vo
                 <Bookmark className="h-8 w-8 text-muted-foreground/60" />
               </div>
               <div className="text-center">
-                <p className="text-base font-semibold text-foreground">No upvoted startups yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Upvote startups you find interesting</p>
+                <p className="text-base font-semibold text-foreground">No bookmarked startups yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Bookmark startups you want to save</p>
               </div>
             </div>
           ) : (
@@ -1006,6 +1006,11 @@ function MyVenturesTab({
                     <Eye className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-semibold text-foreground">{startup.view_count || 0}</span>
                     <span className="text-xs text-muted-foreground">Views</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50">
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">{startup.upvote_count || 0}</span>
+                    <span className="text-xs text-muted-foreground">Upvotes</span>
                   </div>
                   <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50">
                     <span className="text-sm font-semibold text-foreground">{startup.founders?.length || 0}</span>

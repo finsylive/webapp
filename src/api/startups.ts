@@ -64,6 +64,8 @@ export type StartupProfile = {
   links?: StartupLink[];
   text_sections?: StartupTextSection[];
   is_bookmarked?: boolean;
+  is_upvoted?: boolean;
+  upvote_count?: number;
   view_count?: number;
 };
 
@@ -236,25 +238,25 @@ export async function fetchStartupById(id: string, userId?: string): Promise<Sta
 
     const startup = data as StartupProfile;
 
-    // Check if bookmarked by current user
+    // Check if bookmarked/upvoted by current user
     if (userId) {
-      const { data: bookmark } = await supabase
-        .from('startup_bookmarks')
-        .select('id')
-        .eq('startup_id', id)
-        .eq('user_id', userId)
-        .maybeSingle();
+      const [bookmarkRes, upvoteRes] = await Promise.all([
+        supabase.from('startup_bookmarks').select('id').eq('startup_id', id).eq('user_id', userId).maybeSingle(),
+        supabase.from('startup_upvotes').select('id').eq('startup_id', id).eq('user_id', userId).maybeSingle(),
+      ]);
 
-      startup.is_bookmarked = !!bookmark;
+      startup.is_bookmarked = !!bookmarkRes.data;
+      startup.is_upvoted = !!upvoteRes.data;
     }
 
-    // Get view count
-    const { count } = await supabase
-      .from('startup_profile_views')
-      .select('*', { count: 'exact', head: true })
-      .eq('startup_id', id);
+    // Get counts
+    const [viewCountRes, upvoteCountRes] = await Promise.all([
+      supabase.from('startup_profile_views').select('*', { count: 'exact', head: true }).eq('startup_id', id),
+      supabase.from('startup_upvotes').select('*', { count: 'exact', head: true }).eq('startup_id', id),
+    ]);
 
-    startup.view_count = count || 0;
+    startup.view_count = viewCountRes.count || 0;
+    startup.upvote_count = upvoteCountRes.count || 0;
 
     return { data: startup, error: null };
   } catch (err) {
@@ -282,12 +284,13 @@ export async function fetchMyStartup(ownerId: string): Promise<StartupResponse> 
     }
 
     if (data) {
-      const { count } = await supabase
-        .from('startup_profile_views')
-        .select('*', { count: 'exact', head: true })
-        .eq('startup_id', data.id);
+      const [viewCountRes, upvoteCountRes] = await Promise.all([
+        supabase.from('startup_profile_views').select('*', { count: 'exact', head: true }).eq('startup_id', data.id),
+        supabase.from('startup_upvotes').select('*', { count: 'exact', head: true }).eq('startup_id', data.id),
+      ]);
 
-      (data as StartupProfile).view_count = count || 0;
+      (data as StartupProfile).view_count = viewCountRes.count || 0;
+      (data as StartupProfile).upvote_count = upvoteCountRes.count || 0;
     }
 
     return { data: data as StartupProfile | null, error: null };
@@ -315,15 +318,16 @@ export async function fetchMyVentures(ownerId: string): Promise<StartupsResponse
       return { data: null, error };
     }
 
-    // Enrich with view counts
+    // Enrich with counts
     if (data && data.length > 0) {
       await Promise.all(
         data.map(async (item: Record<string, unknown>) => {
-          const { count } = await supabase
-            .from('startup_profile_views')
-            .select('*', { count: 'exact', head: true })
-            .eq('startup_id', item.id);
-          (item as StartupProfile).view_count = count || 0;
+          const [viewCountRes, upvoteCountRes] = await Promise.all([
+            supabase.from('startup_profile_views').select('*', { count: 'exact', head: true }).eq('startup_id', item.id as string),
+            supabase.from('startup_upvotes').select('*', { count: 'exact', head: true }).eq('startup_id', item.id as string),
+          ]);
+          (item as StartupProfile).view_count = viewCountRes.count || 0;
+          (item as StartupProfile).upvote_count = upvoteCountRes.count || 0;
         })
       );
     }
@@ -484,6 +488,26 @@ export async function upsertAwards(
       startup_id: startupId,
       year: a.year ? `${a.year}-01-01` : null,
     })));
+
+  return { error };
+}
+
+// --- Upvotes ---
+
+export async function upvoteStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from('startup_upvotes')
+    .insert([{ user_id: userId, startup_id: startupId }]);
+
+  return { error };
+}
+
+export async function unupvoteStartup(userId: string, startupId: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from('startup_upvotes')
+    .delete()
+    .eq('user_id', userId)
+    .eq('startup_id', startupId);
 
   return { error };
 }
