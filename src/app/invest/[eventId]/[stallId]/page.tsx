@@ -56,22 +56,11 @@ export default function InvestViaQRPage() {
   const [totalFunding, setTotalFunding] = useState(0);
   const [investorCount, setInvestorCount] = useState(0);
 
-  // Try to open in mobile app if on mobile device
+  // On mobile, show "Open in App" option instead of auto-redirecting
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    if (!eventId || !stallId) return;
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (!isMobile) return;
-
-    // Try custom scheme — if app is installed, it opens; otherwise nothing happens
-    const appUrl = `ments://invest/${eventId}/${stallId}`;
-    const timeout = setTimeout(() => {
-      // If we're still here after 1.5s, app didn't open — stay on web
-    }, 1500);
-
-    window.location.href = appUrl;
-
-    return () => clearTimeout(timeout);
-  }, [eventId, stallId]);
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
 
   // Fetch event + stall info
   useEffect(() => {
@@ -231,6 +220,19 @@ export default function InvestViaQRPage() {
           </div>
         </div>
       </div>
+
+      {/* Open in App banner for mobile users */}
+      {isMobile && (
+        <div className="max-w-lg mx-auto px-4 pt-3">
+          <a
+            href={`ments://invest/${eventId}/${stallId}`}
+            className="flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 px-4 py-2.5 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open in Ments App
+          </a>
+        </div>
+      )}
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
         {/* Stall Header Card */}
