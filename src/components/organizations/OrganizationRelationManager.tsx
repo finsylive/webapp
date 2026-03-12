@@ -116,7 +116,7 @@ export function OrganizationRelationManager({
       <div>
         <h3 className="text-sm font-semibold text-foreground">Request Startup Associations</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Organization admins can only send requests. The startup owner must accept before the startup appears under this organization.
+          Startup facilitator admins can only send requests. The startup owner must accept before the startup appears under this facilitator profile.
         </p>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { StartupProfile } from '@/api/startups';
+import { toProxyUrl } from '@/utils/imageUtils';
 import {
   Rocket, Globe, Mail, Phone, FileText, TrendingUp, Users, Award,
   Building, Bookmark, BookmarkCheck, ExternalLink, Eye, MapPin,
@@ -331,22 +332,24 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
             }).map((f) => {
               const isAccepted = f.status === 'accepted';
               const isPending = f.status === 'pending';
-              const hasMents = !!f.ments_username && isAccepted;
-              const isEmailOnly = !f.user_id && isAccepted;
-              const profileHref = hasMents ? `/profile/${f.ments_username}` : undefined;
-              const Wrapper = profileHref ? 'a' : 'div';
-              const wrapperProps = profileHref ? { href: profileHref } : {};
+              
+              // Prefer real-time data from joined user, fallback to denormalized
+              const username = f.user?.username || f.ments_username;
+              const avatar = f.user?.avatar_url || f.avatar_url;
+              
+              const hasMents = !!username && isAccepted;
+              const profileHref = hasMents ? `/profile/${username}` : null;
 
-              return (
-                <Wrapper
-                  key={f.id}
-                  {...wrapperProps}
-                  className={`flex items-center gap-4 p-4 bg-accent/15 rounded-2xl border border-border/20 group transition-all duration-200 ${
-                    hasMents ? 'hover:bg-accent/30 hover:border-primary/30 hover:shadow-md cursor-pointer' : ''
-                  } ${isPending ? 'opacity-70' : ''}`}
-                >
-                  {f.avatar_url ? (
-                    <img src={f.avatar_url} alt={f.name} className="h-12 w-12 rounded-xl object-cover flex-shrink-0 shadow-sm transition-transform group-hover:scale-105" />
+              const CardContent = (
+                <div className={`flex items-center gap-4 p-4 bg-accent/15 rounded-2xl border border-border/20 group transition-all duration-200 h-full ${
+                  hasMents ? 'hover:bg-accent/30 hover:border-primary/30 hover:shadow-md' : ''
+                } ${isPending ? 'opacity-70' : ''}`}>
+                  {avatar ? (
+                    <img 
+                      src={toProxyUrl(avatar, { width: 48, quality: 80 })} 
+                      alt={f.name} 
+                      className="h-12 w-12 rounded-xl object-cover flex-shrink-0 shadow-sm transition-transform group-hover:scale-105" 
+                    />
                   ) : (
                     <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
                       isPending
@@ -367,14 +370,24 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
                     </div>
                     {hasMents ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary/80 mt-0.5 group-hover:text-primary transition-colors">
-                        @{f.ments_username}
+                        @{username}
                         <ChevronRight className="h-3 w-3" />
                       </span>
                     ) : f.role ? (
                       <span className="text-xs font-medium text-muted-foreground mt-0.5 block">{f.role}</span>
                     ) : null}
                   </div>
-                </Wrapper>
+                </div>
+              );
+
+              return profileHref ? (
+                <Link key={f.id} href={profileHref} className="block h-full">
+                  {CardContent}
+                </Link>
+              ) : (
+                <div key={f.id} className="h-full">
+                  {CardContent}
+                </div>
               );
             })}
           </div>

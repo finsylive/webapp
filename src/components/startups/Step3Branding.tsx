@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from 'react';
-import { Upload, X, ImageIcon, Sparkles } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Upload, X, ImageIcon, Sparkles, Replace, Move } from 'lucide-react';
 
 type Step3Props = {
   logoUrl: string;
@@ -20,6 +20,9 @@ export function Step3Branding({
 }: Step3Props) {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [logoXPos, setLogoXPos] = useState(50);
+  const [logoYPos, setLogoYPos] = useState(50);
+  const [bannerYPos, setBannerYPos] = useState(50);
 
   return (
     <div className="space-y-8">
@@ -31,21 +34,64 @@ export function Step3Branding({
       {/* Logo Upload */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">Logo</label>
-        <div className="flex items-start gap-5">
-          {logoUrl ? (
-            <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-border/40 group shadow-sm">
-              <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={onRemoveLogo}
-                  className="p-2 bg-white/90 rounded-full shadow-sm"
-                >
-                  <X className="h-4 w-4 text-gray-700" />
-                </button>
+        {logoUrl ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-5">
+              <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-border/40 group shadow-sm">
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="w-full h-full object-cover"
+                  style={{ objectPosition: `${logoXPos}% ${logoYPos}%` }}
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="p-2 bg-white/90 rounded-full shadow-sm"
+                    title="Replace"
+                  >
+                    <Replace className="h-4 w-4 text-gray-700" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onRemoveLogo}
+                    className="p-2 bg-white/90 rounded-full shadow-sm"
+                    title="Remove"
+                  >
+                    <X className="h-4 w-4 text-gray-700" />
+                  </button>
+                </div>
+              </div>
+              <div className="pt-2 space-y-1">
+                <p className="text-xs text-muted-foreground">Recommended: 256 x 256px</p>
+                <p className="text-xs text-muted-foreground/60">PNG, JPG or SVG</p>
               </div>
             </div>
-          ) : (
+            {/* Logo position sliders */}
+            <div className="flex items-center gap-3 px-1">
+              <span className="text-[10px] text-muted-foreground/60 w-4 flex-shrink-0">X</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={logoXPos}
+                onChange={(e) => setLogoXPos(Number(e.target.value))}
+                className="w-full h-1.5 bg-border/60 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm"
+              />
+              <span className="text-[10px] text-muted-foreground/60 w-4 flex-shrink-0">Y</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={logoYPos}
+                onChange={(e) => setLogoYPos(Number(e.target.value))}
+                className="w-full h-1.5 bg-border/60 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-5">
             <button
               type="button"
               onClick={() => logoInputRef.current?.click()}
@@ -61,12 +107,12 @@ export function Step3Branding({
                 </>
               )}
             </button>
-          )}
-          <div className="pt-2 space-y-1">
-            <p className="text-xs text-muted-foreground">Recommended: 256 x 256px</p>
-            <p className="text-xs text-muted-foreground/60">PNG, JPG or SVG</p>
+            <div className="pt-2 space-y-1">
+              <p className="text-xs text-muted-foreground">Recommended: 256 x 256px</p>
+              <p className="text-xs text-muted-foreground/60">PNG, JPG or SVG</p>
+            </div>
           </div>
-        </div>
+        )}
         <input
           ref={logoInputRef}
           type="file"
@@ -84,16 +130,45 @@ export function Step3Branding({
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">Banner Image</label>
         {bannerUrl ? (
-          <div className="relative w-full h-44 rounded-2xl overflow-hidden border-2 border-border/40 group shadow-sm">
-            <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <button
-                type="button"
-                onClick={onRemoveBanner}
-                className="p-2 bg-white/90 rounded-full shadow-sm"
-              >
-                <X className="h-4 w-4 text-gray-700" />
-              </button>
+          <div className="space-y-3">
+            <div className="relative w-full h-44 rounded-2xl overflow-hidden border-2 border-border/40 group shadow-sm">
+              <img
+                src={bannerUrl}
+                alt="Banner"
+                className="w-full h-full object-cover"
+                style={{ objectPosition: `center ${bannerYPos}%` }}
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => bannerInputRef.current?.click()}
+                  className="p-2 bg-white/90 rounded-full shadow-sm"
+                  title="Replace"
+                >
+                  <Replace className="h-4 w-4 text-gray-700" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onRemoveBanner}
+                  className="p-2 bg-white/90 rounded-full shadow-sm"
+                  title="Remove"
+                >
+                  <X className="h-4 w-4 text-gray-700" />
+                </button>
+              </div>
+            </div>
+            {/* Position slider */}
+            <div className="flex items-center gap-3 px-1">
+              <Move className="h-3.5 w-3.5 text-muted-foreground/60 flex-shrink-0" />
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={bannerYPos}
+                onChange={(e) => setBannerYPos(Number(e.target.value))}
+                className="w-full h-1.5 bg-border/60 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm"
+              />
+              <span className="text-[10px] text-muted-foreground/50 tabular-nums w-8 text-right flex-shrink-0">{bannerYPos}%</span>
             </div>
           </div>
         ) : (

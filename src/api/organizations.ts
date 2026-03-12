@@ -12,6 +12,7 @@ export type OrganizationType =
 export type OrganizationRole = 'owner' | 'admin' | 'reviewer' | 'editor';
 export type OrganizationRelationType = 'incubated' | 'accelerated' | 'partnered' | 'mentored' | 'funded' | 'community_member';
 export type OrganizationRelationStatus = 'requested' | 'accepted' | 'active' | 'alumni' | 'rejected' | 'withdrawn';
+export type FacilitatorVerificationStatus = 'unverified' | 'pending_review' | 'verified' | 'rejected';
 
 export type OrganizationListItem = {
   id: string;
@@ -25,6 +26,7 @@ export type OrganizationListItem = {
   state: string | null;
   country: string | null;
   is_verified: boolean;
+  verification_status: FacilitatorVerificationStatus;
   is_published: boolean;
   sectors: string[];
   support_types: string[];
@@ -77,6 +79,16 @@ export type OrganizationProfile = OrganizationListItem & {
   stage_focus: string[];
   created_by: string;
   updated_at: string;
+  verification_requested_at: string | null;
+  verification_reviewed_at: string | null;
+  verification_submitted_by: string | null;
+  verification_rejection_reason: string | null;
+  verification_details: {
+    official_email?: string | null;
+    role_title?: string | null;
+    evidence_links?: string[];
+    proof_summary?: string | null;
+  };
   is_admin: boolean;
   member_role: OrganizationRole | null;
   relations: OrganizationStartupRelation[];
@@ -99,6 +111,13 @@ export type CreateOrganizationInput = {
   stage_focus?: string[];
   support_types?: string[];
   is_published?: boolean;
+};
+
+export type FacilitatorVerificationInput = {
+  official_email: string;
+  role_title?: string;
+  evidence_links?: string[];
+  proof_summary?: string;
 };
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -171,4 +190,25 @@ export async function respondToOrgRequest(id: string, action: 'accept' | 'reject
     body: JSON.stringify({ action }),
   });
   return parseJson<{ data: { id: string; status: OrganizationRelationStatus } }>(res);
+}
+
+export async function applyForFacilitatorVerification(
+  slug: string,
+  input: FacilitatorVerificationInput
+) {
+  const res = await fetch(`/api/organizations/${slug}/verification/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return parseJson<{
+    data: {
+      verification_status: FacilitatorVerificationStatus;
+      verification_requested_at: string | null;
+      verification_reviewed_at: string | null;
+      verification_rejection_reason: string | null;
+      verification_details: OrganizationProfile['verification_details'];
+      is_verified: boolean;
+    };
+  }>(res);
 }

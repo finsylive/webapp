@@ -42,8 +42,8 @@ export default function EnvironmentsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Communities</h1>
-          <p className="text-sm text-muted-foreground mt-1">Browse and join communities to connect with like-minded builders</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Spaces</h1>
+          <p className="text-sm text-muted-foreground mt-1">Browse posting spaces across the platform.</p>
         </div>
 
         {/* Content */}
@@ -66,7 +66,7 @@ export default function EnvironmentsPage() {
           <div className="flex flex-col items-center justify-center py-16">
             <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <p className="text-muted-foreground mb-2">No communities yet</p>
-            <p className="text-sm text-muted-foreground">Communities will appear here once created.</p>
+            <p className="text-sm text-muted-foreground">Posting spaces will appear here once available.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -45,7 +45,7 @@ export default function OrganizationDetailPage() {
       <div className="space-y-5">
         <Link href="/organizations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
-          Back to organizations
+          Back to startup facilitators
         </Link>
 
         {loading ? (
@@ -182,7 +182,7 @@ export default function OrganizationDetailPage() {
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Associated startups</h2>
                 <p className="text-sm text-muted-foreground">
-                  Accepted, active, and alumni startups linked to this organization.
+                  Accepted, active, and alumni startups linked to this startup facilitator.
                 </p>
               </div>
 
@@ -232,9 +232,9 @@ export default function OrganizationDetailPage() {
               <section className="rounded-3xl border border-border/40 bg-card p-6 shadow-sm">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-foreground">Organization admin</h2>
+                    <h2 className="text-lg font-semibold text-foreground">Facilitator admin</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Manage startup relations and org-facing operations from the dashboard, not the public profile.
+                      Manage startup relations and facilitator-facing operations from the dashboard, not the public profile.
                     </p>
                   </div>
                   <Link

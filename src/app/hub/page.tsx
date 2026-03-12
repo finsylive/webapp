@@ -134,7 +134,7 @@ type OrganizationResourceItem = {
 
 const RESOURCE_CATEGORIES = [
   { key: 'All', label: 'All' },
-  { key: 'Organizations', label: 'Organizations' },
+  { key: 'Organizations', label: 'Startup Facilitators' },
   { key: 'accelerator_incubator', label: 'Accelerators' },
   { key: 'company_offer', label: 'Company Offers' },
   { key: 'tool', label: 'Tools' },
@@ -1354,7 +1354,7 @@ function HubPageContent() {
               </>
             ) : (
               <div className="text-center text-muted-foreground py-10">
-                {resourceFilter === 'Organizations' ? 'No organization profiles available right now.' : 'No resources in this category.'}
+                {resourceFilter === 'Organizations' ? 'No startup facilitator profiles available right now.' : 'No resources in this category.'}
               </div>
             )}
           </div>

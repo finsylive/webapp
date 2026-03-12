@@ -13,7 +13,7 @@ import { Rocket, Plus, ChevronUp, ChevronDown, Bookmark, MapPin, X, TrendingUp, 
 // ... (types and helpers unchanged)
 import { fetchMyVentures, updateStartup, StartupProfile } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
-import { fetchStartupOrgRequests, respondToOrgRequest, type StartupOrgRequest } from '@/api/organizations';
+import { fetchOrganizations, fetchStartupOrgRequests, respondToOrgRequest, type OrganizationListItem, type StartupOrgRequest } from '@/api/organizations';
 import { DealFlowTab } from '@/components/investor/DealFlowTab';
 import { InvestorVerifyModal } from '@/components/investor/InvestorVerifyModal';
 
@@ -97,8 +97,9 @@ function StartupsPageContent() {
 
   // ── Tab system ──
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'directory' | 'my' | 'dealflow'>('directory');
+  const [activeTab, setActiveTab] = useState<'directory' | 'my' | 'facilitators' | 'dealflow'>('directory');
   const [myVentures, setMyVentures] = useState<StartupProfile[]>([]);
+  const [myFacilitators, setMyFacilitators] = useState<OrganizationListItem[]>([]);
   const [orgRequests, setOrgRequests] = useState<StartupOrgRequest[]>([]);
   const [investorStatus, setInvestorStatus] = useState<string>('none');
   const [primaryInterest, setPrimaryInterest] = useState<string | null>(null);
@@ -107,17 +108,20 @@ function StartupsPageContent() {
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab === 'my') setActiveTab('my');
+    else if (tab === 'facilitators') setActiveTab('facilitators');
     else if (tab === 'dealflow') setActiveTab('dealflow');
   }, [searchParams]);
 
   useEffect(() => {
     if (!user) return;
     const fetchMeta = async () => {
-      const [venturesRes, userRes] = await Promise.all([
+      const [venturesRes, facilitatorRes, userRes] = await Promise.all([
         fetchMyVentures(user.id),
+        fetchOrganizations({ mine: true }),
         supabase.from('users').select('investor_status, primary_interest').eq('id', user.id).single(),
       ]);
       setMyVentures(venturesRes.data ?? []);
+      setMyFacilitators(facilitatorRes.data ?? []);
       setInvestorStatus(userRes.data?.investor_status ?? 'none');
       setPrimaryInterest(userRes.data?.primary_interest ?? null);
       try {
@@ -273,7 +277,7 @@ function StartupsPageContent() {
                     <Building2 className="h-4 w-4 text-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">Organization</p>
+                    <p className="text-sm font-medium text-foreground">Startup Facilitator</p>
                     <p className="text-xs text-muted-foreground">Incubator, accelerator, e-cell</p>
                   </div>
                 </Link>
@@ -307,6 +311,7 @@ function StartupsPageContent() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           showMyVentures={myVentures.length > 0}
+          showFacilitators={myFacilitators.length > 0}
           showDealFlow={investorStatus === 'verified'}
         />
 
@@ -414,6 +419,10 @@ function StartupsPageContent() {
         {/* ── My Ventures Tab ── */}
         {activeTab === 'my' && myVentures.length > 0 && (
           <MyVenturesTab ventures={myVentures} onUpdate={setMyVentures} orgRequests={orgRequests} onRequestsUpdate={setOrgRequests} />
+        )}
+
+        {activeTab === 'facilitators' && myFacilitators.length > 0 && (
+          <MyFacilitatorsTab facilitators={myFacilitators} />
         )}
 
         {/* ── Deal Flow Tab ── */}
@@ -890,10 +899,11 @@ function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
 
 // ── Tab Bar ──────────────────────────────────────────────────────────────────
 
-function TabBar({ activeTab, setActiveTab, showMyVentures, showDealFlow }: {
+function TabBar({ activeTab, setActiveTab, showMyVentures, showFacilitators, showDealFlow }: {
   activeTab: string;
-  setActiveTab: (tab: 'directory' | 'my' | 'dealflow') => void;
+  setActiveTab: (tab: 'directory' | 'my' | 'facilitators' | 'dealflow') => void;
   showMyVentures: boolean;
+  showFacilitators: boolean;
   showDealFlow: boolean;
 }) {
   return (
@@ -901,6 +911,9 @@ function TabBar({ activeTab, setActiveTab, showMyVentures, showDealFlow }: {
       <TabPill label="Directory" active={activeTab === 'directory'} onClick={() => setActiveTab('directory')} />
       {showMyVentures && (
         <TabPill label="My Ventures" active={activeTab === 'my'} onClick={() => setActiveTab('my')} />
+      )}
+      {showFacilitators && (
+        <TabPill label="Startup Facilitators" active={activeTab === 'facilitators'} onClick={() => setActiveTab('facilitators')} />
       )}
       {showDealFlow && (
         <TabPill label="Deal Flow" active={activeTab === 'dealflow'} onClick={() => setActiveTab('dealflow')} />
@@ -1012,10 +1025,10 @@ function MyVenturesTab({
               <div className="bg-card border border-amber-500/20 rounded-2xl p-4 sm:p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Inbox className="h-4 w-4 text-amber-500" />
-                  <h3 className="text-sm font-semibold text-foreground">Pending organization requests</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Pending facilitator requests</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  These organizations requested to show <span className="font-medium text-foreground">{startup.brand_name}</span> under their profile. Nothing goes live unless you accept it.
+                  These startup facilitators requested to show <span className="font-medium text-foreground">{startup.brand_name}</span> under their profile. Nothing goes live unless you accept it.
                 </p>
                 <div className="space-y-2">
                   {pendingRequests.map((request) => (
@@ -1092,6 +1105,73 @@ function MyVenturesTab({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function MyFacilitatorsTab({ facilitators }: { facilitators: OrganizationListItem[] }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {facilitators.map((facilitator) => (
+          <div key={facilitator.id} className="rounded-2xl border border-border/50 bg-card p-5">
+            <div className="flex items-start gap-4">
+              {facilitator.logo_url ? (
+                <img src={facilitator.logo_url} alt={facilitator.name} className="h-14 w-14 rounded-2xl border border-border/40 object-cover" />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/15">
+                  <Building2 className="h-6 w-6" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-semibold text-foreground">{facilitator.name}</h3>
+                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {facilitator.org_type.replace(/_/g, ' ')}
+                  </span>
+                  {facilitator.is_verified && (
+                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">
+                      Verified
+                    </span>
+                  )}
+                </div>
+                {facilitator.short_bio && (
+                  <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{facilitator.short_bio}</p>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  {(facilitator.city || facilitator.state || facilitator.country) && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {[facilitator.city, facilitator.state, facilitator.country].filter(Boolean).join(', ')}
+                    </span>
+                  )}
+                  {facilitator.website && (
+                    <span className="inline-flex items-center gap-1">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Website
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href={`/organizations/${facilitator.slug}/dashboard`}
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Manage dashboard
+              </Link>
+              <Link
+                href={`/organizations/${facilitator.slug}`}
+                className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2 text-sm font-medium hover:bg-muted/30"
+              >
+                View public profile
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

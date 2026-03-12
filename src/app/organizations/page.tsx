@@ -120,11 +120,11 @@ export default function OrganizationsPage() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
-                Support Organizations
+                Startup Support
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Organizations</h1>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Startup Facilitators</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Explore incubators, accelerators, e-cells, and support bodies. Create a public profile for your organization and showcase accepted startups.
+                Explore incubators, accelerators, e-cells, and support bodies. Create a public profile for your startup facilitator and showcase accepted startups.
               </p>
             </div>
             <Link
@@ -132,7 +132,7 @@ export default function OrganizationsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
             >
               <Plus className="h-4 w-4" />
-              Create Organization
+              Create Facilitator Profile
             </Link>
           </div>
         </section>
@@ -143,7 +143,7 @@ export default function OrganizationsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search organizations"
+              placeholder="Search startup facilitators"
               className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -162,7 +162,7 @@ export default function OrganizationsPage() {
           <section className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Managed by you</h2>
-              <p className="text-sm text-muted-foreground">Organizations where you can operate through the dedicated dashboard.</p>
+              <p className="text-sm text-muted-foreground">Startup facilitator profiles you can manage through the dedicated dashboard.</p>
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {myOrganizations.map((org) => (
@@ -174,7 +174,7 @@ export default function OrganizationsPage() {
 
         <section className="space-y-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Published organizations</h2>
+            <h2 className="text-lg font-semibold text-foreground">Published facilitator profiles</h2>
             <p className="text-sm text-muted-foreground">Discover public support bodies on the platform.</p>
           </div>
 
@@ -187,7 +187,7 @@ export default function OrganizationsPage() {
           ) : organizations.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/70 px-6 py-12 text-center">
               <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">No organizations found for the current filters.</p>
+              <p className="mt-3 text-sm text-muted-foreground">No startup facilitator profiles found for the current filters.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

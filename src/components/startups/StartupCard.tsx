@@ -72,7 +72,7 @@ function StartupLogo({ startup }: { startup: StartupProfile }) {
             } else {
               setDirectFailed(true);
             }
-            setProxyFailed(true);
+            proxyFailed && setProxyFailed(true);
           } else {
             setDirectFailed(true);
           }
@@ -183,20 +183,23 @@ export function StartupCard({ startup }: { startup: StartupProfile }) {
           <div className="px-5 py-3.5 border-t border-border/30 bg-accent/10 flex items-center justify-between mt-auto relative z-10 group-hover:bg-accent/20 transition-colors">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex -space-x-2">
-                {acceptedFounders.slice(0, 3).map((f, i) => (
-                  <div
-                    key={f.id}
-                    className="h-6 w-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary shadow-sm"
-                    style={{ zIndex: 3 - i }}
-                    title={f.name}
-                  >
-                    {f.avatar_url ? (
-                      <img src={f.avatar_url} alt={f.name} className="h-full w-full rounded-full object-cover" />
-                    ) : (
-                      f.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                ))}
+                {acceptedFounders.slice(0, 3).map((f, i) => {
+                  const avatar = f.user?.avatar_url || f.avatar_url;
+                  return (
+                    <div
+                      key={f.id}
+                      className="h-6 w-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary shadow-sm"
+                      style={{ zIndex: 3 - i }}
+                      title={f.name}
+                    >
+                      {avatar ? (
+                        <img src={toProxyUrl(avatar, { width: 32, quality: 75 })} alt={f.name} className="h-full w-full rounded-full object-cover" />
+                      ) : (
+                        f.name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <span className="text-[11px] font-bold text-muted-foreground truncate group-hover:text-foreground transition-colors">
                 {acceptedFounders[0].name.split(' ')[0]}

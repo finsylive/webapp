@@ -407,7 +407,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             error: errorData
           });
           throw new Error(
-            errorData.error || 'Communities couldn\u2019t be loaded right now. Try again?'
+            errorData.error || 'Spaces could not be loaded right now. Try again?'
           );
         }
 
@@ -433,14 +433,18 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
 
           setEnvironments(formattedEnvs);
 
-          // Set the first environment as default if none selected
+          const explicitDefault =
+            formattedEnvs.find((env) => env.name.toLowerCase() === 'general')
+            || formattedEnvs[0];
+
+          // Set explicit default environment if none selected
           if (!selectedEnvironment) {
-            setSelectedEnvironment(formattedEnvs[0]);
-            setEnvironmentId(formattedEnvs[0].id);
+            setSelectedEnvironment(explicitDefault);
+            setEnvironmentId(explicitDefault.id);
           }
         } else {
           console.warn('No environments available');
-          setError('No environments available. Please contact support.');
+          setError('No spaces available. Please contact support.');
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -686,7 +690,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
     }
 
     if (!environmentId) {
-      setError('No environment selected. Please try again later.');
+      setError('No space selected. Please try again later.');
       return;
     }
 
@@ -838,7 +842,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   return (
     <>
     <form onSubmit={handleSubmit}>
-      {/* Author row: avatar + name + environment dropdown */}
+      {/* Author row: avatar + name + space dropdown */}
       <div className="flex items-start gap-3 mb-4">
         <UserAvatar
           src={userData?.avatar_url}
@@ -861,7 +865,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               ) : (
                 <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               )}
-              <span className="text-xs font-medium text-muted-foreground">{selectedEnvironment?.name || 'Select environment'}</span>
+              <span className="text-xs font-medium text-muted-foreground">{selectedEnvironment?.name || 'Select space'}</span>
               <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isEnvDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -872,7 +876,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                     type="text"
                     value={envQuery}
                     onChange={(e) => setEnvQuery(e.target.value)}
-                    placeholder="Search environments..."
+                    placeholder="Search spaces..."
                     className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
@@ -900,7 +904,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                     </button>
                   ))}
                   {!envLoading && filteredEnvs.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-3">No environments found.</p>
+                    <p className="text-xs text-muted-foreground text-center py-3">No spaces found.</p>
                   )}
                 </div>
               </div>
