@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon, CalendarOff, Package, FolderOpen, Building2 } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon, Package, FolderOpen, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
@@ -367,6 +367,9 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
           <div className="flex items-center gap-2 flex-wrap">
             {c.is_featured && <Star className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500 shrink-0" />}
             <h4 className="text-base sm:text-lg font-semibold text-foreground truncate">{c.title}</h4>
+            <span className="text-xs font-semibold text-orange-700 dark:text-orange-300 bg-orange-400/10 border border-orange-500/30 dark:border-orange-400/30 px-2.5 py-0.5 rounded-full shrink-0">
+              Competition
+            </span>
             {c.domain && (
               <span className="text-xs font-medium bg-violet-400/10 text-violet-700 dark:text-violet-300 border border-violet-400/30 px-2 py-0.5 rounded-full shrink-0">
                 {domainLabels[c.domain] ?? c.domain}
@@ -567,6 +570,172 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
         </div>
       </div>
 
+    </Link>
+  );
+};
+
+// --- Featured Event card (hero banner style, mirrors FeaturedCompetitionCard) ---
+
+const EVENT_TYPE_PILL: Record<string, string> = {
+  online: 'bg-sky-500/70',
+  'in-person': 'bg-violet-500/70',
+  hybrid: 'bg-amber-500/70',
+};
+
+const FeaturedEventCard = ({ event, user }: { event: EventItem; user: { id: string } | null }) => {
+  const ended = isEnded(event);
+  const categoryLabel = EVENT_CATEGORY_LABELS[event.category ?? 'event'] ?? 'Event';
+
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [checkingJoin, setCheckingJoin] = useState(true);
+  const [participantCount, setParticipantCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) { setCheckingJoin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [joinRes, countRes] = await Promise.all([
+          supabase
+            .from('event_participants')
+            .select('user_id')
+            .eq('event_id', event.id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('event_participants')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id),
+        ]);
+        if (!cancelled) {
+          setJoined(!!joinRes.data);
+          setParticipantCount(countRes.count ?? 0);
+        }
+      } catch { }
+      if (!cancelled) setCheckingJoin(false);
+    })();
+    return () => { cancelled = true; };
+  }, [event.id, user]);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || ended) return;
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/events/${encodeURIComponent(event.id)}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) setJoined(true);
+      else if (json.alreadyJoined) setJoined(true);
+    } catch { }
+    setJoining(false);
+  };
+
+  return (
+    <Link href={`/hub/event/${encodeURIComponent(event.id)}`} className="block rounded-2xl overflow-hidden bg-card/70 border border-border/60 shadow-sm hover:shadow-md transition-shadow">
+      {/* Banner */}
+      <div className="relative h-44 sm:h-56 md:h-64 w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {(() => {
+          const url = resolveBannerUrl(event.banner_image_url);
+          return url ? (
+            <Image src={url} alt={event.title} fill className="object-cover" priority sizes="(max-width: 768px) 100vw, 1024px" />
+          ) : null;
+        })()}
+        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 flex items-end md:items-center justify-start p-5 md:p-8">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {event.is_featured && (
+                <span className="flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                  <Star className="h-3 w-3 fill-white" /> Featured
+                </span>
+              )}
+              <span className="text-xs font-semibold bg-blue-500/70 text-white px-2 py-0.5 rounded-full">
+                {categoryLabel}
+              </span>
+              {event.event_type && (
+                <span className={`text-xs font-semibold text-white px-2 py-0.5 rounded-full ${EVENT_TYPE_PILL[event.event_type] ?? 'bg-white/20'}`}>
+                  {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
+                </span>
+              )}
+            </div>
+            <div className="text-white/95 text-xl md:text-2xl font-extrabold drop-shadow">{event.title}</div>
+            {event.organizer_name && (
+              <p className="text-slate-200/70 text-xs mt-0.5">by {event.organizer_name}</p>
+            )}
+            {event.description && (
+              <p className="text-slate-200/80 text-xs md:text-sm mt-1 line-clamp-2 max-w-2xl">{event.description}</p>
+            )}
+            {(event.tags ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(event.tags ?? []).slice(0, 4).map((tag) => (
+                  <span key={tag} className="text-[10px] font-medium bg-white/10 text-white/80 px-1.5 py-0.5 rounded-full">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="absolute inset-0 ring-1 ring-white/10 rounded-b-2xl" />
+      </div>
+
+      {/* Content */}
+      <div className="p-5 md:p-6">
+        <div className="mt-1 flex flex-wrap items-center gap-4">
+          {event.event_date && (
+            <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(event.event_date), 'dd MMM, yyyy')}</Stat>
+          )}
+          {event.location && <Stat icon={MapPin}>{event.location}</Stat>}
+          {participantCount !== null && (
+            <Stat icon={Users}>{participantCount} registered</Stat>
+          )}
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <span className="flex-1 md:flex-none md:min-w-[140px] inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
+            View Details
+          </span>
+          <button
+            onClick={handleJoin}
+            disabled={joined || joining || checkingJoin || ended}
+            className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${
+              joined
+                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40'
+                : ended
+                  ? 'bg-muted text-muted-foreground border border-border/60'
+                  : 'bg-emerald-600 dark:bg-emerald-500/90 text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50'
+            }`}
+          >
+            {checkingJoin ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : joined ? (
+              <><CheckCircle className="h-4 w-4" /> Registered</>
+            ) : ended ? (
+              <>Ended</>
+            ) : joining ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>Register <ArrowRight className="h-4 w-4" /></>
+            )}
+          </button>
+          {event.event_url && (
+            <a
+              href={event.event_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-muted-foreground px-4 py-2 text-xs font-medium hover:bg-accent/60 active:scale-95 transition"
+            >
+              External Link <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      </div>
     </Link>
   );
 };
@@ -859,6 +1028,7 @@ function HubPageContent() {
   const [featured, setFeatured] = useState<CompetitionItem | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [featuredEvent, setFeaturedEvent] = useState<EventItem | null>(null);
 
   // Jobs tab data
   const [jobs, setJobs] = useState<JobItem[]>([]);
@@ -925,10 +1095,16 @@ function HubPageContent() {
           }
 
           setCompetitions(Array.isArray(compJson.data) ? compJson.data : []);
-          setEvents(Array.isArray(eventsJson.data) ? eventsJson.data : []);
+
+          const eventsData: EventItem[] = Array.isArray(eventsJson.data) ? eventsJson.data : [];
+          setEvents(eventsData);
+          // Pick featured event: first explicitly featured, else nearest upcoming
+          const featuredEv = eventsData.find(e => e.is_featured) ?? eventsData[0] ?? null;
+          setFeaturedEvent(featuredEv);
         } catch (e) {
           console.error('Failed to load events data', e);
           setFeatured(null);
+          setFeaturedEvent(null);
           setCompetitions([]);
           setEvents([]);
         }
@@ -1021,10 +1197,6 @@ function HubPageContent() {
       return true;
     });
   }, [eventCategory, events, eventsSearch, filterMode]);
-
-  // Determine what to show based on selected sub-category
-  const showCompetitions = eventCategory === 'all' || eventCategory === 'competitions';
-  const showEvents = eventCategory !== 'competitions';
 
   return (
     <DashboardLayout fullWidth>
@@ -1150,74 +1322,113 @@ function HubPageContent() {
               ))}
             </div>
 
-            {/* Featured competition card (shown on "All" or "Competitions") */}
-            {showCompetitions && featured && !loading && (
-              <div>
-                <h3 className="text-lg md:text-xl font-bold mb-4">Featured</h3>
-                <FeaturedCompetitionCard c={featured} user={user} />
-              </div>
-            )}
+            {/* "All" view: single featured + unified list */}
+            {eventCategory === 'all' && (
+              <>
+                {/* Single featured post — prefer featured competition, fallback to featured event */}
+                {!loading && (featured || featuredEvent) && (
+                  <div>
+                    <h3 className="text-lg md:text-xl font-bold mb-4">Featured</h3>
+                    {featured ? (
+                      <FeaturedCompetitionCard c={featured} user={user} />
+                    ) : featuredEvent ? (
+                      <FeaturedEventCard event={featuredEvent} user={user} />
+                    ) : null}
+                  </div>
+                )}
 
-            {/* Competitions section (shown when "All" or "Competitions" is selected) */}
-            {showCompetitions && (
-              <div>
-                <h3 className="text-lg md:text-xl font-bold mb-4">Competitions</h3>
+                {/* Unified list of all competitions + events mixed together */}
                 <div className="grid gap-4">
                   {loading ? (
                     <>
                       <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                       <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                     </>
-                  ) : filteredCompetitions.length === 0 ? (
+                  ) : filteredCompetitions.length === 0 && filteredEvents.length === 0 ? (
                     <div className="flex flex-col items-center py-8 text-center">
                       <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
                         <Trophy className="h-5 w-5 text-muted-foreground/50" />
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {eventsSearch || filterDomain || filterPrize ? 'No competitions match your filters. Try adjusting your search.' : 'No competitions available right now. Check back soon!'}
+                        {eventsSearch || filterDomain || filterPrize || filterMode ? 'No results match your filters.' : 'No events or competitions yet.'}
                       </p>
                     </div>
                   ) : (
-                    filteredCompetitions.map(c => <CompetitionRowCard key={c.id} c={c} user={user} />)
+                    [...filteredCompetitions.map(c => ({ type: 'competition' as const, item: c, date: c.deadline })),
+                     ...filteredEvents.map(ev => ({ type: 'event' as const, item: ev, date: ev.event_date }))]
+                      .sort((a, b) => {
+                        const da = a.date ? Date.parse(a.date) : 0;
+                        const db = b.date ? Date.parse(b.date) : 0;
+                        return db - da;
+                      })
+                      .map(entry =>
+                        entry.type === 'competition'
+                          ? <CompetitionRowCard key={`comp-${entry.item.id}`} c={entry.item as CompetitionItem} user={user} />
+                          : <EventRowCard key={`evt-${entry.item.id}`} event={entry.item as EventItem} user={user} />
+                      )
                   )}
                 </div>
-              </div>
+              </>
             )}
 
-            {/* Divider between competitions and events (only when showing both) */}
-            {showCompetitions && showEvents && competitions.length > 0 && (
-              <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            {/* Competitions-only view */}
+            {eventCategory === 'competitions' && (
+              <>
+                {featured && !loading && (
+                  <div>
+                    <h3 className="text-lg md:text-xl font-bold mb-4">Featured</h3>
+                    <FeaturedCompetitionCard c={featured} user={user} />
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold mb-4">Competitions</h3>
+                  <div className="grid gap-4">
+                    {loading ? (
+                      <>
+                        <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                        <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                      </>
+                    ) : filteredCompetitions.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">{eventsSearch || filterDomain || filterPrize ? 'No competitions match your filters.' : 'No competitions yet.'}</div>
+                    ) : (
+                      filteredCompetitions.map(c => <CompetitionRowCard key={c.id} c={c} user={user} />)
+                    )}
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Events / Meetups / Workshops section */}
-            {showEvents && (
-              <div>
-                <h3 className="text-lg md:text-xl font-bold mb-4">
-                  {eventCategory === 'all' ? 'Events, Meetups & Workshops' :
-                    eventCategory === 'events' ? 'Events' :
-                      eventCategory === 'meetups' ? 'Meetups' :
-                        eventCategory === 'workshops' ? 'Workshops' : 'Events'}
-                </h3>
-                <div className="grid gap-4">
-                  {loading ? (
-                    <>
-                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
-                      <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
-                    </>
-                  ) : filteredEvents.length === 0 ? (
-                    <div className="flex flex-col items-center py-8 text-center">
-                      <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
-                        <CalendarOff className="h-5 w-5 text-muted-foreground/50" />
+            {/* Events / Meetups / Workshops specific view */}
+            {(eventCategory === 'events' || eventCategory === 'meetups' || eventCategory === 'workshops') && (
+              <>
+                {featuredEvent && !loading && eventCategory === 'events' && (
+                  <div>
+                    <h3 className="text-lg md:text-xl font-bold mb-4">Featured</h3>
+                    <FeaturedEventCard event={featuredEvent} user={user} />
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold mb-4">
+                    {eventCategory === 'events' ? 'Events' :
+                      eventCategory === 'meetups' ? 'Meetups' : 'Workshops'}
+                  </h3>
+                  <div className="grid gap-4">
+                    {loading ? (
+                      <>
+                        <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                        <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
+                      </>
+                    ) : filteredEvents.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No {eventCategory} yet.
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        No {eventCategory === 'all' ? 'events' : eventCategory} available right now. Check back soon!
-                      </p>
-                    </div>
-                  ) : (
-                    filteredEvents.map(ev => <EventRowCard key={ev.id} event={ev} user={user} />)
-                  )}
+                    ) : (
+                      filteredEvents.map(ev => <EventRowCard key={ev.id} event={ev} user={user} />)
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}

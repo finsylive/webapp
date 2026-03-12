@@ -8,13 +8,17 @@ type StallQRCodeProps = {
   eventId: string;
   stallId: string;
   stallName: string;
+  startupId?: string | null;
 };
 
-export function StallQRCode({ eventId, stallId, stallName }: StallQRCodeProps) {
+export function StallQRCode({ eventId, stallId, stallName, startupId }: StallQRCodeProps) {
   const [showModal, setShowModal] = useState(false);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  const investUrl = `${baseUrl}/invest/${eventId}/${stallId}`;
+  // If startup is linked, QR points to startup profile with arena context; otherwise fallback to /invest page
+  const investUrl = startupId
+    ? `${baseUrl}/startups/${startupId}?fromArena=1&eventId=${encodeURIComponent(eventId)}&stallId=${encodeURIComponent(stallId)}`
+    : `${baseUrl}/invest/${eventId}/${stallId}`;
 
   const handleDownload = () => {
     const svg = document.getElementById('stall-qr-svg');
