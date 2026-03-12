@@ -21,12 +21,35 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Get the current user to determine their cleared_at timestamp
+    const { data: { user } } = await supabase.auth.getUser();
+    let clearedAt: string | null = null;
+
+    if (user) {
+      const { data: convo } = await supabase
+        .from('conversations')
+        .select('user1_id, user2_id, user1_cleared_at, user2_cleared_at')
+        .eq('id', conversationId)
+        .single();
+
+      if (convo) {
+        clearedAt = convo.user1_id === user.id
+          ? convo.user1_cleared_at
+          : convo.user2_cleared_at;
+      }
+    }
+
     let query = supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(limit + 1); // Fetch one extra to check if there are more
+
+    // Filter out messages before the user's cleared_at timestamp
+    if (clearedAt) {
+      query = query.gt('created_at', clearedAt);
+    }
 
     // Handle pagination
     if (beforeMessageId) {

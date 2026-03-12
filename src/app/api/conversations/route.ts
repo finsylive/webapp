@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
 
     const supabase = await createAuthClient();
 
-    // Get basic conversation data first
+    // Get basic conversation data first (include cleared_at timestamps)
     const { data: conversationData, error } = await supabase
       .from('conversations')
-      .select('id, user1_id, user2_id, last_message, updated_at, status, created_at')
+      .select('id, user1_id, user2_id, last_message, updated_at, status, created_at, user1_cleared_at, user2_cleared_at')
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order('updated_at', { ascending: false })
       .limit(limit);
@@ -63,18 +63,29 @@ export async function GET(req: NextRequest) {
       userMap.set(user.id as string, user);
     });
 
-    // Batch fetch unread counts for all conversations
+    // Build a map of cleared_at per conversation for the current user
+    const clearedAtMap = new Map<string, string | null>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    conversationData.forEach((conv: any) => {
+      const clearedAt = conv.user1_id === userId ? conv.user1_cleared_at : conv.user2_cleared_at;
+      clearedAtMap.set(conv.id, clearedAt || null);
+    });
+
+    // Batch fetch unread counts for all conversations (respecting cleared_at)
     const conversationIds = conversationData.map((c: { id: string }) => c.id);
     const unreadByConv = new Map<string, number>();
     if (conversationIds.length > 0) {
       const { data: unreadMessages } = await supabase
         .from('messages')
-        .select('conversation_id')
+        .select('conversation_id, created_at')
         .in('conversation_id', conversationIds)
         .neq('sender_id', userId)
         .eq('is_read', false);
 
-      for (const msg of (unreadMessages || []) as { conversation_id: string }[]) {
+      for (const msg of (unreadMessages || []) as { conversation_id: string; created_at: string }[]) {
+        // Only count unread messages after the user's cleared_at
+        const clearedAt = clearedAtMap.get(msg.conversation_id);
+        if (clearedAt && msg.created_at <= clearedAt) continue;
         unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) || 0) + 1);
       }
     }
@@ -88,6 +99,10 @@ export async function GET(req: NextRequest) {
       const user1 = userMap.get(conv.user1_id) || {};
       const user2 = userMap.get(conv.user2_id) || {};
 
+      // Hide last_message if the user cleared the chat after the last update
+      const clearedAt = clearedAtMap.get(conv.id);
+      const lastMessageVisible = !clearedAt || (conv.updated_at && conv.updated_at > clearedAt);
+
       return {
         conversation_id: conv.id,
         other_user_id: otherUserId,
@@ -96,7 +111,7 @@ export async function GET(req: NextRequest) {
         other_avatar_url: otherUser.avatar_url || null,
         other_is_verified: otherUser.is_verified || false,
         other_account_status: otherUser.account_status || 'active',
-        last_message: conv.last_message,
+        last_message: lastMessageVisible ? conv.last_message : null,
         updated_at: conv.updated_at,
         unread_count: unreadByConv.get(conv.id) || 0,
         status: conv.status || 'approved',

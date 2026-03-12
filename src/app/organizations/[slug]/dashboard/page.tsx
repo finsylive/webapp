@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { fetchOrganizationBySlug, type OrganizationProfile } from '@/api/organizations';
+import { FacilitatorVerificationCard } from '@/components/organizations/FacilitatorVerificationCard';
 import { OrganizationRelationManager } from '@/components/organizations/OrganizationRelationManager';
 import { ArrowLeft, Building2, Eye, Globe, Loader2, MapPin, Sparkles } from 'lucide-react';
 
@@ -47,12 +48,12 @@ export default function OrganizationDashboardPage() {
           <div className="space-y-2">
             <Link href="/organizations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Back to organizations
+              Back to startup facilitators
             </Link>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Organization dashboard</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Startup facilitator dashboard</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Manage how your support organization appears and which startups are publicly associated with it.
+                Manage how your startup facilitator appears and which startups are publicly associated with it.
               </p>
             </div>
           </div>
@@ -142,10 +143,15 @@ export default function OrganizationDashboardPage() {
                 initialRelations={organization.relations}
                 onRelationsChange={(relations) => setOrganization((prev) => prev ? { ...prev, relations } : prev)}
               />
+
+              <FacilitatorVerificationCard
+                organization={organization}
+                onUpdate={(patch) => setOrganization((prev) => (prev ? { ...prev, ...patch } : prev))}
+              />
             </>
           ) : (
             <div className="rounded-3xl border border-border/50 bg-card px-6 py-12 text-center">
-              <p className="text-sm text-muted-foreground">You do not have access to manage this organization.</p>
+              <p className="text-sm text-muted-foreground">You do not have access to manage this startup facilitator.</p>
               <Link href={`/organizations/${slug}`} className="mt-4 inline-flex text-sm font-medium text-primary">
                 View public profile
               </Link>

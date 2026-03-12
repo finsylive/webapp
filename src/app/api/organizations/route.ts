@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     let query = admin
       .from('organizations')
-      .select('id, slug, name, org_type, short_bio, website, logo_url, city, state, country, is_verified, is_published, sectors, support_types, created_at')
+      .select('id, slug, name, org_type, short_bio, website, logo_url, city, state, country, is_verified, verification_status, is_published, sectors, support_types, created_at')
       .order('created_at', { ascending: false });
 
     if (mine && user) {

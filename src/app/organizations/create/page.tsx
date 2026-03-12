@@ -101,7 +101,7 @@ export default function CreateOrganizationPage() {
       });
       router.push(`/organizations/${data.slug}/dashboard`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create organization');
+      setError(err instanceof Error ? err.message : 'Failed to create startup facilitator');
     } finally {
       setSubmitting(false);
     }
@@ -113,14 +113,14 @@ export default function CreateOrganizationPage() {
         <div>
           <Link href="/organizations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
-            Back to organizations
+            Back to startup facilitators
           </Link>
           <div className="mt-4 flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Building2 className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Create organization profile</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Create startup facilitator profile</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Set up a public profile for your incubator, accelerator, e-cell, or support body. You can start simple and expand later.
               </p>
@@ -131,7 +131,7 @@ export default function CreateOrganizationPage() {
         <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-border/50 bg-card p-6 sm:p-8">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-foreground mb-2">Organization name</label>
+              <label className="block text-sm font-semibold text-foreground mb-2">Startup facilitator name</label>
               <input
                 required
                 value={form.name}
@@ -142,7 +142,7 @@ export default function CreateOrganizationPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-foreground mb-2">Organization type</label>
+              <label className="block text-sm font-semibold text-foreground mb-2">Facilitator type</label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {ORG_TYPES.map((type) => (
                   <button
@@ -170,7 +170,7 @@ export default function CreateOrganizationPage() {
                 {orgType === 'college_incubator' && 'You are setting up a college incubator profile. We will capture university context and incubation focus.'}
                 {orgType === 'facilitator' && 'You are setting up a facilitator profile. We will focus on the kind of support and partnerships you provide.'}
                 {orgType === 'community' && 'You are setting up a community profile. We will focus on network identity and what members get from joining.'}
-                {orgType === 'other' && 'You are setting up a support organization profile. We will keep the onboarding broad and flexible.'}
+                {orgType === 'other' && 'You are setting up a startup facilitator profile. We will keep the onboarding broad and flexible.'}
               </p>
             </div>
 
@@ -185,7 +185,7 @@ export default function CreateOrganizationPage() {
                     ? 'Campus-backed startup support for students and early builders.'
                     : orgType === 'accelerator'
                       ? 'Cohort-based support for early-stage startups.'
-                      : 'What does this organization do in one line?'
+                      : 'What does this startup facilitator do in one line?'
                 }
               />
             </div>
@@ -197,7 +197,7 @@ export default function CreateOrganizationPage() {
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-                placeholder="What does your organization do, who does it help, and what outcomes do you support?"
+                placeholder="What does your startup facilitator do, who does it help, and what outcomes do you support?"
               />
             </div>
 
@@ -341,7 +341,7 @@ export default function CreateOrganizationPage() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-              Create organization
+              Create startup facilitator
             </button>
           </div>
         </form>

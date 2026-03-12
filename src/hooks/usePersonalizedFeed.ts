@@ -55,7 +55,9 @@ export function usePersonalizedFeed() {
         }
       }
 
-      const res = await fetch(`/api/feed?${params}`);
+      const res = await fetch(`/api/feed?${params}`, {
+        headers: { 'x-user-id': user.id },
+      });
 
       if (!mountedRef.current) return;
 

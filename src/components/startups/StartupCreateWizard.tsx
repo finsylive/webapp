@@ -14,7 +14,7 @@ import { Step6Financials } from './Step6Financials';
 import { Step7Media } from './Step7Media';
 import { Step8Visibility } from './Step8Visibility';
 import { StepShowcase } from './StepShowcase';
-import { ChevronLeft, ChevronRight, Send, Check, Compass, FolderKanban, AlertCircle, Rocket } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, Check, FolderKanban, AlertCircle, Rocket } from 'lucide-react';
 
 const STARTUP_STEPS = [
   { label: 'Identity', short: 'Identity' },

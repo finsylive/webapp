@@ -210,24 +210,24 @@ export default function JobDetailPage() {
                 <CheckCircle className="h-3 w-3" />
                 {ended ? 'Closed' : !job.is_active ? 'Inactive' : 'Open'}
               </span>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-blue-700 dark:text-blue-300 bg-blue-400/10 border-blue-500/30">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30">
                 <Briefcase className="h-3 w-3" />
                 {jobTypeLabels[job.job_type] || job.job_type}
               </span>
               {job.work_mode && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-purple-700 dark:text-purple-300 bg-purple-400/10 border-purple-500/30">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30">
                   <WorkModeIcon className="h-3 w-3" />
                   {workModeLabels[job.work_mode] || job.work_mode}
                 </span>
               )}
               {job.category && job.category !== 'other' && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-amber-700 dark:text-amber-300 bg-amber-400/10 border-amber-500/30">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30">
                   <Layers className="h-3 w-3" />
                   {categoryLabels[job.category] || job.category}
                 </span>
               )}
               {job.experience_level && job.experience_level !== 'any' && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-cyan-700 dark:text-cyan-300 bg-cyan-400/10 border-cyan-500/30">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30">
                   <GraduationCap className="h-3 w-3" />
                   {experienceLevelLabels[job.experience_level] || job.experience_level}
                 </span>
@@ -280,7 +280,7 @@ export default function JobDetailPage() {
                 <h3 className="text-sm font-semibold text-muted-foreground mb-2">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {job.skills_required.map((skill) => (
-                    <span key={skill} className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-400/10 border border-purple-500/30 dark:border-purple-400/30 px-3 py-1 rounded-full">
+                    <span key={skill} className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-3 py-1 rounded-full">
                       {skill}
                     </span>
                   ))}
@@ -418,8 +418,8 @@ export default function JobDetailPage() {
 
               {/* Icon */}
               <div className="flex justify-center mb-4">
-                <div className="p-3 rounded-full bg-amber-500/10 border border-amber-500/20">
-                  <UserCircle className="h-8 w-8 text-amber-500" />
+                <div className="p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <UserCircle className="h-8 w-8 text-emerald-500" />
                 </div>
               </div>
 
@@ -435,13 +435,13 @@ export default function JobDetailPage() {
               <div className="mb-4">
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-muted-foreground font-medium">Profile completion</span>
-                  <span className={`font-bold ${profileCompletion.percent >= 70 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                  <span className={`font-bold ${profileCompletion.percent >= 70 ? 'text-emerald-500' : 'text-emerald-400'}`}>
                     {profileCompletion.percent}%
                   </span>
                 </div>
                 <div className="w-full h-2.5 rounded-full bg-muted/30 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
                     style={{ width: `${profileCompletion.percent}%` }}
                   />
                 </div>
@@ -455,7 +455,7 @@ export default function JobDetailPage() {
                     {profileCompletion.missing.map((field) => (
                       <span
                         key={field}
-                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                       >
                         <AlertCircle className="h-3 w-3" />
                         {field}

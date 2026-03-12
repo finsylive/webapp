@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Trash2, ChevronUp, ChevronDown, Plus, ImagePlus, Loader2, X, FileText, Link2, LayoutPanelLeft } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown, Plus, ImagePlus, Loader2, X, FileText } from 'lucide-react';
 import { SHOWCASE_LIMITS, uploadSlideImage } from '@/api/startups';
 
 type TextSection = { heading: string; content: string; display_order: number };

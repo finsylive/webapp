@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon, Building2 } from 'lucide-react';
+import { Users, Clock, Trophy, ArrowRight, MapPin, Briefcase, DollarSign, Zap, ExternalLink, Loader2, CheckCircle, Eye, Sparkles, Star, Search, SlidersHorizontal, X as XIcon, Package, FolderOpen, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
@@ -134,7 +134,7 @@ type OrganizationResourceItem = {
 
 const RESOURCE_CATEGORIES = [
   { key: 'All', label: 'All' },
-  { key: 'Organizations', label: 'Organizations' },
+  { key: 'Organizations', label: 'Startup Facilitators' },
   { key: 'accelerator_incubator', label: 'Accelerators' },
   { key: 'company_offer', label: 'Company Offers' },
   { key: 'tool', label: 'Tools' },
@@ -254,7 +254,7 @@ const FeaturedCompetitionCard = ({ c, user }: { c: CompetitionItem; user: { id: 
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               {c.is_featured && (
-                <span className="flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-1 text-xs font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">
                   <Star className="h-3 w-3 fill-white" /> Featured
                 </span>
               )}
@@ -264,7 +264,7 @@ const FeaturedCompetitionCard = ({ c, user }: { c: CompetitionItem; user: { id: 
                 </span>
               )}
               {c.participation_type === 'team' && (
-                <span className="text-xs font-semibold bg-blue-500/70 text-white px-2 py-0.5 rounded-full">
+                <span className="text-xs font-semibold bg-emerald-500/70 text-white px-2 py-0.5 rounded-full">
                   Team ({c.team_size_min}–{c.team_size_max})
                 </span>
               )}
@@ -291,15 +291,14 @@ const FeaturedCompetitionCard = ({ c, user }: { c: CompetitionItem; user: { id: 
       </div>
       {/* Content */}
       <div className="p-5 md:p-6">
-        <div className="mt-1 text-muted-foreground text-sm truncate">{deadlineLabel}</div>
-        <div className="mt-4 flex flex-wrap items-center gap-4">
-          <Stat icon={Users}>{participantCount !== null ? `${participantCount} registered` : 'Participants: —'}</Stat>
+        <div className="flex flex-wrap items-center gap-4">
+          <Stat icon={Users}>{participantCount !== null ? `${participantCount} participants` : '—'}</Stat>
           <Stat icon={Clock}>{deadlineLabel}</Stat>
-          {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+          {c.prize_pool && <Stat icon={Trophy}>{c.prize_pool}</Stat>}
         </div>
-        <div className="mt-5 flex items-center gap-3">
-          <span className="flex-1 md:flex-none md:min-w-[140px] inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
-            View Details
+        <div className="mt-4 flex items-center gap-3">
+          <span className="flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition">
+            Details
           </span>
           <span
             className={`flex-1 md:flex-none md:min-w-[120px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold active:scale-95 transition ${joined
@@ -360,13 +359,13 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
             return url ? (
               <Image src={url} alt={c.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 160px" />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+              <div className="absolute inset-0 flex items-center justify-center bg-muted/30"><Trophy className="h-5 w-5 text-muted-foreground/40" /></div>
             );
           })()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {c.is_featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+            {c.is_featured && <Star className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500 shrink-0" />}
             <h4 className="text-base sm:text-lg font-semibold text-foreground truncate">{c.title}</h4>
             <span className="text-xs font-semibold text-orange-700 dark:text-orange-300 bg-orange-400/10 border border-orange-500/30 dark:border-orange-400/30 px-2.5 py-0.5 rounded-full shrink-0">
               Competition
@@ -392,7 +391,7 @@ const CompetitionRowCard = ({ c, user }: { c: CompetitionItem; user: { id: strin
             {c.deadline && (
               <Stat icon={Clock}>{ended ? 'Ended' : format(new Date(c.deadline), 'dd MMM, yyyy')}</Stat>
             )}
-            {c.prize_pool && <Stat icon={Trophy}>Prize: {c.prize_pool}</Stat>}
+            {c.prize_pool && <Stat icon={Trophy}>{c.prize_pool}</Stat>}
             {c.participation_type === 'team' && (
               <Stat icon={Users}>Team ({c.team_size_min}–{c.team_size_max})</Stat>
             )}
@@ -496,15 +495,15 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
             return url ? (
               <Image src={url} alt={event.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 160px" />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">No image</div>
+              <div className="absolute inset-0 flex items-center justify-center bg-muted/30"><Trophy className="h-5 w-5 text-muted-foreground/40" /></div>
             );
           })()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {event.is_featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+            {event.is_featured && <Star className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500 shrink-0" />}
             <h4 className="text-base sm:text-lg font-semibold text-foreground truncate">{event.title}</h4>
-            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full shrink-0">
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">
               {categoryLabel}
             </span>
             {ended ? (
@@ -537,7 +536,7 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
         </div>
         <div className="flex sm:flex-col gap-2 justify-center sm:justify-center">
           <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-foreground px-4 py-2.5 sm:px-3 sm:py-2 text-sm font-semibold hover:bg-accent/60 active:scale-95 transition w-full sm:w-auto">
-            View Details
+            Details
           </span>
           <button
             onClick={handleJoin}
@@ -565,7 +564,7 @@ const EventRowCard = ({ event, user }: { event: EventItem; user: { id: string } 
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent text-muted-foreground px-4 py-2 sm:px-3 text-xs font-medium hover:bg-accent/60 active:scale-95 transition w-full sm:w-auto"
             >
-              External Link <ExternalLink className="h-3 w-3" />
+              Visit site <ExternalLink className="h-3 w-3" />
             </a>
           )}
         </div>
@@ -773,7 +772,7 @@ const JobRowCard = ({ job }: { job: JobItem }) => {
             <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{job.description}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-400/10 border border-blue-500/30 dark:border-blue-400/30 px-2.5 py-0.5 rounded-full">
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/30 px-2.5 py-0.5 rounded-full">
               {jobTypeLabels[job.job_type] || job.job_type}
             </span>
             {job.location && <Stat icon={MapPin}>{job.location}</Stat>}
@@ -870,8 +869,8 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
             <img src={logoUrl} alt="" className="w-10 h-10 object-contain" />
           </div>
         ) : (
-          <div className="text-3xl flex-shrink-0 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
-            {resource.icon || '\uD83D\uDCE6'}
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Package className="w-5 h-5 text-primary/70" />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -889,7 +888,7 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
               {categoryLabels[resource.category] || resource.category}
             </span>
             {resource.deadline && (
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30' : 'text-amber-600 dark:text-amber-300 bg-amber-400/10 border border-amber-500/30'}`}>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30' : 'text-emerald-600 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30'}`}>
                 {ended ? 'Expired' : `Deadline: ${format(new Date(resource.deadline), 'dd MMM, yyyy')}`}
               </span>
             )}
@@ -909,7 +908,7 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
               href={`/hub/resource/${encodeURIComponent(resource.id)}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-transparent px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
             >
-              <Eye className="h-3.5 w-3.5" /> View Details
+              <Eye className="h-3.5 w-3.5" /> Details
             </Link>
             {resource.url && (
               <a
@@ -918,7 +917,7 @@ const ResourceCard = ({ resource }: { resource: ResourceItem }) => {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 dark:bg-emerald-500/90 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 active:scale-95 transition"
               >
-                Visit <ExternalLink className="h-3 w-3" />
+                Visit site <ExternalLink className="h-3 w-3" />
               </a>
             )}
           </div>
@@ -1202,16 +1201,16 @@ function HubPageContent() {
   return (
     <DashboardLayout fullWidth>
       <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
-        {/* Tabs header */}
-        <div className="flex items-center justify-start sm:justify-end overflow-x-auto">
+        {/* Page header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-foreground">Hub</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {tab === 'events' ? 'Discover competitions, events, and workshops' : tab === 'jobs' ? 'Find jobs and freelance gigs' : 'Explore tools, funding, and startup resources'}
+            </p>
+          </div>
           <PillTabs active={tab} onChange={handleTabChange} />
         </div>
-
-        {/* Section title */}
-        <h2 className="mt-6 text-2xl md:text-3xl font-extrabold text-foreground">
-          {tab === 'events' ? 'Events' : tab === 'jobs' ? 'Jobs & Gigs' : 'Resources'}
-        </h2>
-        <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-emerald-500/50 dark:from-emerald-300/40 via-emerald-500/30 dark:via-emerald-400/30 to-transparent w-40" />
 
         {/* Events tab — with sub-category pills */}
         {tab === 'events' && (
@@ -1292,7 +1291,7 @@ function HubPageContent() {
                         onChange={(e) => setFilterPrize(e.target.checked)}
                         className="h-3.5 w-3.5 rounded border-border/60 text-emerald-500"
                       />
-                      <span className="text-xs font-medium text-foreground">With Prize</span>
+                      <span className="text-xs font-medium text-foreground">Has prize pool</span>
                     </label>
                   </div>
                   {(filterDomain || filterMode || filterPrize) && (
@@ -1347,8 +1346,13 @@ function HubPageContent() {
                       <div className="h-28 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                     </>
                   ) : filteredCompetitions.length === 0 && filteredEvents.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">
-                      {eventsSearch || filterDomain || filterPrize || filterMode ? 'No results match your filters.' : 'No events or competitions yet.'}
+                    <div className="flex flex-col items-center py-8 text-center">
+                      <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
+                        <Trophy className="h-5 w-5 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {eventsSearch || filterDomain || filterPrize || filterMode ? 'No results match your filters.' : 'No events or competitions yet.'}
+                      </p>
                     </div>
                   ) : (
                     [...filteredCompetitions.map(c => ({ type: 'competition' as const, item: c, date: c.deadline })),
@@ -1444,7 +1448,12 @@ function HubPageContent() {
                     <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                   </>
                 ) : jobs.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-6">No jobs posted yet.</div>
+                  <div className="flex flex-col items-center py-10 text-center">
+                    <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
+                      <Briefcase className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">No open jobs right now. New opportunities are added regularly.</p>
+                  </div>
                 ) : (
                   jobs.map(job => <JobRowCard key={job.id} job={job} />)
                 )}
@@ -1465,7 +1474,12 @@ function HubPageContent() {
                     <div className="h-32 rounded-2xl bg-muted/20 border border-border/60 animate-pulse" />
                   </>
                 ) : gigs.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-6">No gigs posted yet.</div>
+                  <div className="flex flex-col items-center py-10 text-center">
+                    <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
+                      <Zap className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">No open gigs right now. Freelance opportunities are added regularly.</p>
+                  </div>
                 ) : (
                   gigs.map(gig => <GigRowCard key={gig.id} gig={gig} />)
                 )}
@@ -1481,7 +1495,7 @@ function HubPageContent() {
             {user && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-5 w-5 text-blue-500" />
+                  <Sparkles className="h-5 w-5 text-emerald-500" />
                   <h3 className="text-lg font-bold text-foreground">Recommended for You</h3>
                 </div>
                 {loadingRecs ? (
@@ -1496,7 +1510,7 @@ function HubPageContent() {
                       <Link
                         key={rec.id}
                         href={`/hub/resource/${encodeURIComponent(rec.id)}`}
-                        className="rounded-2xl bg-gradient-to-br from-blue-500/5 to-purple-500/5 border border-blue-500/20 p-4 hover:border-blue-500/40 hover:shadow-md transition-all"
+                        className="rounded-2xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border border-emerald-500/20 p-4 hover:border-emerald-500/40 hover:shadow-md transition-all"
                       >
                         <h4 className="text-sm font-semibold text-foreground line-clamp-1">{rec.title}</h4>
                         {rec.provider && <p className="text-xs text-muted-foreground mt-0.5">{rec.provider}</p>}
@@ -1504,7 +1518,7 @@ function HubPageContent() {
                           {categoryLabels[rec.category] || rec.category}
                         </span>
                         {rec.ai_reason && (
-                          <p className="mt-2 text-xs text-blue-700 dark:text-blue-300/80 line-clamp-2">
+                          <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300/80 line-clamp-2">
                             <Sparkles className="inline h-3 w-3 mr-1" />{rec.ai_reason}
                           </p>
                         )}
@@ -1555,15 +1569,17 @@ function HubPageContent() {
                 {(resourceFilter === 'Organizations' ? filteredOrganizations.length : filteredResources.length) > RESOURCES_PER_PAGE && (
                   <div className="flex items-center justify-center gap-3 pt-4">
                     <button
-                      onClick={() => setResourcePage((prev) => (prev - 1 + totalResourcePages) % totalResourcePages)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
+                      onClick={() => setResourcePage((prev) => Math.max(0, prev - 1))}
+                      disabled={resourcePage === 0}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <ArrowRight className="h-4 w-4 rotate-180" /> Prev
                     </button>
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                    <span className="text-xs text-muted-foreground tabular-nums">{resourcePage + 1} / {totalResourcePages}</span>
                     <button
-                      onClick={() => setResourcePage((prev) => (prev + 1) % totalResourcePages)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition"
+                      onClick={() => setResourcePage((prev) => Math.min(totalResourcePages - 1, prev + 1))}
+                      disabled={resourcePage >= totalResourcePages - 1}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/40 active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none"
                     >
                       Next <ArrowRight className="h-4 w-4" />
                     </button>
@@ -1571,8 +1587,11 @@ function HubPageContent() {
                 )}
               </>
             ) : (
-              <div className="text-center text-muted-foreground py-10">
-                {resourceFilter === 'Organizations' ? 'No organization profiles available right now.' : 'No resources in this category.'}
+              <div className="flex flex-col items-center py-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-accent/40 flex items-center justify-center mb-3">
+                  <FolderOpen className="h-5 w-5 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm text-muted-foreground">{resourceFilter === 'Organizations' ? 'No startup facilitator profiles available right now.' : 'No resources in this category yet. Try a different filter.'}</p>
               </div>
             )}
           </div>
@@ -1588,9 +1607,13 @@ export default function HubPage() {
     <Suspense fallback={
       <DashboardLayout fullWidth>
         <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-4rem)] py-6 px-4 sm:px-6 lg:px-8">
-          <div className="h-10 w-48 animate-pulse rounded-2xl bg-muted/20 ml-auto" />
-          <div className="h-10 w-40 animate-pulse rounded-xl bg-muted/20 mt-6" />
-          <div className="h-1 w-40 rounded-full bg-muted/20 mt-4" />
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-2">
+              <div className="h-8 w-20 animate-pulse rounded-lg bg-muted/20" />
+              <div className="h-4 w-56 animate-pulse rounded bg-muted/15" />
+            </div>
+            <div className="h-10 w-64 animate-pulse rounded-2xl bg-muted/20" />
+          </div>
           <div className="mt-6 space-y-4">
             <div className="h-64 animate-pulse rounded-2xl bg-muted/20 border border-border/60" />
             <div className="h-28 animate-pulse rounded-2xl bg-muted/20 border border-border/60" />

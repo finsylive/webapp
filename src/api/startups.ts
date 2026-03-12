@@ -80,6 +80,10 @@ export type StartupFounder = {
   status: 'pending' | 'accepted' | 'declined';
   display_order: number;
   created_at: string;
+  user?: {
+    username: string;
+    avatar_url: string | null;
+  };
 };
 
 export type StartupFundingRound = {
@@ -167,7 +171,7 @@ export async function fetchStartups(opts: {
       .from('startup_profiles')
       .select(`
         *,
-        founders:startup_founders(*),
+        founders:startup_founders(*, user:users(username, avatar_url)),
         funding_rounds:startup_funding_rounds(*),
         incubators:startup_incubators(*),
         awards:startup_awards(*)
@@ -215,7 +219,7 @@ export async function fetchStartupById(id: string, userId?: string): Promise<Sta
       .from('startup_profiles')
       .select(`
         *,
-        founders:startup_founders(*),
+        founders:startup_founders(*, user:users(username, avatar_url)),
         funding_rounds:startup_funding_rounds(*),
         incubators:startup_incubators(*),
         awards:startup_awards(*),
@@ -265,7 +269,7 @@ export async function fetchMyStartup(ownerId: string): Promise<StartupResponse> 
       .from('startup_profiles')
       .select(`
         *,
-        founders:startup_founders(*),
+        founders:startup_founders(*, user:users(username, avatar_url)),
         funding_rounds:startup_funding_rounds(*),
         incubators:startup_incubators(*),
         awards:startup_awards(*)
@@ -299,7 +303,7 @@ export async function fetchMyVentures(ownerId: string): Promise<StartupsResponse
       .from('startup_profiles')
       .select(`
         *,
-        founders:startup_founders(*),
+        founders:startup_founders(*, user:users(username, avatar_url)),
         funding_rounds:startup_funding_rounds(*),
         incubators:startup_incubators(*),
         awards:startup_awards(*)
@@ -659,6 +663,11 @@ export async function uploadPitchDeck(file: File): Promise<{ url: string; error?
 
 export async function uploadPitchVideo(file: File): Promise<{ url: string; error?: string }> {
   try {
+    const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_VIDEO_SIZE) {
+      return { url: '', error: `Video too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max is 50MB.` };
+    }
+
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) throw new Error('User not authenticated');
 
@@ -666,10 +675,10 @@ export async function uploadPitchVideo(file: File): Promise<{ url: string; error
     const fileName = `${Date.now()}.${ext}`;
     const filePath = `pitch-videos/${userId}/${fileName}`;
 
+    // Upload the File directly (not ArrayBuffer) — let Supabase client handle encoding
     const { error: storageError } = await supabase.storage
       .from('media')
       .upload(filePath, file, {
-        contentType: file.type,
         upsert: true,
       });
 
@@ -680,9 +689,10 @@ export async function uploadPitchVideo(file: File): Promise<{ url: string; error
       .getPublicUrl(filePath);
 
     return { url: publicUrlData.publicUrl };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error uploading pitch video:', error);
-    return { url: '', error: error instanceof Error ? error.message : 'Failed to upload video' };
+    const msg = error instanceof Error ? error.message : 'Failed to upload video';
+    return { url: '', error: msg };
   }
 }
 

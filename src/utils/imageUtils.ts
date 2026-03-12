@@ -37,6 +37,7 @@ export function toProxyUrl(
       'lh3.googleusercontent.com',  // Google profile pictures
       'platform-lookaside.fbsbx.com', // Facebook profile pictures
       'avatars.githubusercontent.com', // GitHub avatars
+      'images.unsplash.com',          // Unsplash images
     ];
     if (directHosts.includes(url.hostname)) {
       return rawUrl;

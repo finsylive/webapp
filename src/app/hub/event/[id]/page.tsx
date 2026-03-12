@@ -9,7 +9,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Share2, Users, MapPin, ExternalLink, ChevronDown,
   Calendar, CheckCircle, Loader2, LogOut, Bookmark, BookmarkCheck, Star,
-  Trophy, Wallet, TrendingUp, Store, IndianRupee,
+  Trophy, Wallet, TrendingUp, Store, IndianRupee, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toProxyUrl } from '@/utils/imageUtils';
@@ -146,6 +146,12 @@ export default function EventDetailsPage() {
   // Audience registration
   const [joiningAudience, setJoiningAudience] = useState(false);
   const [audienceError, setAudienceError] = useState<string | null>(null);
+
+  // Stall detail modal & investment state
+  const [openStallId, setOpenStallId] = useState<string | null>(null);
+  const [investAmounts, setInvestAmounts] = useState<Record<string, string>>({});
+  const [investingStall, setInvestingStall] = useState<string | null>(null);
+  const [investError, setInvestError] = useState<string | null>(null);
 
 
   // Fetch event details
@@ -362,6 +368,39 @@ export default function EventDetailsPage() {
     setJoiningAudience(false);
   };
 
+  const handleInvest = async (stallId: string) => {
+    if (!user || !event) return;
+    const amount = Number(investAmounts[stallId]);
+    if (!amount || amount <= 0 || amount > virtualBalance) {
+      setInvestError('Invalid amount');
+      return;
+    }
+    setInvestingStall(stallId);
+    setInvestError(null);
+    try {
+      const res = await fetch(`/api/events/${encodeURIComponent(event.id)}/invest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stall_id: stallId, amount }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setVirtualBalance(prev => prev - amount);
+        setInvestAmounts(prev => ({ ...prev, [stallId]: '' }));
+        // Refresh leaderboard
+        const lbRes = await fetch(`/api/events/${encodeURIComponent(event.id)}/leaderboard`);
+        if (lbRes.ok) {
+          const lbJson = await lbRes.json();
+          setLeaderboard(lbJson.leaderboard || []);
+        }
+      } else {
+        setInvestError(json.error || 'Investment failed');
+      }
+    } catch {
+      setInvestError('Network error');
+    }
+    setInvestingStall(null);
+  };
 
   const formatCurrency = (amount: number) => {
     if (amount >= 100000) return `${(amount / 100000).toFixed(1)}L`;
@@ -465,7 +504,7 @@ export default function EventDetailsPage() {
           {user && (
             <Button
               variant="ghost" size="icon"
-              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-primary/15 hover:bg-primary/25 text-primary' : 'bg-accent/30 hover:bg-accent/60'}`}
+              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300' : 'bg-accent/30 hover:bg-accent/60'}`}
               onClick={handleToggleSave}
               disabled={savingBookmark}
               aria-label={saved ? 'Unsave' : 'Save'}
@@ -537,7 +576,7 @@ export default function EventDetailsPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 {isPast ? (
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border bg-muted/40 text-muted-foreground border-border">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border text-rose-600 dark:text-rose-300 bg-rose-400/10 border-rose-500/30 dark:border-rose-400/30">
                     Past Event
                   </span>
                 ) : (
@@ -667,10 +706,10 @@ export default function EventDetailsPage() {
                     <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground border border-border">
                       <Store className="h-3.5 w-3.5" /> {arenaStats.total_stalls} Stalls
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground border border-border">
+                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                       <Users className="h-3.5 w-3.5" /> {arenaStats.total_audience} Investors
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground border border-border">
+                    <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                       <IndianRupee className="h-3.5 w-3.5" /> {formatCurrency(arenaStats.total_invested)} Invested
                     </span>
                   </div>
@@ -777,7 +816,7 @@ export default function EventDetailsPage() {
                 {/* Round 2: Audience Investment */}
                 {event.arena_round === 'investment' && user && !isStallOwner && !isAudience && (
                   <div className="rounded-2xl border border-border/60 bg-card/70 p-5 text-center">
-                    <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <Wallet className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
                     <h3 className="font-semibold mb-1">Join as Investor</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Receive <strong>₹{(event.virtual_fund_amount ?? 1000000).toLocaleString('en-IN')}</strong> virtual cash and invest in your favorite {event.entry_type === 'startup' ? 'startups' : 'projects'}!
@@ -786,7 +825,7 @@ export default function EventDetailsPage() {
                     <button
                       onClick={handleJoinAudience}
                       disabled={joiningAudience}
-                      className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 text-sm transition disabled:opacity-50"
                     >
                       {joiningAudience ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
                       {joiningAudience ? 'Joining...' : 'Join & Get Virtual Cash'}
@@ -795,8 +834,8 @@ export default function EventDetailsPage() {
                 )}
 
                 {event.arena_round === 'investment' && isStallOwner && (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-5 space-y-3">
-                    <p className="text-sm text-foreground">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5 space-y-3">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
                       <strong>Investment round is live!</strong> Show your QR code to the audience so they can scan and invest in your stall!
                     </p>
                     {myStallId && (
@@ -807,20 +846,233 @@ export default function EventDetailsPage() {
 
                 {/* Investor Balance (shown during investment round for audience) */}
                 {event.arena_round === 'investment' && isAudience && (
-                  <div className="rounded-2xl border-2 border-border bg-muted/30 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Your Virtual Balance</p>
-                        <p className="text-2xl font-bold text-foreground flex items-center gap-1">
-                          <IndianRupee className="h-5 w-5" />
-                          {virtualBalance.toLocaleString('en-IN')}
-                        </p>
+                  <div className="space-y-4">
+                    {/* Balance Card */}
+                    <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Your Virtual Balance</p>
+                          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <IndianRupee className="h-5 w-5" />
+                            {virtualBalance.toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        <Wallet className="h-8 w-8 text-emerald-500/50" />
                       </div>
-                      <Wallet className="h-8 w-8 text-muted-foreground/50" />
+                      {virtualBalance === 0 && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">You have invested all your funds!</p>
+                      )}
                     </div>
-                    {virtualBalance === 0 && (
-                      <p className="text-xs text-muted-foreground mt-2">You have invested all your funds!</p>
-                    )}
+
+                    {investError && <p className="text-sm text-red-500">{investError}</p>}
+
+                    {/* Stall Browse Cards — click to open detail */}
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Store className="h-4 w-4" />
+                      Browse {event.entry_type === 'startup' ? 'Startup' : 'Project'} Stalls — Tap to explore & invest
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {stalls.map(stall => {
+                        const stallFunding = leaderboard.find(l => l.id === stall.id);
+                        return (
+                          <button
+                            key={stall.id}
+                            type="button"
+                            onClick={() => setOpenStallId(stall.id)}
+                            className="rounded-2xl border border-border/60 bg-card/70 p-4 text-left transition hover:border-emerald-500/50 hover:shadow-md active:scale-[0.98] space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold text-foreground">{stall.stall_name}</h4>
+                              {stall.category && (
+                                <span className="text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full capitalize">
+                                  {stall.category}
+                                </span>
+                              )}
+                            </div>
+                            {stall.tagline && <p className="text-xs text-muted-foreground">{stall.tagline}</p>}
+                            {stall.startup && (
+                              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                Linked: {stall.startup.brand_name} ({stall.startup.stage})
+                              </p>
+                            )}
+                            <div className="flex items-center gap-3 text-xs pt-1">
+                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                ₹{formatCurrency(stallFunding?.total_funding ?? 0)} funded
+                              </span>
+                              <span className="text-muted-foreground">
+                                {stallFunding?.investor_count ?? 0} investors
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* ── Stall Detail Modal ── */}
+                    {openStallId && (() => {
+                      const stall = stalls.find(s => s.id === openStallId);
+                      if (!stall) return null;
+                      const stallFunding = leaderboard.find(l => l.id === stall.id);
+                      return (
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                          {/* Backdrop */}
+                          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpenStallId(null)} />
+
+                          {/* Modal */}
+                          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-border/60 bg-background shadow-2xl mx-auto">
+                            {/* Header */}
+                            <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border/40 px-5 py-4 flex items-center justify-between z-10">
+                              <h3 className="text-lg font-bold text-foreground truncate pr-4">{stall.stall_name}</h3>
+                              <button onClick={() => setOpenStallId(null)} className="shrink-0 rounded-full p-1.5 hover:bg-muted/20 transition">
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+
+                            <div className="px-5 py-4 space-y-5">
+                              {/* Category & Startup badge */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {stall.category && (
+                                  <span className="text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full capitalize">
+                                    {stall.category}
+                                  </span>
+                                )}
+                                {stall.startup && (
+                                  <a
+                                    href={`/startups/${stall.startup.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full hover:underline"
+                                  >
+                                    <Store className="h-3 w-3" />
+                                    {stall.startup.brand_name} — {stall.startup.stage}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                              </div>
+
+                              {/* Tagline */}
+                              {stall.tagline && (
+                                <p className="text-sm font-medium text-foreground/80 italic">&ldquo;{stall.tagline}&rdquo;</p>
+                              )}
+
+                              {/* Full description */}
+                              {stall.description && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">About</h4>
+                                  <p className="text-sm text-foreground/80 whitespace-pre-wrap">{stall.description}</p>
+                                </div>
+                              )}
+
+                              {/* Startup website link */}
+                              {stall.startup?.website && (
+                                <a
+                                  href={stall.startup.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" /> Visit Website
+                                </a>
+                              )}
+
+                              {/* Funding stats */}
+                              <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4">
+                                <div className="grid grid-cols-2 gap-4 text-center">
+                                  <div>
+                                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                                      ₹{formatCurrency(stallFunding?.total_funding ?? 0)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">Total Funding</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-2xl font-bold text-foreground">
+                                      {stallFunding?.investor_count ?? 0}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">Investors</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Investment section */}
+                              {virtualBalance > 0 ? (
+                                <div className="rounded-xl border border-border/60 bg-card/70 p-4 space-y-3">
+                                  <h4 className="text-sm font-semibold">Invest in this {event.entry_type === 'startup' ? 'startup' : 'project'}</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    Your balance: <strong className="text-emerald-600 dark:text-emerald-400">₹{virtualBalance.toLocaleString('en-IN')}</strong>
+                                  </p>
+
+                                  {/* Quick amount buttons */}
+                                  <div className="flex flex-wrap gap-2">
+                                    {[50000, 100000, 200000, 500000].filter(a => a <= virtualBalance).map(amount => (
+                                      <button
+                                        key={amount}
+                                        type="button"
+                                        onClick={() => setInvestAmounts(prev => ({ ...prev, [stall.id]: String(amount) }))}
+                                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                                          investAmounts[stall.id] === String(amount)
+                                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                            : 'border-border/60 text-muted-foreground hover:border-emerald-500/50'
+                                        }`}
+                                      >
+                                        ₹{formatCurrency(amount)}
+                                      </button>
+                                    ))}
+                                    <button
+                                      type="button"
+                                      onClick={() => setInvestAmounts(prev => ({ ...prev, [stall.id]: String(virtualBalance) }))}
+                                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                                        investAmounts[stall.id] === String(virtualBalance)
+                                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                          : 'border-border/60 text-muted-foreground hover:border-amber-500/50'
+                                      }`}
+                                    >
+                                      All In
+                                    </button>
+                                  </div>
+
+                                  {/* Custom amount input */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 flex items-center gap-1.5 rounded-xl border border-border/60 bg-background px-3 py-2.5">
+                                      <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                                      <input
+                                        type="number"
+                                        placeholder="Enter custom amount"
+                                        value={investAmounts[stall.id] || ''}
+                                        onChange={e => setInvestAmounts(prev => ({ ...prev, [stall.id]: e.target.value }))}
+                                        min={1}
+                                        max={virtualBalance}
+                                        className="flex-1 bg-transparent text-sm outline-none"
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        handleInvest(stall.id);
+                                      }}
+                                      disabled={investingStall === stall.id || !investAmounts[stall.id]}
+                                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 text-sm transition disabled:opacity-50 whitespace-nowrap flex items-center gap-2"
+                                    >
+                                      {investingStall === stall.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <IndianRupee className="h-4 w-4" />
+                                      )}
+                                      {investingStall === stall.id ? 'Investing...' : 'Invest Now'}
+                                    </button>
+                                  </div>
+                                  {investError && <p className="text-xs text-red-500">{investError}</p>}
+                                </div>
+                              ) : (
+                                <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
+                                  <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+                                    You have invested all your virtual funds!
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -828,7 +1080,7 @@ export default function EventDetailsPage() {
                 {leaderboard.length > 0 && (event.arena_round === 'investment' || event.arena_round === 'completed') && (
                   <div className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
                     <div className="px-5 py-4 border-b border-border/60 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                      <TrendingUp className="h-5 w-5 text-emerald-500" />
                       <h3 className="font-semibold">
                         {event.arena_round === 'completed' ? 'Final Results' : 'Live Funding Leaderboard'}
                       </h3>
@@ -846,7 +1098,7 @@ export default function EventDetailsPage() {
 
                         const inner = (
                           <>
-                            <span className="text-lg font-bold w-8 text-center shrink-0 text-muted-foreground">
+                            <span className={`text-lg font-bold w-8 text-center shrink-0 ${i === 0 ? 'text-emerald-500' : i === 1 ? 'text-emerald-400' : i === 2 ? 'text-emerald-300' : 'text-muted-foreground'}`}>
                               {i + 1}
                             </span>
                             {entry.logo_url ? (
@@ -875,12 +1127,12 @@ export default function EventDetailsPage() {
                           <Link
                             key={entry.id}
                             href={href}
-                            className={`flex items-center gap-4 px-5 py-3 transition hover:bg-accent/40 active:scale-[0.99] cursor-pointer ${i < 3 ? 'bg-muted/30' : ''}`}
+                            className={`flex items-center gap-4 px-5 py-3 transition hover:bg-accent/40 active:scale-[0.99] cursor-pointer ${i === 0 ? 'bg-emerald-500/5' : ''}`}
                           >
                             {inner}
                           </Link>
                         ) : (
-                          <div key={entry.id} className={`flex items-center gap-4 px-5 py-3 ${i < 3 ? 'bg-muted/30' : ''}`}>
+                          <div key={entry.id} className={`flex items-center gap-4 px-5 py-3 ${i === 0 ? 'bg-emerald-500/5' : ''}`}>
                             {inner}
                           </div>
                         );

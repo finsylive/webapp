@@ -34,6 +34,7 @@ interface MessageBubbleProps {
   onEdit?: (message: Message) => void;
   onDelete?: (messageId: string) => void;
   userId: string;
+  isDeleting?: boolean;
   selectMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (messageId: string) => void;
@@ -57,6 +58,7 @@ export default function MessageBubble({
   onEdit,
   onDelete,
   userId,
+  isDeleting,
   selectMode,
   isSelected,
   onToggleSelect
@@ -114,9 +116,7 @@ export default function MessageBubble({
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this message?')) {
-      onDelete?.(message.id);
-    }
+    onDelete?.(message.id);
     setShowActions(false);
   };
 
@@ -242,8 +242,9 @@ export default function MessageBubble({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       className={`flex items-center group ${isOwn ? 'justify-end' : 'justify-start'
-        } ${isGrouped ? 'mt-[2px]' : 'mt-2'} ${isVisible ? 'opacity-100' : 'opacity-0'
-        } transition-opacity duration-200 ${selectMode ? (isSelected ? 'bg-primary/10' : 'hover:bg-accent/10 cursor-pointer') : ''} rounded-lg px-2 py-[1px] -mx-2`}
+        } ${isGrouped ? 'mt-[2px]' : 'mt-2'} ${
+          isDeleting ? 'opacity-0 scale-95 max-h-0 mt-0 py-0 overflow-hidden' : isVisible ? 'opacity-100 max-h-[500px]' : 'opacity-0'
+        } transition-all duration-300 ease-in-out ${selectMode ? (isSelected ? 'bg-primary/10' : 'hover:bg-accent/10 cursor-pointer') : ''} rounded-lg px-2 py-[1px] -mx-2`}
     >
       {/* Selection checkbox */}
       {selectMode && (

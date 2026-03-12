@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-// import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { PostList } from '@/components/posts/PostList';
 import Image from 'next/image';
-import { ChevronLeft, Info, Heart, Share2, Plus, Calendar, FileText, Clock, List as ListIcon, ChevronDown, Globe } from 'lucide-react';
+import { ChevronLeft, Info, Heart, Share2, Plus, Calendar, FileText, Clock, List as ListIcon, ChevronDown, Globe, Users } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { toProxyUrl } from '@/utils/imageUtils';
 import { resolveEnvironmentBanner, resolveEnvironmentPicture } from '@/lib/environmentAssets';
@@ -33,9 +32,9 @@ export default function EnvironmentPage() {
   const [sort, setSort] = useState<'latest' | 'most_liked' | 'all'>('latest');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  // Use reliable native select to avoid click interception issues
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const [envImgError, setEnvImgError] = useState(false);
+
   const handleShare = (): void => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     const title = env?.name || 'Environment';
@@ -50,11 +49,11 @@ export default function EnvironmentPage() {
       void navigator.clipboard.writeText(url).catch(() => {});
     }
   };
+
   const handleNewPost = () => {
     router.push(`/create?env=${environmentId}`);
   };
 
-  // Whenever sort changes, refresh posts (for now backend sorts by latest, others are placeholders)
   useEffect(() => {
     setRefreshTrigger((v) => v + 1);
   }, [sort]);
@@ -67,7 +66,6 @@ export default function EnvironmentPage() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch environment details
         const { data: envData, error: envError } = await supabase
           .from('environments')
           .select('id, name, description, picture, banner, created_at')
@@ -76,7 +74,6 @@ export default function EnvironmentPage() {
 
         if (envError) throw envError;
 
-        // Count top-level posts in this environment
         const { count: postsCount, error: postsErr } = await supabase
           .from('posts')
           .select('*, author:author_id!inner(account_status)', { count: 'exact', head: true })
@@ -87,7 +84,6 @@ export default function EnvironmentPage() {
 
         if (postsErr) throw postsErr;
 
-        // Get post IDs to count likes
         const { data: postIds, error: postsIdsErr } = await supabase
           .from('posts')
           .select('id, author:author_id!inner(account_status)')
@@ -95,7 +91,7 @@ export default function EnvironmentPage() {
           .is('parent_post_id', null)
           .eq('environment_id', environmentId)
           .eq('author.account_status', 'active')
-          .limit(1000); // basic cap
+          .limit(1000);
 
         if (postsIdsErr) throw postsIdsErr;
 
@@ -130,7 +126,6 @@ export default function EnvironmentPage() {
     };
   }, [environmentId]);
 
-  // Close modal with Escape
   useEffect(() => {
     if (!isInfoOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -140,11 +135,6 @@ export default function EnvironmentPage() {
     return () => document.removeEventListener('keydown', onKey);
   }, [isInfoOpen]);
 
-  // No custom menu listeners needed with native select
-
-  const headerBg = useMemo(() => ({
-    background: 'linear-gradient(180deg, rgba(0,255,162,0.20) 0%, rgba(0,0,0,0.00) 100%)',
-  }), []);
   const envPicture = useMemo(() => resolveEnvironmentPicture(env?.name, env?.picture), [env?.name, env?.picture]);
   const envBanner = useMemo(() => resolveEnvironmentBanner(env?.name, env?.banner), [env?.name, env?.banner]);
 
@@ -158,233 +148,255 @@ export default function EnvironmentPage() {
 
   return (
     <DashboardLayout showSidebar>
-    <div className="min-h-[calc(100vh-64px)]">
-      {/* Top banner (constrained and rounded) */}
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="relative w-full h-36 md:h-40 rounded-2xl border border-white/10 overflow-hidden" style={headerBg}>
-          {envBanner && (
-            <Image
-              src={toProxyUrl(envBanner, { width: 1200, quality: 82 })}
-              alt={env?.name || 'Environment banner'}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 768px"
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
-          <div className="absolute inset-0 z-20 flex items-start justify-between p-3 pointer-events-auto">
-            <button
-              className="inline-flex items-center gap-2 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5 border border-white/10"
-              onClick={() => router.back()}
-            >
-              <ChevronLeft className="w-5 h-5" /> Back
-            </button>
-            <button
-              className="inline-flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-9 h-9 border border-white/10"
-              onClick={() => setIsInfoOpen(true)}
-              aria-label="Environment info"
-            >
-              <Info className="w-5 h-5" />
-            </button>
+      <div className="min-h-[calc(100vh-64px)]">
+        <div className="px-2 sm:px-3">
+          {/* ── Cover banner ── */}
+          <div className="relative w-full h-40 sm:h-44 md:h-52 rounded-2xl overflow-hidden">
+            {envBanner ? (
+              <Image
+                src={toProxyUrl(envBanner, { width: 1200, quality: 82 })}
+                alt={env?.name || 'Environment banner'}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 768px"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/30 via-emerald-900/20 to-transparent" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
+
+            {/* Top bar */}
+            <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3">
+              <button
+                className="inline-flex items-center gap-1.5 text-white/90 hover:text-white bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5 text-sm transition-colors"
+                onClick={() => router.back()}
+              >
+                <ChevronLeft className="w-4 h-4" /> Back
+              </button>
+              <button
+                className="inline-flex items-center justify-center text-white/90 hover:text-white bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded-full w-8 h-8 transition-colors"
+                onClick={() => setIsInfoOpen(true)}
+                aria-label="Environment info"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          {/* Center emblem */}
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
-              {envPicture && !envImgError ? (
-                <Image
-                  src={toProxyUrl(envPicture, { width: 64, quality: 82 })}
-                  alt={env?.name || 'Environment'}
-                  width={64}
-                  height={64}
-                  className="object-cover w-14 h-14 md:w-16 md:h-16 rounded-full"
-                  onError={() => setEnvImgError(true)}
-                  sizes="64px"
-                  loading="lazy"
-                />
-              ) : (
-                <Globe className="h-7 w-7 md:h-8 md:w-8 text-white/80" />
-              )}
+
+          {/* ── Info card ── */}
+          <div className="relative mt-[7px] bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl px-4 sm:px-5 pt-3 pb-4">
+            {/* Avatar overlapping boundary */}
+            <div className="absolute -top-10 sm:-top-12 right-4 sm:right-5 z-10">
+              <div className="w-18 h-18 sm:w-22 sm:h-22 rounded-full overflow-hidden ring-4 ring-[hsl(var(--card))] bg-card shadow-lg flex items-center justify-center"
+                style={{ width: 72, height: 72 }}
+              >
+                {envPicture && !envImgError ? (
+                  <Image
+                    src={toProxyUrl(envPicture, { width: 72, quality: 82 })}
+                    alt={env?.name || 'Environment'}
+                    width={72}
+                    height={72}
+                    className="object-cover w-full h-full"
+                    onError={() => setEnvImgError(true)}
+                    sizes="72px"
+                    loading="lazy"
+                  />
+                ) : (
+                  <Globe className="h-7 w-7 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="animate-pulse space-y-3 pt-1">
+                <div className="h-5 w-36 bg-muted/30 rounded" />
+                <div className="h-3.5 w-64 bg-muted/20 rounded" />
+                <div className="flex gap-4 mt-3">
+                  <div className="h-3 w-16 bg-muted/20 rounded" />
+                  <div className="h-3 w-16 bg-muted/20 rounded" />
+                </div>
+              </div>
+            ) : error ? (
+              <div className="text-destructive py-4">{error}</div>
+            ) : (
+              <>
+                {/* Name & description */}
+                <div className="pr-20 sm:pr-24">
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground leading-tight">{env?.name || 'Environment'}</h1>
+                  {env?.description && (
+                    <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{env.description}</p>
+                  )}
+                </div>
+
+                {/* Inline stats + actions */}
+                <div className="flex items-center gap-4 mt-3 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">{stats.posts}</span>
+                    <span className="text-muted-foreground">posts</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <Heart className="w-3.5 h-3.5 text-primary" />
+                    <span className="font-semibold text-foreground">{stats.likes}</span>
+                    <span className="text-muted-foreground">likes</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Public</span>
+                  </div>
+
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                      onClick={handleShare}
+                    >
+                      <Share2 className="w-3.5 h-3.5" /> Share
+                    </button>
+                    <button
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      onClick={handleNewPost}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Post
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+        </div>
+
+        {/* ── Sort controls ── */}
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="flex items-center justify-between mt-5 mb-3 px-1">
+            <h2 className="text-sm font-semibold text-foreground">Posts</h2>
+            <div className="relative" ref={sortMenuRef}>
+              <label className="sr-only" htmlFor="env-sort">Sort posts</label>
+              <div className="relative">
+                <select
+                  id="env-sort"
+                  className="appearance-none bg-accent/30 hover:bg-accent/50 border border-border/40 rounded-lg pl-8 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer transition-colors"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as 'latest' | 'most_liked' | 'all')}
+                  title="Sort posts"
+                >
+                  <option value="latest">Latest</option>
+                  <option value="most_liked">Most Liked</option>
+                  <option value="all">All Posts</option>
+                </select>
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {sort === 'latest' && <Clock className="w-3.5 h-3.5" />}
+                  {sort === 'most_liked' && <Heart className="w-3.5 h-3.5" />}
+                  {sort === 'all' && <ListIcon className="w-3.5 h-3.5" />}
+                </span>
+                <ChevronDown className="pointer-events-none w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Header content */}
-      <div className="max-w-2xl mx-auto px-4 -mt-10 md:-mt-12">
-        <div className="post-card p-5 md:p-6 relative overflow-visible">
-          {loading ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-6 w-40 bg-muted/30 rounded" />
-              <div className="h-4 w-72 bg-muted/20 rounded" />
-            </div>
-          ) : error ? (
-            <div className="text-destructive">{error}</div>
-          ) : (
-            <>
-              <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/30 bg-muted/20 flex items-center justify-center">
+        {/* Posts list */}
+        <div className="max-w-2xl mx-auto px-4 pb-10">
+          <PostList environmentId={environmentId} refreshTrigger={refreshTrigger} />
+        </div>
+
+        {/* ── Info Modal ── */}
+        {isInfoOpen && (
+          <div
+            className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsInfoOpen(false);
+            }}
+          >
+            <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-popover text-popover-foreground shadow-xl overflow-hidden">
+              {/* Modal banner */}
+              <div className="relative h-24 w-full">
+                {envBanner ? (
+                  <Image
+                    src={toProxyUrl(envBanner, { width: 600, quality: 82 })}
+                    alt={env?.name || ''}
+                    fill
+                    className="object-cover"
+                    sizes="400px"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/30 via-emerald-900/20 to-transparent" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--popover))]/80 to-transparent" />
+              </div>
+
+              <div className="px-5 pb-5 -mt-8 relative z-10">
+                {/* Avatar */}
+                <div className="w-14 h-14 rounded-full overflow-hidden ring-4 ring-[hsl(var(--popover))] bg-card flex items-center justify-center mb-3">
                   {envPicture && !envImgError ? (
                     <Image
-                      src={toProxyUrl(envPicture, { width: 40, quality: 82 })}
+                      src={toProxyUrl(envPicture, { width: 56, quality: 82 })}
                       alt={env?.name || 'Environment'}
-                      width={40}
-                      height={40}
-                      className="object-cover w-10 h-10"
+                      width={56}
+                      height={56}
+                      className="object-cover w-14 h-14"
                       onError={() => setEnvImgError(true)}
-                      sizes="40px"
-                      loading="lazy"
+                      sizes="56px"
                     />
                   ) : (
-                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    <Globe className="h-6 w-6 text-muted-foreground" />
                   )}
                 </div>
-                <div>
-                  <h1 className="text-xl font-semibold text-foreground">{env?.name || 'Environment'}</h1>
-                  {env?.description && (
-                    <p className="text-muted-foreground text-sm leading-relaxed">{env.description}</p>
-                  )}
-                </div>
-              </div>
 
-              {/* Stats */}
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="rounded-xl border border-border/50 bg-card/60 p-3">
-                  <div className="text-xs text-muted-foreground mb-1">Posts</div>
-                  <div className="text-lg font-semibold">{stats.posts}</div>
-                </div>
-                <div className="rounded-xl border border-border/50 bg-card/60 p-3">
-                  <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                    <Heart className="w-3.5 h-3.5 text-primary" /> Likes
+                <h3 className="text-lg font-bold">{env?.name || 'Environment'}</h3>
+                {env?.description && (
+                  <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{env.description}</p>
+                )}
+
+                {/* Stats list */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-accent/30">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="w-4 h-4" />
+                      <span>Posts</span>
+                    </div>
+                    <span className="text-sm font-semibold">{stats.posts}</span>
                   </div>
-                  <div className="text-lg font-semibold">{stats.likes}</div>
-                </div>
-                <div className="rounded-xl border border-border/50 bg-card/60 p-3 hidden sm:block">
-                  <div className="text-xs text-muted-foreground mb-1">Visibility</div>
-                  <div className="text-lg font-semibold">Public</div>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="mt-5 pt-4 border-t border-border/50 flex items-center justify-between">
-                <h2 className="text-base font-semibold">Posts</h2>
-                <div className="relative" ref={sortMenuRef}>
-                  <label className="sr-only" htmlFor="env-sort">Sort posts</label>
-                  <div className="relative">
-                    <select
-                      id="env-sort"
-                      className="appearance-none bg-muted/20 hover:bg-muted/30 border border-border/50 rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
-                      value={sort}
-                      onChange={(e) => setSort(e.target.value as 'latest' | 'most_liked' | 'all')}
-                      title="Sort posts"
-                    >
-                      <option value="latest">Latest</option>
-                      <option value="most_liked">Most Liked</option>
-                      <option value="all">All Posts</option>
-                    </select>
-                    {/* leading icon */}
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                      {sort === 'latest' && <Clock className="w-4 h-4" />}
-                      {sort === 'most_liked' && <Heart className="w-4 h-4" />}
-                      {sort === 'all' && <ListIcon className="w-4 h-4" />}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-accent/30">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Heart className="w-4 h-4 text-primary" />
+                      <span>Likes</span>
+                    </div>
+                    <span className="text-sm font-semibold">{stats.likes}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-accent/30">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      <span>Created</span>
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {env?.created_at ? new Date(env.created_at).toLocaleDateString() : '—'}
                     </span>
-                    {/* chevron */}
-                    <ChevronDown className="pointer-events-none w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   </div>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
-      {/* Posts list */}
-      <div className="max-w-2xl mx-auto px-4 mt-6 pb-10">
-        <PostList environmentId={environmentId} refreshTrigger={refreshTrigger} />
-        {/* Note: Currently, backend fetch is ordered by latest. "Most Liked" and "All" are placeholders for future enhancements. */}
-      </div>
-      
-      {/* Info Modal */}
-      {isInfoOpen && (
-        <div
-          className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsInfoOpen(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl border border-border/60 bg-popover text-popover-foreground shadow-xl">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-primary/30 bg-muted/20 flex items-center justify-center">
-                  {env?.picture && !envImgError ? (
-                    <Image
-                      src={toProxyUrl(env.picture, { width: 48, quality: 82 })}
-                      alt={env?.name || 'Environment'}
-                      width={48}
-                      height={48}
-                      className="object-cover w-12 h-12"
-                      onError={() => setEnvImgError(true)}
-                      sizes="48px"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className="text-xl">🌐</span>
-                  )}
+                {/* Actions */}
+                <div className="mt-4 flex items-center gap-2.5">
+                  <button
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                    onClick={handleShare}
+                  >
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+                  <button
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+                    onClick={handleNewPost}
+                  >
+                    <Plus className="w-4 h-4" /> New Post
+                  </button>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">{env?.name || 'Environment'}</h3>
-                  {env?.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">{env.description}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                <div className="rounded-xl border border-border/50 bg-card/60 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <FileText className="w-4 h-4" />
-                    <span>Total Posts</span>
-                  </div>
-                  <div className="text-foreground font-semibold">{stats.posts}</div>
-                </div>
-                <div className="rounded-xl border border-border/50 bg-card/60 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Heart className="w-4 h-4 text-primary" />
-                    <span>Total Likes</span>
-                  </div>
-                  <div className="text-foreground font-semibold">{stats.likes}</div>
-                </div>
-                <div className="rounded-xl border border-border/50 bg-card/60 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Calendar className="w-4 h-4" />
-                    <span>Created</span>
-                  </div>
-                  <div className="text-foreground font-semibold">
-                    {env?.created_at ? new Date(env.created_at).toLocaleDateString() : '—'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 flex items-center gap-3">
-                <button
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 px-4 py-2 text-primary hover:bg-primary/10 transition-colors"
-                  onClick={handleShare}
-                >
-                  <Share2 className="w-4 h-4" /> Share
-                </button>
-                <button
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 hover:bg-primary/90 transition-colors"
-                  onClick={handleNewPost}
-                >
-                  <Plus className="w-4 h-4" /> New Post
-                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }

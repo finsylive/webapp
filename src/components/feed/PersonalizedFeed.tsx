@@ -20,7 +20,6 @@ export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {})
   const {
     posts,
     isLoading,
-    isLoadingMore,
     error,
     hasMore,
     loadMore,
@@ -181,22 +180,10 @@ export function PersonalizedFeed({ prependPostRef }: PersonalizedFeedProps = {})
           </div>
         ))}
 
-        {/* Loading more indicator + sentinel */}
+        {/* Infinite scroll sentinel */}
         {hasMore && (
-          <div ref={sentinelRef} className="py-8 flex flex-col items-center gap-3">
-            {isLoadingMore ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span className="text-sm">Loading more posts...</span>
-              </div>
-            ) : (
-              <button
-                onClick={loadMore}
-                className="px-6 py-2.5 text-sm font-medium rounded-xl bg-accent/50 hover:bg-accent/80 border border-border text-foreground transition-colors"
-              >
-                Load more
-              </button>
-            )}
+          <div ref={sentinelRef} className="py-6 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         )}
 

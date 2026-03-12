@@ -396,13 +396,13 @@ export default function EditStartupPage() {
         </div>
 
         {/* Danger Zone */}
-        <div className="pt-6 border-t border-red-500/20">
+        <div className="mt-8 mb-20 p-4 sm:p-5 rounded-2xl border border-red-500/20 bg-red-500/5">
           <h3 className="text-sm font-semibold text-red-500 mb-1">Danger Zone</h3>
-          <p className="text-xs text-muted-foreground mb-3">Permanently delete this profile. This action cannot be undone.</p>
+          <p className="text-xs text-muted-foreground mb-3">Permanently delete this startup. This action cannot be undone.</p>
           {showDeleteConfirm ? (
             <div className="space-y-3">
               <p className="text-sm text-foreground">
-                This will permanently delete <strong>{profileData.brand_name || 'this profile'}</strong>, including all funding rounds, team associations, media, and analytics data.
+                This will permanently delete <strong>{profileData.brand_name || 'this startup'}</strong>, including all funding rounds, team associations, media, and analytics data.
               </p>
               <div className="flex items-center gap-3">
                 <button
@@ -431,7 +431,7 @@ export default function EditStartupPage() {
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/10 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
-              Delete Profile
+              Delete Startup
             </button>
           )}
         </div>

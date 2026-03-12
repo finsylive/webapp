@@ -62,12 +62,12 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryColors: Record<string, string> = {
-  govt_scheme: 'text-blue-700 dark:text-blue-300 bg-blue-400/10 border-blue-500/30',
-  accelerator_incubator: 'text-purple-700 dark:text-purple-300 bg-purple-400/10 border-purple-500/30',
-  company_offer: 'text-amber-700 dark:text-amber-300 bg-amber-400/10 border-amber-500/30',
-  tool: 'text-cyan-700 dark:text-cyan-300 bg-cyan-400/10 border-cyan-500/30',
+  govt_scheme: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30',
+  accelerator_incubator: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30',
+  company_offer: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30',
+  tool: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30',
   bank_offer: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30',
-  scheme: 'text-indigo-700 dark:text-indigo-300 bg-indigo-400/10 border-indigo-500/30',
+  scheme: 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30',
 };
 
 function getResourceLogoUrl(resource: { logo_url?: string | null; url?: string | null }): string | null {
@@ -264,7 +264,7 @@ function RelatedResourceCard({ resource }: { resource: RelatedResource }) {
               {categoryLabels[resource.category] || resource.category}
             </span>
             {resource.deadline && (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30' : 'text-amber-600 dark:text-amber-300 bg-amber-400/10 border border-amber-500/30'}`}>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border border-rose-500/30' : 'text-emerald-600 dark:text-emerald-300 bg-emerald-400/10 border border-emerald-500/30'}`}>
                 {ended ? 'Expired' : format(new Date(resource.deadline), 'dd MMM')}
               </span>
             )}
@@ -433,7 +433,7 @@ export default function ResourceDetailPage() {
                 {categoryLabels[resource.category] || resource.category}
               </span>
               {resource.deadline && (
-                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border-rose-500/30' : 'text-amber-600 dark:text-amber-300 bg-amber-400/10 border-amber-500/30'}`}>
+                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border-rose-500/30' : 'text-emerald-600 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30'}`}>
                   <Clock className="h-3 w-3" />
                   {ended ? 'Expired' : `Deadline: ${format(new Date(resource.deadline), 'dd MMM, yyyy')}`}
                 </span>
@@ -547,7 +547,7 @@ export default function ResourceDetailPage() {
             {user && (recommendations.length > 0 || loadingRecs) && (
               <div className="mt-8">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-5 w-5 text-blue-500" />
+                  <Sparkles className="h-5 w-5 text-emerald-500" />
                   <h3 className="text-lg font-bold text-foreground">Recommended for Your Startup</h3>
                 </div>
                 {loadingRecs ? (
@@ -562,7 +562,7 @@ export default function ResourceDetailPage() {
                       <Link
                         key={rec.id}
                         href={`/hub/resource/${encodeURIComponent(rec.id)}`}
-                        className="rounded-2xl bg-gradient-to-br from-blue-500/5 to-purple-500/5 border border-blue-500/20 p-4 hover:border-blue-500/40 hover:shadow-md transition-all"
+                        className="rounded-2xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/5 border border-emerald-500/20 p-4 hover:border-emerald-500/40 hover:shadow-md transition-all"
                       >
                         <div className="flex items-start gap-3">
                           {(() => {
@@ -570,7 +570,7 @@ export default function ResourceDetailPage() {
                             return recLogo ? (
                               <img src={recLogo} alt="" className="h-8 w-8 rounded-lg object-contain bg-muted/30 p-0.5 flex-shrink-0 border border-border/60" />
                             ) : (
-                              <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0 text-sm">
+                              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0 text-sm">
                                 {rec.icon || '\uD83D\uDCE6'}
                               </div>
                             );
@@ -582,7 +582,7 @@ export default function ResourceDetailPage() {
                               {categoryLabels[rec.category] || rec.category}
                             </span>
                             {rec.ai_reason && (
-                              <p className="mt-1.5 text-xs text-blue-700 dark:text-blue-300/80 line-clamp-2">
+                              <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-300/80 line-clamp-2">
                                 <Sparkles className="inline h-3 w-3 mr-1" />{rec.ai_reason}
                               </p>
                             )}

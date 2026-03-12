@@ -58,14 +58,34 @@ export default function ConversationPage() {
   const [otherUser, setOtherUser] = useState<OtherUserProfile | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  // Removed unused state variables isOnline, setIsOnline, lastSeen, setLastSeen
+  const [isBlocked, setIsBlocked] = useState(false); // you blocked them
+  const [isBlockedByOther, setIsBlockedByOther] = useState(false); // they blocked you
 
   // Select mode & menu state
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [deletingMessages, setDeletingMessages] = useState<Set<string>>(new Set());
   const headerMenuRef = useRef<HTMLDivElement>(null);
+
+  // Custom modal state (replaces native alert/confirm)
+  const [modal, setModal] = useState<{
+    title: string;
+    message: string;
+    type: 'confirm' | 'alert';
+    destructive?: boolean;
+    confirmLabel?: string;
+    onConfirm?: () => void;
+  } | null>(null);
+
+  const showAlert = useCallback((title: string, message: string) => {
+    setModal({ title, message, type: 'alert' });
+  }, []);
+
+  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void, opts?: { destructive?: boolean; confirmLabel?: string }) => {
+    setModal({ title, message, type: 'confirm', onConfirm, destructive: opts?.destructive, confirmLabel: opts?.confirmLabel });
+  }, []);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -167,6 +187,25 @@ export default function ConversationPage() {
         if (profErr) throw profErr;
 
         setOtherUser(profile as OtherUserProfile);
+
+        // Check block status in both directions
+        const [{ data: youBlockedThem }, { data: theyBlockedYou }] = await Promise.all([
+          supabase
+            .from('user_blocks')
+            .select('id')
+            .eq('blocker_id', userId)
+            .eq('blocked_id', otherId)
+            .maybeSingle(),
+          supabase
+            .from('user_blocks')
+            .select('id')
+            .eq('blocker_id', otherId)
+            .eq('blocked_id', userId)
+            .maybeSingle(),
+        ]);
+
+        setIsBlocked(!!youBlockedThem);
+        setIsBlockedByOther(!!theyBlockedYou);
       } catch (e) {
         console.error('Load other user failed', e);
       }
@@ -314,6 +353,16 @@ export default function ConversationPage() {
     return gap > 15 * 60 * 1000; // 15 minutes
   };
 
+  // Animate message removal then delete from state
+  const animateAndRemove = useCallback((ids: string[]) => {
+    setDeletingMessages(new Set(ids));
+    setTimeout(() => {
+      setMessages(prev => prev.filter(m => !ids.includes(m.id)));
+      setReactions(prev => prev.filter(r => !ids.includes(r.message_id)));
+      setDeletingMessages(new Set());
+    }, 300);
+  }, []);
+
   // Handle message actions
   const handleReply = useCallback((message: Message) => {
     setReplyingTo(message);
@@ -328,14 +377,28 @@ export default function ConversationPage() {
     console.log('Edit message:', message);
   }, []);
 
-  const handleDelete = useCallback(async (messageId: string) => {
-    try {
-      // Implement delete functionality
-      console.log('Delete message:', messageId);
-    } catch (error) {
-      console.error('Failed to delete message:', error);
-    }
-  }, []);
+  const handleDelete = useCallback((messageId: string) => {
+    showConfirm('Delete Message', 'Are you sure you want to delete this message?', async () => {
+      try {
+        const res = await fetch('/api/messages/delete-bulk', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message_ids: [messageId],
+            conversation_id: String(conversationId),
+          }),
+        });
+        if (res.ok) {
+          animateAndRemove([messageId]);
+        } else {
+          const data = await res.json();
+          showAlert('Error', data.error || 'Failed to delete message');
+        }
+      } catch {
+        showAlert('Error', 'Failed to delete message');
+      }
+    }, { destructive: true, confirmLabel: 'Delete' });
+  }, [conversationId, showConfirm, showAlert, animateAndRemove]);
 
   // Close header menu on outside click
   useEffect(() => {
@@ -370,88 +433,112 @@ export default function ConversationPage() {
     setSelectedMessages(new Set());
   }, []);
 
-  // Clear chat handler
-  const handleClearChat = useCallback(async () => {
+  // Clear chat handler (per-user: only clears your view, other user still sees messages)
+  const handleClearChat = useCallback(() => {
     if (!conversationId) return;
-    if (!confirm('Are you sure you want to clear all messages? This cannot be undone.')) return;
-
-    setActionLoading('clear');
-    try {
-      const res = await fetch('/api/messages/clear', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation_id: String(conversationId) }),
-      });
-      if (res.ok) {
-        setMessages([]);
-        setReactions([]);
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to clear chat');
+    showConfirm('Clear Chat', 'Clear all messages from your view? The other person will still see the messages.', async () => {
+      setActionLoading('clear');
+      try {
+        const res = await fetch('/api/messages/clear', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversation_id: String(conversationId) }),
+        });
+        if (res.ok) {
+          animateAndRemove(messages.map(m => m.id));
+        } else {
+          const data = await res.json();
+          showAlert('Error', data.error || 'Failed to clear chat');
+        }
+      } catch {
+        showAlert('Error', 'Failed to clear chat');
+      } finally {
+        setActionLoading(null);
+        setShowHeaderMenu(false);
       }
-    } catch {
-      alert('Failed to clear chat');
-    } finally {
-      setActionLoading(null);
-      setShowHeaderMenu(false);
-    }
-  }, [conversationId]);
+    }, { destructive: true, confirmLabel: 'Clear' });
+  }, [conversationId, showConfirm, showAlert, animateAndRemove, messages]);
 
   // Block user handler
-  const handleBlockUser = useCallback(async () => {
+  const handleBlockUser = useCallback(() => {
     if (!otherUser?.id) return;
-    if (!confirm(`Are you sure you want to block ${otherUser.full_name || otherUser.username}? They won't be able to message you.`)) return;
+    const name = otherUser.full_name || otherUser.username || 'this user';
+    showConfirm('Block User', `Are you sure you want to block ${name}? They won't be able to message you.`, async () => {
+      setActionLoading('block');
+      try {
+        const res = await fetch('/api/users/block', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ blocked_user_id: otherUser.id }),
+        });
+        if (res.ok) {
+          setIsBlocked(true);
+        } else {
+          const data = await res.json();
+          showAlert('Error', data.error || 'Failed to block user');
+        }
+      } catch {
+        showAlert('Error', 'Failed to block user');
+      } finally {
+        setActionLoading(null);
+        setShowHeaderMenu(false);
+      }
+    }, { destructive: true, confirmLabel: 'Block' });
+  }, [otherUser, showConfirm, showAlert]);
 
-    setActionLoading('block');
+  // Unblock user handler
+  const handleUnblockUser = useCallback(async () => {
+    if (!otherUser?.id) return;
+    setActionLoading('unblock');
     try {
       const res = await fetch('/api/users/block', {
-        method: 'POST',
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blocked_user_id: otherUser.id }),
       });
       if (res.ok) {
-        router.push('/messages');
+        setIsBlocked(false);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to block user');
+        showAlert('Error', data.error || 'Failed to unblock user');
       }
     } catch {
-      alert('Failed to block user');
+      showAlert('Error', 'Failed to unblock user');
     } finally {
       setActionLoading(null);
       setShowHeaderMenu(false);
     }
-  }, [otherUser, router]);
+  }, [otherUser, showAlert]);
 
   // Delete selected messages
-  const handleDeleteSelected = useCallback(async () => {
+  const handleDeleteSelected = useCallback(() => {
     if (selectedMessages.size === 0) return;
-    if (!confirm(`Delete ${selectedMessages.size} selected message${selectedMessages.size > 1 ? 's' : ''}?`)) return;
-
-    setActionLoading('delete-selected');
-    try {
-      const res = await fetch('/api/messages/delete-bulk', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message_ids: Array.from(selectedMessages),
-          conversation_id: String(conversationId),
-        }),
-      });
-      if (res.ok) {
-        setMessages(prev => prev.filter(m => !selectedMessages.has(m.id)));
-        setReactions(prev => prev.filter(r => !selectedMessages.has(r.message_id)));
-        exitSelectMode();
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to delete messages');
+    const count = selectedMessages.size;
+    showConfirm('Delete Messages', `Delete ${count} selected message${count > 1 ? 's' : ''}?`, async () => {
+      setActionLoading('delete-selected');
+      try {
+        const res = await fetch('/api/messages/delete-bulk', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message_ids: Array.from(selectedMessages),
+            conversation_id: String(conversationId),
+          }),
+        });
+        if (res.ok) {
+          animateAndRemove(Array.from(selectedMessages));
+          exitSelectMode();
+        } else {
+          const data = await res.json();
+          showAlert('Error', data.error || 'Failed to delete messages');
+        }
+      } catch {
+        showAlert('Error', 'Failed to delete messages');
+      } finally {
+        setActionLoading(null);
       }
-    } catch {
-      alert('Failed to delete messages');
-    } finally {
-      setActionLoading(null);
-    }
-  }, [selectedMessages, conversationId, exitSelectMode]);
+    }, { destructive: true, confirmLabel: 'Delete' });
+  }, [selectedMessages, conversationId, exitSelectMode, showConfirm, showAlert, animateAndRemove]);
 
   // Typing indicator via Supabase broadcast
   useEffect(() => {
@@ -631,14 +718,25 @@ export default function ConversationPage() {
                         <span>{actionLoading === 'clear' ? 'Clearing...' : 'Clear Chat'}</span>
                       </button>
                       <div className="h-px my-1" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--border)), transparent)' }} />
-                      <button
-                        onClick={handleBlockUser}
-                        disabled={actionLoading === 'block'}
-                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 text-sm font-medium transition-colors hover:bg-destructive/10 text-destructive disabled:opacity-50"
-                      >
-                        <Ban className="h-4 w-4 opacity-70" />
-                        <span>{actionLoading === 'block' ? 'Blocking...' : 'Block User'}</span>
-                      </button>
+                      {isBlocked ? (
+                        <button
+                          onClick={handleUnblockUser}
+                          disabled={actionLoading === 'unblock'}
+                          className="w-full px-4 py-2.5 text-left flex items-center gap-3 text-sm font-medium transition-colors hover:bg-accent/50 text-popover-foreground disabled:opacity-50"
+                        >
+                          <Ban className="h-4 w-4 opacity-70" />
+                          <span>{actionLoading === 'unblock' ? 'Unblocking...' : 'Unblock User'}</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleBlockUser}
+                          disabled={actionLoading === 'block'}
+                          className="w-full px-4 py-2.5 text-left flex items-center gap-3 text-sm font-medium transition-colors hover:bg-destructive/10 text-destructive disabled:opacity-50"
+                        >
+                          <Ban className="h-4 w-4 opacity-70" />
+                          <span>{actionLoading === 'block' ? 'Blocking...' : 'Block User'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -750,6 +848,7 @@ export default function ConversationPage() {
                           onEdit={handleEdit}
                           onDelete={handleDelete}
                           userId={userId!}
+                          isDeleting={deletingMessages.has(message.id)}
                           selectMode={selectMode}
                           isSelected={selectedMessages.has(message.id)}
                           onToggleSelect={handleToggleSelect}
@@ -807,23 +906,87 @@ export default function ConversationPage() {
         </div>
       )}
 
-      {/* Chat Input */}
+      {/* Chat Input or Blocked Banner */}
       {!selectMode && (
-        <div className="flex-shrink-0 border-t px-3 py-2 md:px-4 min-w-0 bg-background border-border/30">
-          <ChatInput
-            conversationId={String(conversationId)}
-            userId={userId!}
-            onSent={(msg) => {
-              setMessages(msgs => {
-                if (msgs.some(m => m.id === msg.id)) return msgs;
-                return [...msgs, msg];
-              });
-              scrollToBottom();
-            }}
-            replyingTo={replyingTo}
-            onClearReply={handleClearReply}
-            onTyping={handleTyping}
-          />
+        isBlocked || isBlockedByOther ? (
+          <div className="flex-shrink-0 border-t px-4 py-4 bg-background border-border/30">
+            <div className="flex flex-col items-center gap-2 py-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Ban className="h-4 w-4" />
+                <span className="text-sm">
+                  {isBlocked && isBlockedByOther
+                    ? `You and ${otherUser?.full_name || otherUser?.username || 'this user'} have blocked each other`
+                    : isBlocked
+                      ? `You blocked ${otherUser?.full_name || otherUser?.username || 'this user'}`
+                      : `${otherUser?.full_name || otherUser?.username || 'This user'} has blocked you`
+                  }
+                </span>
+              </div>
+              {isBlocked && (
+                <button
+                  onClick={handleUnblockUser}
+                  disabled={actionLoading === 'unblock'}
+                  className="px-4 py-1.5 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === 'unblock' ? 'Unblocking...' : 'Unblock'}
+                </button>
+              )}
+              {!isBlocked && isBlockedByOther && (
+                <span className="text-xs text-muted-foreground/60">You can&apos;t reply to this conversation</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex-shrink-0 border-t px-3 py-2 md:px-4 min-w-0 bg-background border-border/30">
+            <ChatInput
+              conversationId={String(conversationId)}
+              userId={userId!}
+              onSent={(msg) => {
+                setMessages(msgs => {
+                  if (msgs.some(m => m.id === msg.id)) return msgs;
+                  return [...msgs, msg];
+                });
+                scrollToBottom();
+              }}
+              replyingTo={replyingTo}
+              onClearReply={handleClearReply}
+              onTyping={handleTyping}
+            />
+          </div>
+        )
+      )}
+
+      {/* Custom Modal — replaces native alert/confirm */}
+      {modal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setModal(null)} />
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-[90%] max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-base font-semibold text-foreground mb-1.5">{modal.title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-5">{modal.message}</p>
+            <div className="flex items-center justify-end gap-2">
+              {modal.type === 'confirm' && (
+                <button
+                  onClick={() => setModal(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-foreground/70 hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  modal.onConfirm?.();
+                  setModal(null);
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  modal.destructive
+                    ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                }`}
+              >
+                {modal.confirmLabel || 'OK'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

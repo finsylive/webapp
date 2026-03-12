@@ -389,7 +389,7 @@ export default function CompetitionDetailsPage() {
           {user && (
             <Button
               variant="ghost" size="icon"
-              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300' : 'bg-accent/30 hover:bg-accent/60'}`}
+              className={`rounded-xl border border-border/50 transition-colors ${saved ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300' : 'bg-accent/30 hover:bg-accent/60'}`}
               onClick={handleToggleSave}
               disabled={saving}
               aria-label={saved ? 'Unsave' : 'Save'}
@@ -445,7 +445,7 @@ export default function CompetitionDetailsPage() {
         {/* Stats & CTA */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border ${ended ? 'text-amber-600 dark:text-amber-300 bg-amber-400/10 border-amber-500/30 dark:border-amber-400/30' : 'text-emerald-700 dark:text-emerald-600 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30 dark:border-emerald-400/30'}`}>
+            <span className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full border ${ended ? 'text-rose-600 dark:text-rose-300 bg-rose-400/10 border-rose-500/30 dark:border-rose-400/30' : 'text-emerald-700 dark:text-emerald-300 bg-emerald-400/10 border-emerald-500/30 dark:border-emerald-400/30'}`}>
               {ended ? 'Ended' : 'Open'}
             </span>
             {comp?.prize_pool && (
@@ -630,8 +630,8 @@ export default function CompetitionDetailsPage() {
                   const done = end ? now > end : false;
                   return (
                     <div key={round.id} className="relative">
-                      <div className={`absolute -left-5 top-0.5 h-4 w-4 rounded-full border-2 ${done ? 'bg-emerald-500 border-emerald-500' : active ? 'bg-blue-500 border-blue-500' : 'bg-background border-border'}`} />
-                      <div className={`text-xs font-semibold uppercase tracking-wide mb-0.5 ${done ? 'text-emerald-600 dark:text-emerald-300' : active ? 'text-blue-600 dark:text-blue-300' : 'text-muted-foreground'}`}>
+                      <div className={`absolute -left-5 top-0.5 h-4 w-4 rounded-full border-2 ${done ? 'bg-emerald-500 border-emerald-500' : active ? 'bg-emerald-400 border-emerald-400' : 'bg-background border-border'}`} />
+                      <div className={`text-xs font-semibold uppercase tracking-wide mb-0.5 ${done ? 'text-emerald-600 dark:text-emerald-300' : active ? 'text-emerald-600 dark:text-emerald-300' : 'text-muted-foreground'}`}>
                         Round {round.round_number}{active ? ' · Active' : done ? ' · Completed' : ''}
                       </div>
                       <div className="font-semibold text-foreground">{round.title}</div>

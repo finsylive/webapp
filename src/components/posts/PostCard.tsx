@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow, differenceInMinutes, differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, differenceInYears } from 'date-fns';
-import { MoreVertical, MessageCircle, Heart, Share, Bookmark, TrendingUp, Users, Play, Pause } from 'lucide-react';
+import { MoreVertical, MessageCircle, Heart, Share, Bookmark, Flag, Users, Play, Pause, X, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createPortal } from 'react-dom';
 import { Post, likePost, unlikePost, votePollOption, checkUserLikedPost, checkUserPollVotes, deletePost } from '@/api/posts';
@@ -667,7 +667,12 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     isEditModalOpen: false,
     isDeleting: false,
     showDeleteConfirm: false,
+    showReportModal: false,
+    reportSubmitting: false,
+    reportSuccess: false,
   });
+  const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportDetails, setReportDetails] = useState('');
   const replies = post.replies || 0; // No need for state since it doesn't change
 
   // Poll state - consolidated for better performance
@@ -778,11 +783,21 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
     handleCardClick();
   }, [handleCardClick]);
 
-  const handleBookmark = useCallback((e: React.MouseEvent) => {
+  const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!user) return;
+    const wasBookmarked = uiState.isBookmarked;
     setUiState(prev => ({ ...prev, isBookmarked: !prev.isBookmarked }));
     onBookmark?.();
-  }, [onBookmark]);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/bookmark`, {
+        method: wasBookmarked ? 'DELETE' : 'POST',
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setUiState(prev => ({ ...prev, isBookmarked: wasBookmarked }));
+    }
+  }, [onBookmark, user, post.id, uiState.isBookmarked]);
 
   const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -946,14 +961,15 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
 
     const checkUserInteractions = async () => {
       try {
-        const [likeResult, pollResult] = await Promise.all([
+        const [likeResult, pollResult, bookmarkResult] = await Promise.all([
           checkUserLikedPost(post.id, user.id),
-          post.poll ? checkUserPollVotes(post.poll.id, user.id) : Promise.resolve({ votes: [], error: null })
+          post.poll ? checkUserPollVotes(post.poll.id, user.id) : Promise.resolve({ votes: [], error: null }),
+          fetch(`/api/posts/${post.id}/bookmark`).then(r => r.json()).catch(() => ({ bookmarked: false }))
         ]);
 
         const { liked, error: likeError } = likeResult;
         if (!likeError) {
-          setUiState(prev => ({ ...prev, isLiked: liked }));
+          setUiState(prev => ({ ...prev, isLiked: liked, isBookmarked: !!bookmarkResult.bookmarked }));
         }
 
         if (post.poll && !pollResult.error) {
@@ -1210,20 +1226,22 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
                       }}
                     >
                       <Share className="h-4 w-4 opacity-80" />
-                      <span>Copy link</span>
+                      <span>Share post</span>
                     </button>
-                    {!isAuthor && (
+                    {!isAuthor && user && (
                       <>
                         <div className="h-px bg-border/60 my-1" />
                         <button
-                          className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-accent/50 transition-colors"
+                          className="w-full px-3 py-2 text-sm flex items-center gap-3 hover:bg-red-500/10 hover:text-red-500 transition-colors"
                           role="menuitem"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setUiState(prev => ({ ...prev, isMenuOpen: false }));
+                            setReportReason(null);
+                            setReportDetails('');
+                            setUiState(prev => ({ ...prev, isMenuOpen: false, showReportModal: true, reportSuccess: false }));
                           }}
                         >
-                          <TrendingUp className="h-4 w-4 opacity-80" />
+                          <Flag className="h-4 w-4 opacity-80" />
                           <span>Report post</span>
                         </button>
                       </>
@@ -1392,8 +1410,8 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             variant="ghost"
             size="sm"
             className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 group/bookmark ${uiState.isBookmarked
-              ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20'
-              : 'text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10'
+              ? 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20'
+              : 'text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10'
               }`}
             onClick={handleBookmark}
           >
@@ -1465,6 +1483,151 @@ export const PostCard = memo(({ post, onReply, onLike, onShare, onBookmark, onPo
             </div>
           </div>
         </div>
+      )}
+      {/* Report Post Modal */}
+      {uiState.showReportModal && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in-0"
+          onClick={() => !uiState.reportSubmitting && setUiState(prev => ({ ...prev, showReportModal: false }))}
+        >
+          <div
+            className="w-full max-w-sm bg-card border border-border/60 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {uiState.reportSuccess ? (
+              /* Success state */
+              <div className="p-6 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">Thanks for letting us know</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  We&apos;ll review this post and take action if it violates our community guidelines.
+                </p>
+                <button
+                  onClick={() => setUiState(prev => ({ ...prev, showReportModal: false }))}
+                  className="px-5 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              /* Report form */
+              <>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Flag className="h-4 w-4 text-red-500" />
+                    <h3 className="text-sm font-semibold text-foreground">Report post</h3>
+                  </div>
+                  <button
+                    onClick={() => setUiState(prev => ({ ...prev, showReportModal: false }))}
+                    className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 p-4 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Why are you reporting this? Your report is anonymous.
+                  </p>
+
+                  {/* Predefined reasons — compact */}
+                  <div className="space-y-1.5">
+                    {[
+                      { id: 'spam', label: 'Spam or misleading' },
+                      { id: 'harassment', label: 'Harassment or bullying' },
+                      { id: 'hate_speech', label: 'Hate speech' },
+                      { id: 'violence', label: 'Violence or threats' },
+                      { id: 'inappropriate', label: 'Nudity or sexual content' },
+                      { id: 'misinformation', label: 'False information' },
+                      { id: 'intellectual_property', label: 'Intellectual property violation' },
+                      { id: 'other', label: 'Something else' },
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => setReportReason(option.id)}
+                        className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                          reportReason === option.id
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/30 font-medium text-foreground'
+                            : 'border-border/40 hover:border-border hover:bg-muted/30 text-foreground/80'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Additional details */}
+                  {reportReason && (
+                    <textarea
+                      value={reportDetails}
+                      onChange={(e) => setReportDetails(e.target.value)}
+                      placeholder="Add details (optional)..."
+                      maxLength={500}
+                      rows={2}
+                      className="w-full px-3 py-2 text-sm bg-muted/30 border border-border/40 rounded-xl resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 placeholder:text-muted-foreground/50"
+                    />
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-4 py-3 border-t border-border/40 flex items-center justify-end gap-3 shrink-0">
+                  <button
+                    disabled={!reportReason || uiState.reportSubmitting}
+                    onClick={async () => {
+                      if (!reportReason) return;
+                      setUiState(prev => ({ ...prev, reportSubmitting: true }));
+                      try {
+                        const reasonLabels: Record<string, string> = {
+                          spam: 'Spam or misleading',
+                          harassment: 'Harassment or bullying',
+                          hate_speech: 'Hate speech',
+                          violence: 'Violence or threats',
+                          inappropriate: 'Nudity or sexual content',
+                          misinformation: 'False information',
+                          intellectual_property: 'Intellectual property',
+                          other: 'Something else',
+                        };
+                        const res = await fetch(`/api/posts/${post.id}/report`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            reason: reasonLabels[reportReason] || reportReason,
+                            additional_info: reportDetails || null,
+                          }),
+                        });
+                        if (res.status === 409) {
+                          toast.info('You have already reported this post');
+                          setUiState(prev => ({ ...prev, showReportModal: false, reportSubmitting: false }));
+                          return;
+                        }
+                        if (!res.ok) throw new Error();
+                        setUiState(prev => ({ ...prev, reportSubmitting: false, reportSuccess: true }));
+                      } catch {
+                        toast.error('Something went wrong. Please try again.');
+                        setUiState(prev => ({ ...prev, reportSubmitting: false }));
+                      }
+                    }}
+                    className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                      !reportReason || uiState.reportSubmitting
+                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                        : 'bg-red-500 text-white hover:bg-red-600 active:scale-[0.97]'
+                    }`}
+                  >
+                    {uiState.reportSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Submitting...
+                      </span>
+                    ) : 'Submit report'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
       <LoginPromptModal {...loginPrompt.modalProps} />
     </article>

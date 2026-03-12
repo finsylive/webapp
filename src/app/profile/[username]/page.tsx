@@ -123,7 +123,7 @@ export default function PublicProfilePage() {
   const [followPending, setFollowPending] = useState(false);
   const [messagePending, setMessagePending] = useState(false);
   const { isDarkMode } = useTheme();
-  const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'replies'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'replies' | 'bookmarks'>('about');
   const [imgError, setImgError] = useState<{ avatar?: boolean; cover?: boolean }>({});
 
   const avatarUrl = useMemo(() => {
@@ -353,11 +353,11 @@ export default function PublicProfilePage() {
       <div className="min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
-          {/* Cover image — using <img> to bypass Next.js Image restrictions */}
-          <div className="rounded-2xl overflow-hidden">
-            <div className="relative h-36 sm:h-44 md:h-52 w-full">
+          {/* Cover + Info — single continuous card, mobile app style */}
+          <div className="relative mb-6">
+            {/* Cover image — top portion */}
+            <div className="relative h-36 sm:h-44 md:h-52 w-full rounded-2xl overflow-hidden">
               {coverUrl && !imgError.cover ? (
-
                 <img
                   src={coverUrl}
                   alt="Cover image"
@@ -368,105 +368,53 @@ export default function PublicProfilePage() {
                 <div className="h-full w-full bg-emerald-600" />
               )}
             </div>
-          </div>
 
-          {/* Avatar overlapping cover bottom */}
-          <div className="relative -mt-12 ml-3 sm:-mt-14 sm:ml-5 mb-3 z-10">
-            <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[#0f1318]' : 'ring-white'} bg-card shadow-lg`}>
-              {avatarUrl && !imgError.avatar ? (
-
-                <img
-                  src={avatarUrl}
-                  alt={fullName}
-                  className="w-full h-full object-cover"
-                  onError={() => setImgError(prev => ({ ...prev, avatar: true }))}
-                />
-              ) : (
-                <div className="w-full h-full bg-emerald-600 flex items-center justify-center">
-                  <User className="h-12 w-12 text-white" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Profile info card */}
-          <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm -mt-2 mb-6">
-            <div className="px-4 py-4 sm:px-6 sm:py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
-                    <span className="truncate">{fullName}</span>
-                    {data?.user?.is_verified && (
-                      <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
-                    )}
-                  </h1>
-                  <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                    @{data?.user?.username || username}
-                  </span>
-                  {data?.user?.tagline && (
-                    <p className={`text-sm mt-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {data.user.tagline}
-                    </p>
+            {/* Info section — bottom card with gap */}
+            <div className="relative px-4 sm:px-6 pt-3 pb-5 mt-[7px] bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl">
+              {/* Avatar — overlapping the boundary between cover and info */}
+              <div className="absolute -top-14 sm:-top-16 right-5 sm:right-8 z-10">
+                <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ${isDarkMode ? 'ring-[hsl(var(--card))]' : 'ring-white'} bg-card shadow-xl`}>
+                  {avatarUrl && !imgError.avatar ? (
+                    <img
+                      src={avatarUrl}
+                      alt={fullName}
+                      className="w-full h-full object-cover"
+                      onError={() => setImgError(prev => ({ ...prev, avatar: true }))}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-emerald-600 flex items-center justify-center">
+                      <User className="h-12 w-12 text-white" />
+                    </div>
                   )}
-                  {city && (
-                    <p className={`text-sm mt-1 flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      <MapPin className="h-3.5 w-3.5" />
-                      {city}
-                    </p>
-                  )}
-                </div>
-
-                {/* Edit / Follow / Message */}
-                <div className="flex-shrink-0 flex items-center gap-2">
-                  {authLoading || loading ? (
-                    <Button disabled size="sm" className="rounded-full">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </Button>
-                  ) : isOwnProfile ? (
-                    <Link href="/profile/edit">
-                      <Button size="sm" className="rounded-full">
-                        <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                        Edit
-                      </Button>
-                    </Link>
-                  ) : viewerId && data?.user?.id ? (
-                    <>
-                      <Button onClick={handleToggleFollow} size="sm" disabled={followPending} className="rounded-full">
-                        {followPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        {data?.viewer?.is_following ? 'Following' : 'Follow'}
-                      </Button>
-                      <Button onClick={handleMessage} size="sm" disabled={messagePending} variant="outline" className="rounded-full">
-                        {messagePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
-                      </Button>
-                    </>
-                  ) : null}
                 </div>
               </div>
 
-              {/* Follower / Following stats + Social Links */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center gap-3 sm:gap-5">
-                  <Link
-                    href={`/profile/${encodeURIComponent(username)}/followers`}
-                    className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
-                  >
-                    <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {loading ? '—' : data?.counts?.followers ?? 0}
-                    </span>
-                    <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Followers</span>
-                  </Link>
-                  <Link
-                    href={`/profile/${encodeURIComponent(username)}/following`}
-                    className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
-                  >
-                    <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {loading ? '—' : data?.counts?.following ?? 0}
-                    </span>
-                    <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</span>
-                  </Link>
-                </div>
+              {/* Name + username + tagline — left side, room for avatar on right */}
+              <div className="pr-28 sm:pr-36">
+                <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2 leading-tight`}>
+                  <span className="truncate">{fullName}</span>
+                  {data?.user?.is_verified && (
+                    <BadgeCheck className="text-blue-500 h-5 w-5 flex-shrink-0" />
+                  )}
+                </h1>
+                <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  @{data?.user?.username || username}
+                </span>
+                {data?.user?.tagline && (
+                  <p className={`text-sm mt-0.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {data.user.tagline}
+                  </p>
+                )}
+              </div>
 
-                {/* Social / Portfolio Icons */}
+              {/* Location + social icons */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                {city && (
+                  <p className={`text-sm flex items-center gap-1.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <MapPin className="h-3.5 w-3.5" />
+                    {city}
+                  </p>
+                )}
                 {(() => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const links: { url: string; icon: any; label: string }[] = [];
@@ -483,7 +431,7 @@ export default function PublicProfilePage() {
                   if (sl?.substack) links.push({ url: sl.substack, icon: SubstackIcon, label: 'Substack' });
                   if (links.length === 0) return null;
                   return (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       {links.map(({ url, icon: Icon, label }) => (
                         <a
                           key={label}
@@ -500,6 +448,55 @@ export default function PublicProfilePage() {
                   );
                 })()}
               </div>
+
+              {/* Edit / Follow / Message + Follower stats — same row */}
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-3 sm:gap-5">
+                  <Link
+                    href={`/profile/${encodeURIComponent(username)}/followers`}
+                    className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
+                  >
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {loading ? '—' : data?.counts?.followers ?? 0}
+                    </span>
+                    <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Followers</span>
+                  </Link>
+                  <Link
+                    href={`/profile/${encodeURIComponent(username)}/following`}
+                    className={`text-sm hover:underline ${isDarkMode ? 'hover:text-white' : 'hover:text-gray-900'}`}
+                  >
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {loading ? '—' : data?.counts?.following ?? 0}
+                    </span>
+                    <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</span>
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {authLoading || loading ? (
+                    <Button disabled size="sm" className="rounded-full">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </Button>
+                  ) : isOwnProfile ? (
+                    <Link href="/profile/edit">
+                      <Button size="sm" variant="outline" className="rounded-full border-border/60">
+                        <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                        Edit Profile
+                      </Button>
+                    </Link>
+                  ) : viewerId && data?.user?.id ? (
+                    <>
+                      <Button onClick={handleToggleFollow} size="sm" disabled={followPending} className="rounded-full">
+                        {followPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                        {data?.viewer?.is_following ? 'Following' : 'Follow'}
+                      </Button>
+                      <Button onClick={handleMessage} size="sm" disabled={messagePending} variant="outline" className="rounded-full">
+                        {messagePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -510,6 +507,7 @@ export default function PublicProfilePage() {
                 { id: 'about', label: 'About' },
                 { id: 'posts', label: 'Posts' },
                 { id: 'replies', label: 'Replies' },
+                ...(isOwnProfile ? [{ id: 'bookmarks', label: 'Saved' }] : []),
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1086,6 +1084,17 @@ export default function PublicProfilePage() {
                     <div className="text-center text-sm text-muted-foreground py-8">Loading replies...</div>
                   ) : (
                     <UserActivityFeed userId={data.user.id} type="replies" />
+                  )}
+                </div>
+              )}
+
+              {/* ── Saved / Bookmarks Tab ── */}
+              {activeTab === 'bookmarks' && isOwnProfile && (
+                <div>
+                  {loading || !data?.user?.id ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">Loading saved posts...</div>
+                  ) : (
+                    <UserActivityFeed userId={data.user.id} type="bookmarks" />
                   )}
                 </div>
               )}

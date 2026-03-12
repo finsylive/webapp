@@ -7,7 +7,7 @@ import { supabase } from '@/utils/supabase';
 
 type Props = {
   userId: string;
-  type: 'posts' | 'replies';
+  type: 'posts' | 'replies' | 'bookmarks';
 };
 
 export function UserActivityFeed({ userId, type }: Props) {
@@ -20,9 +20,78 @@ export function UserActivityFeed({ userId, type }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const isReplies = useMemo(() => type === 'replies', [type]);
+  const isBookmarks = useMemo(() => type === 'bookmarks', [type]);
 
-  // Shared fetch function for user posts/replies
+  // Shared fetch function for user posts/replies/bookmarks
   const fetchUserActivity = useCallback(async (start: number, limit = 20) => {
+    // For bookmarks: first get bookmarked post IDs, then fetch those posts
+    if (isBookmarks) {
+      const { data: bookmarks, error: bmError, count: bmCount } = await supabase
+        .from('post_bookmarks')
+        .select('post_id', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(start, start + limit - 1);
+
+      if (bmError || !bookmarks || bookmarks.length === 0) {
+        return { data: [] as Post[], error: bmError, hasMore: false };
+      }
+
+      const postIds = bookmarks.map((b: { post_id: string }) => b.post_id);
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          author:author_id!inner(id, username, avatar_url, full_name, is_verified, account_status),
+          environment:environment_id(id, name, description, picture),
+          media:post_media(*),
+          poll:post_polls(*, options:post_poll_options(*))
+        `)
+        .in('id', postIds)
+        .eq('deleted', false)
+        .eq('author.account_status', 'active');
+
+      if (postsError || !posts) {
+        return { data: null as Post[] | null, error: postsError, hasMore: false };
+      }
+
+      // Preserve bookmark order
+      const postMap = new Map(posts.map((p: { id: string }) => [p.id, p]));
+      const ordered = postIds.map((id: string) => postMap.get(id)).filter(Boolean);
+
+      const batchIds = ordered.map((p: { id: string }) => p.id);
+      const [likesResult, repliesResult] = await Promise.all([
+        supabase.from('post_likes').select('post_id').in('post_id', batchIds),
+        supabase.from('posts').select('parent_post_id').in('parent_post_id', batchIds).eq('deleted', false),
+      ]);
+
+      const likesMap = new Map<string, number>();
+      const repliesMap = new Map<string, number>();
+      if (likesResult.data) {
+        likesResult.data.forEach((like: { post_id: string }) => {
+          likesMap.set(like.post_id, (likesMap.get(like.post_id) || 0) + 1);
+        });
+      }
+      if (repliesResult.data) {
+        repliesResult.data.forEach((reply: { parent_post_id: string | null }) => {
+          if (reply.parent_post_id) {
+            repliesMap.set(reply.parent_post_id, (repliesMap.get(reply.parent_post_id) || 0) + 1);
+          }
+        });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const withCounts = ordered.map((p: any) => normalizePostPoll({
+        ...p,
+        likes: likesMap.get(p.id) || 0,
+        replies: repliesMap.get(p.id) || 0,
+      })) as Post[];
+
+      const total = bmCount ?? withCounts.length;
+      const more = start + bookmarks.length < total;
+      return { data: withCounts, error: null, hasMore: more };
+    }
+
     // Base select with joins similar to fetchPosts fallback
     let query = supabase
       .from('posts')
@@ -84,7 +153,7 @@ export function UserActivityFeed({ userId, type }: Props) {
     const total = count ?? withCounts.length;
     const more = start + withCounts.length < total;
     return { data: withCounts, error: null, hasMore: more };
-  }, [userId, isReplies]);
+  }, [userId, isReplies, isBookmarks]);
 
   // Initial load
   useEffect(() => {

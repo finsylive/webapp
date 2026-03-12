@@ -407,7 +407,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             error: errorData
           });
           throw new Error(
-            errorData.error || 'Communities couldn\u2019t be loaded right now. Try again?'
+            errorData.error || 'Spaces could not be loaded right now. Try again?'
           );
         }
 
@@ -433,14 +433,18 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
 
           setEnvironments(formattedEnvs);
 
-          // Set the first environment as default if none selected
+          const explicitDefault =
+            formattedEnvs.find((env) => env.name.toLowerCase() === 'general')
+            || formattedEnvs[0];
+
+          // Set explicit default environment if none selected
           if (!selectedEnvironment) {
-            setSelectedEnvironment(formattedEnvs[0]);
-            setEnvironmentId(formattedEnvs[0].id);
+            setSelectedEnvironment(explicitDefault);
+            setEnvironmentId(explicitDefault.id);
           }
         } else {
           console.warn('No environments available');
-          setError('No environments available. Please contact support.');
+          setError('No spaces available. Please contact support.');
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -686,7 +690,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
     }
 
     if (!environmentId) {
-      setError('No environment selected. Please try again later.');
+      setError('No space selected. Please try again later.');
       return;
     }
 
@@ -838,7 +842,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
   return (
     <>
     <form onSubmit={handleSubmit}>
-      {/* Author row: avatar + name + environment dropdown */}
+      {/* Author row: avatar + name + space dropdown */}
       <div className="flex items-start gap-3 mb-4">
         <UserAvatar
           src={userData?.avatar_url}
@@ -861,7 +865,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               ) : (
                 <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               )}
-              <span className="text-xs font-medium text-muted-foreground">{selectedEnvironment?.name || 'Select environment'}</span>
+              <span className="text-xs font-medium text-muted-foreground">{selectedEnvironment?.name || 'Select space'}</span>
               <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isEnvDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -872,7 +876,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                     type="text"
                     value={envQuery}
                     onChange={(e) => setEnvQuery(e.target.value)}
-                    placeholder="Search environments..."
+                    placeholder="Search spaces..."
                     className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
@@ -900,7 +904,7 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                     </button>
                   ))}
                   {!envLoading && filteredEnvs.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-3">No environments found.</p>
+                    <p className="text-xs text-muted-foreground text-center py-3">No spaces found.</p>
                   )}
                 </div>
               </div>
@@ -962,41 +966,43 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isSubmitting || isUploading || compressionProgress.isCompressing}
-            className="w-full rounded-2xl border border-border border-dashed bg-muted/30 hover:bg-muted/50 transition-colors p-4 sm:p-6 flex flex-col items-center justify-center text-muted-foreground"
+            className="group w-full rounded-2xl border-2 border-dashed border-border/60 hover:border-primary/40 bg-muted/20 hover:bg-primary/5 transition-all duration-200 p-6 sm:p-8 flex flex-col items-center justify-center gap-3"
           >
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 border border-primary/30 mb-2">
+            <div className={`flex items-center justify-center h-14 w-14 rounded-2xl transition-all duration-200 ${
+              isUploading || compressionProgress.isCompressing
+                ? 'bg-primary/10'
+                : 'bg-primary/10 group-hover:bg-primary/20 group-hover:scale-105'
+            }`}>
               {isUploading || compressionProgress.isCompressing ? (
-                <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               ) : (
-                <ImageIcon className="h-6 w-6 text-primary" />
+                <ImageIcon className="h-7 w-7 text-primary" />
               )}
             </div>
 
             {compressionProgress.isCompressing ? (
-              <div className="text-center">
-                <div className="text-sm font-medium text-primary">Processing Media...</div>
-                <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{compressionProgress.currentFile}</div>
-                <div className="w-full bg-muted rounded-full h-1.5 mt-2">
+              <div className="text-center w-full max-w-[240px]">
+                <div className="text-sm font-semibold text-primary">Processing Media...</div>
+                <div className="text-xs text-muted-foreground mt-1 truncate">{compressionProgress.currentFile}</div>
+                <div className="w-full bg-muted rounded-full h-1.5 mt-3">
                   <div
                     className="bg-primary h-1.5 rounded-full transition-all duration-300"
                     style={{ width: `${compressionProgress.progress}%` }}
-                  ></div>
+                  />
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">{compressionProgress.progress}% complete</div>
+                <div className="text-xs text-muted-foreground mt-1.5">{compressionProgress.progress}%</div>
               </div>
             ) : (
               <>
-                <div className="text-sm font-medium">Add Photos & Videos</div>
-                <div className="text-xs text-muted-foreground mt-1">Images and videos will be optimized automatically</div>
-                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <ImageIcon className="h-3 w-3" />
-                    <span>Photos</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <VideoIcon className="h-3 w-3" />
-                    <span>Videos</span>
-                  </div>
+                <div className="text-sm font-semibold text-foreground/80 group-hover:text-foreground transition-colors">Add Photos & Videos</div>
+                <div className="text-xs text-muted-foreground/70">Drag or click to upload. Auto-optimized.</div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-muted/50 px-2.5 py-1 rounded-full">
+                    <ImageIcon className="h-3 w-3" /> Photos
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-muted/50 px-2.5 py-1 rounded-full">
+                    <VideoIcon className="h-3 w-3" /> Videos
+                  </span>
                 </div>
               </>
             )}
@@ -1146,74 +1152,79 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
               <X size={16} />
             </button>
           </div>
-          <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
+          <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5 space-y-5">
             {/* Poll Type Toggle */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-2 block">Poll Type</label>
+              <label className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-2.5 block">Poll Type</label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setPollData(prev => ({ ...prev, poll_type: 'single_choice' }))}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${pollData.poll_type === 'single_choice'
-                    ? 'bg-primary/20 border-primary/40 text-primary'
-                    : 'bg-background border-border text-muted-foreground hover:border-primary/30'
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pollData.poll_type === 'single_choice'
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                    : 'bg-muted/40 text-muted-foreground hover:bg-muted/60'
                     }`}
                 >
-                  ◉ Single Choice
+                  Single Choice
                 </button>
                 <button
                   type="button"
                   onClick={() => setPollData(prev => ({ ...prev, poll_type: 'multiple_choice' }))}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${pollData.poll_type === 'multiple_choice'
-                    ? 'bg-primary/20 border-primary/40 text-primary'
-                    : 'bg-background border-border text-muted-foreground hover:border-primary/30'
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pollData.poll_type === 'multiple_choice'
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                    : 'bg-muted/40 text-muted-foreground hover:bg-muted/60'
                     }`}
                 >
-                  ☑ Multiple Choice
+                  Multiple Choice
                 </button>
               </div>
             </div>
             {/* Poll Question */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-2 block">Poll Question</label>
+              <label className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-2.5 block">Question</label>
               <input
                 type="text"
                 value={pollData.question}
                 onChange={(e) => updatePollQuestion(e.target.value)}
                 placeholder="Ask a question..."
-                className="w-full rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground p-3"
+                className="w-full rounded-xl bg-muted/30 border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 text-card-foreground placeholder:text-muted-foreground/50 px-4 py-3 text-sm"
                 maxLength={200}
               />
-              <div className="text-xs text-muted-foreground mt-1">{pollData.question.length}/200</div>
+              <div className="text-[11px] text-muted-foreground/50 mt-1.5 text-right">{pollData.question.length}/200</div>
             </div>
 
             {/* Poll Options */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-2 block">Poll Options</label>
+              <label className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-2.5 block">Options</label>
               <div className="space-y-2">
                 {pollData.options.map((option, index) => (
                   <div key={index} className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted/50 text-xs text-muted-foreground/60 font-medium flex-shrink-0">
+                      {index + 1}
+                    </div>
                     <div className="flex-1 relative">
                       <input
                         type="text"
                         value={option}
                         onChange={(e) => updatePollOption(index, e.target.value)}
                         placeholder={`Option ${index + 1}`}
-                        className="w-full rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-card-foreground placeholder:text-muted-foreground p-2.5 pr-10"
+                        className="w-full rounded-xl bg-muted/30 border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 text-card-foreground placeholder:text-muted-foreground/50 px-3 py-2.5 pr-12 text-sm"
                         maxLength={100}
                       />
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                        {option.length}/100
-                      </div>
+                      {option.length > 0 && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/40">
+                          {option.length}/100
+                        </div>
+                      )}
                     </div>
                     {pollData.options.length > 2 && (
                       <button
                         type="button"
                         onClick={() => removePollOption(index)}
-                        className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                        className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all"
                         aria-label="Remove option"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
@@ -1225,79 +1236,93 @@ export function CreatePostInput({ onPostCreated, initialPostType }: CreatePostIn
                 <button
                   type="button"
                   onClick={addPollOption}
-                  className="mt-2 flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  className="mt-3 flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                 >
-                  <Plus className="h-4 w-4" />
-                  Add Option (max 6)
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10">
+                    <Plus className="h-3.5 w-3.5" />
+                  </div>
+                  Add Option
                 </button>
               )}
-
-              <div className="text-xs text-muted-foreground mt-2">
-                {pollData.options.filter(opt => opt.trim()).length} of {pollData.options.length} options filled
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Add to your post toolbar */}
-      <div className="flex items-center justify-between border border-border rounded-xl px-3 sm:px-4 py-2 mb-4 bg-muted/30">
-        <span className="text-sm font-medium text-muted-foreground hidden sm:inline-block">Add to your post</span>
-        <div className="flex items-center gap-0.5 sm:gap-1.5 w-full sm:w-auto justify-around sm:justify-end">
+      {/* Footer — actions + character count + post button */}
+      <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/40">
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          {/* Quick action icons */}
           <button
             type="button"
-            onClick={() => setPostType(postType === 'media' ? 'text' : 'media')}
-            title="Photo"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${postType === 'media' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'hover:bg-accent/60 text-emerald-600 dark:text-emerald-400'}`}
+            onClick={() => { setPostType(postType === 'media' ? 'text' : 'media'); if (postType !== 'media') fileInputRef.current?.click(); }}
+            title="Add photo"
+            className={`p-2 rounded-lg transition-colors ${
+              postType === 'media' ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-emerald-500 hover:bg-muted/60'
+            }`}
           >
-            <ImageIcon size={18} />
-            <span className="hidden sm:inline text-xs">Photo</span>
+            <ImageIcon size={20} />
           </button>
           <button
             type="button"
             onClick={() => { setPostType('media'); fileInputRef.current?.click(); }}
-            title="Video"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-accent/60 text-blue-600 dark:text-blue-400 transition-colors"
+            title="Add video"
+            className="p-2 rounded-lg text-muted-foreground hover:text-blue-500 hover:bg-muted/60 transition-colors"
           >
-            <VideoIcon size={18} />
-            <span className="hidden sm:inline text-xs">Video</span>
+            <VideoIcon size={20} />
           </button>
           <button
             type="button"
             onClick={() => setPostType(postType === 'poll' ? 'text' : 'poll')}
-            title="Poll"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${postType === 'poll' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'hover:bg-accent/60 text-amber-600 dark:text-amber-400'}`}
+            title="Create poll"
+            className={`p-2 rounded-lg transition-colors ${
+              postType === 'poll' ? 'text-amber-500 bg-amber-500/10' : 'text-muted-foreground hover:text-amber-500 hover:bg-muted/60'
+            }`}
           >
-            <BarChart2 size={18} />
-            <span className="hidden sm:inline text-xs">Poll</span>
+            <BarChart2 size={20} />
           </button>
-        </div>
-      </div>
-
-      {/* Footer — character count + error + post button */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {/* Smart character count — fades in near limit */}
+          {/* Separator */}
+          <div className="w-px h-5 bg-border/50 mx-1" />
+          {/* Circular character progress — appears near limit */}
+          {content.length > CHAR_WARN_THRESHOLD && (() => {
+            const remaining = MAX_CONTENT - content.length;
+            const ratio = Math.min(content.length / MAX_CONTENT, 1);
+            const circumference = 2 * Math.PI * 10;
+            const strokeDashoffset = circumference * (1 - ratio);
+            const color = remaining <= 0 ? 'text-destructive' : remaining <= 30 ? 'text-amber-500' : 'text-primary';
+            return (
+              <div className="relative flex items-center justify-center shrink-0">
+                <svg width="24" height="24" viewBox="0 0 24 24" className="-rotate-90">
+                  <circle cx="12" cy="12" r="10" fill="none" strokeWidth="2" className="stroke-muted/40" />
+                  <circle cx="12" cy="12" r="10" fill="none" strokeWidth="2" strokeLinecap="round"
+                    className={`${color.replace('text-', 'stroke-')} transition-all duration-300`}
+                    strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
+                </svg>
+                {remaining <= 30 && (
+                  <span className={`absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums ${color}`}>
+                    {remaining}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+          {/* Separator dot */}
           {content.length > CHAR_WARN_THRESHOLD && (
-            <span className={`text-xs font-medium tabular-nums shrink-0 transition-colors ${
-              content.length >= MAX_CONTENT ? 'text-destructive' :
-              content.length >= MAX_CONTENT - 30 ? 'text-amber-500' :
-              'text-muted-foreground'
-            }`}>
-              {MAX_CONTENT - content.length}
-            </span>
+            <div className="w-px h-4 bg-border/60" />
           )}
-          {/* Error inline near Post button */}
+          {/* Error inline */}
           {error && (
-            <p className="text-xs text-destructive truncate">{error}</p>
+            <p className="text-xs text-destructive font-medium truncate">{error}</p>
           )}
         </div>
         <button
           type="submit"
           disabled={isPostDisabled}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${isPostDisabled ? 'bg-muted text-muted-foreground cursor-not-allowed'
-            : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95'
-            }`}
+          className={`flex items-center justify-center gap-2 px-7 py-2.5 rounded-full font-semibold text-sm tracking-wide transition-all duration-200 ${
+            isPostDisabled
+              ? 'bg-primary/30 text-primary-foreground/50 cursor-not-allowed'
+              : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow-md active:scale-[0.97]'
+          }`}
         >
           {isSubmitting && (
             <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
