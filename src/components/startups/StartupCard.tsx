@@ -62,7 +62,7 @@ function StartupLogo({ startup }: { startup: StartupProfile }) {
             } else {
               setDirectFailed(true);
             }
-            proxyFailed && setProxyFailed(true);
+            if (proxyFailed) setProxyFailed(true);
           } else {
             setDirectFailed(true);
           }

@@ -332,20 +332,12 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
             }).map((f) => {
               const isAccepted = f.status === 'accepted';
               const isPending = f.status === 'pending';
-<<<<<<< HEAD
-              const hasMents = !!f.ments_username && isAccepted;
-              const profileHref = hasMents ? `/profile/${f.ments_username}` : undefined;
-              const Wrapper = profileHref ? 'a' : 'div';
-              const wrapperProps = profileHref ? { href: profileHref } : {};
-=======
-              
               // Prefer real-time data from joined user, fallback to denormalized
               const username = f.user?.username || f.ments_username;
               const avatar = f.user?.avatar_url || f.avatar_url;
-              
+
               const hasMents = !!username && isAccepted;
               const profileHref = hasMents ? `/profile/${username}` : null;
->>>>>>> f9162f1127e4f74b1e463c8c7b39d758853a9b2b
 
               const CardContent = (
                 <div className={`flex items-center gap-4 p-4 bg-accent/15 rounded-2xl border border-border/20 group transition-all duration-200 h-full ${
