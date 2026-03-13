@@ -490,10 +490,15 @@ export function StartupProfileView({ startup, isOwner, isCofounder, onBookmark, 
           </h3>
           <div className="rounded-2xl overflow-hidden border border-border/30 bg-black">
             <video
-              src={startup.pitch_video_url}
               controls
+              playsInline
+              preload="metadata"
+              controlsList="nodownload"
               className="w-full max-h-80 object-contain"
-            />
+            >
+              <source src={toProxyUrl(startup.pitch_video_url)} type="video/mp4" />
+              <source src={toProxyUrl(startup.pitch_video_url)} type="video/webm" />
+            </video>
           </div>
         </div>
       )}

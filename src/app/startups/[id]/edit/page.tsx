@@ -34,6 +34,7 @@ export default function EditStartupPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUploadingDeck, setIsUploadingDeck] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,8 +167,10 @@ export default function EditStartupPage() {
 
   const handlePitchVideoUpload = async (file: File) => {
     setIsUploadingVideo(true);
-    const { url, error } = await uploadPitchVideo(file);
+    setVideoUploadProgress(0);
+    const { url, error } = await uploadPitchVideo(file, (pct) => setVideoUploadProgress(pct));
     setIsUploadingVideo(false);
+    setVideoUploadProgress(0);
     if (error) setError(error);
     else setProfileData(prev => ({ ...prev, pitch_video_url: url }));
   };
@@ -369,6 +372,7 @@ export default function EditStartupPage() {
                 data={profileData}
                 isUploadingDeck={isUploadingDeck}
                 isUploadingVideo={isUploadingVideo}
+                videoUploadProgress={videoUploadProgress}
                 onChange={handleProfileChange}
                 onPitchDeckUpload={handlePitchDeckUpload}
                 onPitchVideoUpload={handlePitchVideoUpload}

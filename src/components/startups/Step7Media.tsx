@@ -11,6 +11,7 @@ type Step7Props = {
   };
   isUploadingDeck: boolean;
   isUploadingVideo: boolean;
+  videoUploadProgress?: number;
   onChange: (field: string, value: string) => void;
   onPitchDeckUpload: (file: File) => void;
   onPitchVideoUpload: (file: File) => void;
@@ -18,7 +19,7 @@ type Step7Props = {
 
 const inputClass = "w-full px-4 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-colors";
 
-export function Step7Media({ data, isUploadingDeck, isUploadingVideo, onChange, onPitchDeckUpload, onPitchVideoUpload }: Step7Props) {
+export function Step7Media({ data, isUploadingDeck, isUploadingVideo, videoUploadProgress, onChange, onPitchDeckUpload, onPitchVideoUpload }: Step7Props) {
   const deckInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,8 +107,12 @@ export function Step7Media({ data, isUploadingDeck, isUploadingVideo, onChange, 
             <video
               src={data.pitch_video_url}
               controls
+              playsInline
+              preload="metadata"
               className="w-full max-h-64 object-contain"
-            />
+            >
+              <source src={data.pitch_video_url} type="video/mp4" />
+            </video>
             <button
               type="button"
               onClick={() => onChange('pitch_video_url', '')}
@@ -124,10 +129,20 @@ export function Step7Media({ data, isUploadingDeck, isUploadingVideo, onChange, 
             className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 rounded-xl bg-accent/20 border-2 border-dashed border-border/50 text-muted-foreground hover:border-rose-500/30 hover:bg-rose-500/5 hover:text-foreground transition-all disabled:opacity-50 group"
           >
             {isUploadingVideo ? (
-              <>
+              <div className="w-full flex flex-col items-center gap-3 px-4">
                 <span className="h-6 w-6 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm">Uploading video...</span>
-              </>
+                <div className="w-full max-w-xs">
+                  <div className="w-full h-2 bg-border/40 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-rose-500 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${videoUploadProgress ?? 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mt-1.5">
+                    Uploading video... {videoUploadProgress ?? 0}%
+                  </p>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-rose-500/10 group-hover:bg-rose-500/20 transition-colors">

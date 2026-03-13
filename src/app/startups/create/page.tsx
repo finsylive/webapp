@@ -7,7 +7,6 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupCreateWizard } from '@/components/startups/StartupCreateWizard';
 import { Rocket, FolderKanban, ArrowLeft, AlertCircle } from 'lucide-react';
 import { type EntityType, fetchMyVentures } from '@/api/startups';
-import { useUserData } from '@/hooks/useUserData';
 
 // The ID that has the 'organisation role' and can create multiple startups
 const ORGANIZATION_ROLE_USER_ID = 'ORGANISATION_ROLE_ID_HERE'; // Replace with actual ID or logic
@@ -28,7 +27,6 @@ export default function CreateStartupPage() {
 
 function CreateStartupPageContent() {
   const { user, isLoading } = useAuth();
-  const { userData } = useUserData();
   const router = useRouter();
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type') as EntityType | null;

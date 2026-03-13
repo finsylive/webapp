@@ -48,6 +48,7 @@ export function StartupCreateWizard({ entityType }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingDeck, setIsUploadingDeck] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,8 +146,10 @@ export function StartupCreateWizard({ entityType }: Props) {
 
   const handlePitchVideoUpload = async (file: File) => {
     setIsUploadingVideo(true);
-    const { url, error } = await uploadPitchVideo(file);
+    setVideoUploadProgress(0);
+    const { url, error } = await uploadPitchVideo(file, (pct) => setVideoUploadProgress(pct));
     setIsUploadingVideo(false);
+    setVideoUploadProgress(0);
     if (error) {
       setError(error);
     } else {
@@ -414,6 +417,7 @@ export function StartupCreateWizard({ entityType }: Props) {
             data={profileData}
             isUploadingDeck={isUploadingDeck}
             isUploadingVideo={isUploadingVideo}
+            videoUploadProgress={videoUploadProgress}
             onChange={handleProfileChange}
             onPitchDeckUpload={handlePitchDeckUpload}
             onPitchVideoUpload={handlePitchVideoUpload}

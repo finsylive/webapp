@@ -685,34 +685,98 @@ export async function uploadPitchDeck(file: File): Promise<{ url: string; error?
   }
 }
 
-export async function uploadPitchVideo(file: File): Promise<{ url: string; error?: string }> {
+export async function uploadPitchVideo(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ url: string; error?: string }> {
   try {
     const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
     if (file.size > MAX_VIDEO_SIZE) {
       return { url: '', error: `Video too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max is 50MB.` };
     }
 
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) throw new Error('User not authenticated');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    const userId = user.id;
 
-    const ext = file.name.split('.').pop() || 'mp4';
-    const fileName = `${Date.now()}.${ext}`;
-    const filePath = `pitch-videos/${userId}/${fileName}`;
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-    // Upload the File directly (not ArrayBuffer) — let Supabase client handle encoding
-    const { error: storageError } = await supabase.storage
-      .from('media')
-      .upload(filePath, file, {
-        upsert: true,
-      });
+    // Convert file to base64 for edge function (counts as ~10% of progress)
+    onProgress?.(0);
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+    onProgress?.(10);
 
-    if (storageError) throw storageError;
+    // Upload via edge function with XHR for progress tracking
+    const edgeUrl = 'http://13.205.241.49:8000/functions/v1/upload-post-media';
+    const body = JSON.stringify({
+      imageData: base64Data,
+      fileName,
+      userId,
+      fileType: file.type,
+      isVideo: true,
+      videoWidth: 1920,
+      videoHeight: 1080,
+    });
 
-    const { data: publicUrlData } = supabase.storage
-      .from('media')
-      .getPublicUrl(filePath);
+    // Get access token for authorization
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token ?? '';
 
-    return { url: publicUrlData.publicUrl };
+    const result = await new Promise<{ imageUrl?: string; error?: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', edgeUrl);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          // Map upload progress to 10%-95% range
+          const pct = Math.round(10 + (e.loaded / e.total) * 85);
+          onProgress?.(pct);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)); }
+          catch { resolve({ error: 'Invalid response' }); }
+        } else {
+          resolve({ error: `Upload failed (${xhr.status})` });
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(body);
+    });
+
+    if (result.error || !result.imageUrl) {
+      console.warn('Edge function upload failed, using fallback:', result.error);
+
+      // Fallback to direct Supabase storage
+      const filePath = `pitch-videos/${userId}/${fileName}`;
+      const { error: storageError } = await supabase.storage
+        .from('media')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: true,
+        });
+
+      if (storageError) throw storageError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      onProgress?.(100);
+      return { url: publicUrlData.publicUrl };
+    }
+
+    onProgress?.(100);
+    return { url: result.imageUrl };
   } catch (error: unknown) {
     console.error('Error uploading pitch video:', error);
     const msg = error instanceof Error ? error.message : 'Failed to upload video';
