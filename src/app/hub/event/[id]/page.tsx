@@ -324,6 +324,10 @@ export default function EventDetailsPage() {
   // Arena handlers
   const handleRegisterStall = async () => {
     if (!user || !event) return;
+    if (isStallOwner || myStallId) {
+      setStallError('You have already registered a stall for this event');
+      return;
+    }
     setRegisteringStall(true);
     setStallError(null);
     try {
@@ -339,6 +343,10 @@ export default function EventDetailsPage() {
         setStalls(prev => [...prev, json.stall]);
         setStallForm({ stall_name: '', tagline: '', description: '', startup_id: '', category: '' });
       } else {
+        // If it's a 409 or contains "already registered", update local state to prevent further attempts
+        if (res.status === 409 || (json.error && json.error.toLowerCase().includes('already registered'))) {
+          setIsStallOwner(true);
+        }
         setStallError(json.error || 'Failed to register stall');
       }
     } catch {
@@ -716,7 +724,7 @@ export default function EventDetailsPage() {
                 </div>
 
                 {/* Round 1: Stall Registration */}
-                {event.arena_round === 'registration' && user && !isStallOwner && (
+                {event.arena_round === 'registration' && user && !isStallOwner && !myStallId && (
                   <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
                       <Store className="h-4 w-4 text-muted-foreground" />
@@ -796,7 +804,7 @@ export default function EventDetailsPage() {
                   </div>
                 )}
 
-                {event.arena_round === 'registration' && isStallOwner && (
+                {event.arena_round === 'registration' && (isStallOwner || myStallId) && (
                   <div className="rounded-2xl border border-border bg-muted/30 p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-muted-foreground" />

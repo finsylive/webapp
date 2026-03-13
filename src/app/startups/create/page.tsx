@@ -1,12 +1,16 @@
 "use client";
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StartupCreateWizard } from '@/components/startups/StartupCreateWizard';
-import { Rocket, FolderKanban, ArrowLeft } from 'lucide-react';
-import type { EntityType } from '@/api/startups';
+import { Rocket, FolderKanban, ArrowLeft, AlertCircle } from 'lucide-react';
+import { type EntityType, fetchMyVentures } from '@/api/startups';
+import { useUserData } from '@/hooks/useUserData';
+
+// The ID that has the 'organisation role' and can create multiple startups
+const ORGANIZATION_ROLE_USER_ID = 'ORGANISATION_ROLE_ID_HERE'; // Replace with actual ID or logic
 
 export default function CreateStartupPage() {
   return (
@@ -24,6 +28,7 @@ export default function CreateStartupPage() {
 
 function CreateStartupPageContent() {
   const { user, isLoading } = useAuth();
+  const { userData } = useUserData();
   const router = useRouter();
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type') as EntityType | null;
@@ -31,7 +36,39 @@ function CreateStartupPageContent() {
     typeParam === 'startup' || typeParam === 'org_project' ? typeParam : null
   );
 
-  if (isLoading) {
+  const [checkingLimit, setCheckingLimit] = useState(true);
+  const [hasReachedLimit, setHasReachedLimit] = useState(false);
+
+  useEffect(() => {
+    async function checkLimit() {
+      if (!user) return;
+      
+      // Allow if they are the special organization role
+      if (user.id === ORGANIZATION_ROLE_USER_ID) {
+        setCheckingLimit(false);
+        return;
+      }
+
+      try {
+        const res = await fetchMyVentures(user.id);
+        if (res.data && res.data.length >= 1) {
+          setHasReachedLimit(true);
+        }
+      } catch (err) {
+        console.error('Failed to check startup limits', err);
+      } finally {
+        setCheckingLimit(false);
+      }
+    }
+    
+    if (user && !isLoading) {
+      checkLimit();
+    } else if (!isLoading && !user) {
+      setCheckingLimit(false);
+    }
+  }, [user, isLoading]);
+
+  if (isLoading || checkingLimit) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-20">
@@ -46,6 +83,33 @@ function CreateStartupPageContent() {
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-muted-foreground">Please sign in to create a profile.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (hasReachedLimit) {
+    return (
+      <DashboardLayout>
+        <div className="py-6 sm:py-10">
+          <div className="max-w-2xl mx-auto px-4 sm:px-0">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </button>
+            <div className="bg-card border border-amber-500/30 rounded-2xl p-6 text-center shadow-sm">
+              <div className="mx-auto w-12 h-12 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <h1 className="text-xl font-bold text-foreground">Limit Reached</h1>
+              <p className="text-sm text-muted-foreground mt-2">
+                You have already created a startup or project profile. Currently, standard accounts are limited to one active venture. 
+                If you are an incubator or organization requiring multiple listings, please contact support for an upgraded role.
+              </p>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );

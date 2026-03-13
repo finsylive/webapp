@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, X, QrCode } from 'lucide-react';
+import Image from 'next/image';
 
 type StallQRCodeProps = {
   eventId: string;
@@ -13,6 +14,7 @@ type StallQRCodeProps = {
 
 export function StallQRCode({ eventId, stallId, stallName, startupId }: StallQRCodeProps) {
   const [showModal, setShowModal] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
   // If startup is linked, QR points to startup profile with arena context; otherwise fallback to /invest page
@@ -20,31 +22,18 @@ export function StallQRCode({ eventId, stallId, stallName, startupId }: StallQRC
     ? `${baseUrl}/startups/${startupId}?fromArena=1&eventId=${encodeURIComponent(eventId)}&stallId=${encodeURIComponent(stallId)}`
     : `${baseUrl}/invest/${eventId}/${stallId}`;
 
-  const handleDownload = () => {
-    const svg = document.getElementById('stall-qr-svg');
-    if (!svg) return;
-
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    img.onload = () => {
-      canvas.width = 512;
-      canvas.height = 512;
-      if (ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 512, 512);
-        ctx.drawImage(img, 0, 0, 512, 512);
-      }
-      const pngUrl = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = pngUrl;
-      downloadLink.download = `${stallName.replace(/\s+/g, '_')}_QR.png`;
-      downloadLink.click();
-    };
-
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  const handleDownload = async () => {
+    if (!cardRef.current) return;
+    try {
+      const htmlToImage = await import('html-to-image');
+      const dataUrl = await htmlToImage.toPng(cardRef.current, { quality: 1.0, pixelRatio: 2 });
+      const link = document.createElement('a');
+      link.download = `${stallName.replace(/\s+/g, '_')}_QR.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to download QR code card:', err);
+    }
   };
 
   return (
@@ -60,7 +49,7 @@ export function StallQRCode({ eventId, stallId, stallName, startupId }: StallQRC
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm mx-4 rounded-2xl border border-border/60 bg-background shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-sm mx-4 rounded-2xl border border-border/60 bg-background shadow-2xl overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
               <h3 className="font-bold text-foreground">Investment QR Code</h3>
@@ -71,34 +60,48 @@ export function StallQRCode({ eventId, stallId, stallName, startupId }: StallQRC
 
             <div className="px-5 py-6 space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Audience can scan this QR code to invest virtual funds in <strong>{stallName}</strong>.
+                Audience can scan this QR code to invest virtual funds.
               </p>
 
-              {/* QR Code */}
+              {/* The Card to be downloaded */}
               <div className="flex justify-center">
-                <div className="bg-white p-4 rounded-xl">
+                <div 
+                  ref={cardRef}
+                  className="bg-white p-6 rounded-2xl flex flex-col items-center shadow-sm border border-gray-100 w-[280px]"
+                >
+                  <div className="mb-4 flex flex-col items-center">
+                    {/* Placeholder for Ments Logo, or you can use your specific logo SVG */}
+                    <div className="flex items-center gap-2">
+                      <Image src="/logo/black_logo.svg" alt="Ments Logo" width={32} height={32} />
+                      <span className="font-bold text-xl tracking-tight text-black">ments</span>
+                    </div>
+                  </div>
                   <QRCodeSVG
                     id="stall-qr-svg"
                     value={investUrl}
-                    size={220}
+                    size={200}
                     level="H"
                     includeMargin={false}
                   />
+                  <div className="mt-4 text-center w-full">
+                    <p className="text-lg font-bold text-black truncate">{stallName}</p>
+                    <p className="text-xs text-gray-500 mt-1">Scan to Invest</p>
+                  </div>
                 </div>
               </div>
 
-              <p className="text-xs text-center text-muted-foreground break-all px-2">
+              <p className="text-xs text-center text-muted-foreground break-all px-2 mt-2">
                 {investUrl}
               </p>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleDownload}
                   className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-3 text-sm transition"
                 >
                   <Download className="h-4 w-4" />
-                  Download QR
+                  Download Card
                 </button>
                 <button
                   onClick={() => {

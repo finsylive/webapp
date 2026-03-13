@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single();
 
     if (error) {
-      if (error.code === '23505') {
+      if (error.code === '23505' || error.message?.includes('unique constraint') || error.message?.includes('duplicate key')) {
         return NextResponse.json({ error: 'You have already registered a stall for this event' }, { status: 409 });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
