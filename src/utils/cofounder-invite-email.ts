@@ -17,7 +17,7 @@ export async function sendCofounderInviteEmail({
   startupName: string;
   inviterName: string;
 }): Promise<void> {
-  const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.ments.app'}/signup`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.ments.app';
 
   await transporter.sendMail({
     from: `Ments <${process.env.SMTP_USER}>`,
@@ -33,7 +33,7 @@ export async function sendCofounderInviteEmail({
           <strong>${startupName}</strong> on Ments.
           Create your account to confirm your role.
         </p>
-        <a href="${signupUrl}"
+        <a href="${appUrl}"
            style="display:inline-block;padding:12px 28px;background:#6d28d9;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;">
           Join Ments
         </a>

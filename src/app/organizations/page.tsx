@@ -123,23 +123,16 @@ export default function OrganizationsPage() {
               </div>
               <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Organizations</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Explore clubs, incubators, accelerators, e-cells, and support bodies. Clubs can attach org projects, while support organizations can showcase associated startups.
+                Explore clubs and support organizations. Clubs can attach org projects, while facilitators discovered here may still be managed from the business app.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/organizations/create?type=club"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card px-5 py-3 text-sm font-semibold hover:bg-accent/30"
-              >
-                <Plus className="h-4 w-4" />
-                Create Club
-              </Link>
-              <Link
-                href="/organizations/create"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
               >
                 <Plus className="h-4 w-4" />
-                Set Up Facilitator
+                Create Club
               </Link>
             </div>
           </div>

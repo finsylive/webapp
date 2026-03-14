@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createStartup, upsertFundingRounds, upsertTextSections, upsertLinks, upsertSlides, uploadPitchDeck, uploadPitchVideo, uploadStartupImage } from '@/api/startups';
+import { connectStartupEntity, createStartup, upsertFundingRounds, upsertTextSections, upsertLinks, upsertSlides, uploadPitchDeck, uploadPitchVideo, uploadStartupImage } from '@/api/startups';
 import type { EntityType } from '@/api/startups';
+import type { OrganizationRelationType } from '@/api/organizations';
 import { Step1Identity } from './Step1Identity';
 import { Step2Description } from './Step2Description';
 import { Step3Branding } from './Step3Branding';
@@ -24,6 +25,7 @@ const STARTUP_STEPS = [
   { label: 'Edge', short: 'Edge' },
   { label: 'Financials', short: 'Finance' },
   { label: 'Media', short: 'Media' },
+  { label: 'Showcase', short: 'Showcase' },
   { label: 'Publish', short: 'Publish' },
 ];
 
@@ -37,9 +39,20 @@ const ORG_PROJECT_STEPS = [
 
 type Props = {
   entityType: EntityType;
+  orgProjectConnection?: {
+    hostOrganizationName?: string;
+    organizationSlug?: string | null;
+    organizationName?: string | null;
+    relationType?: OrganizationRelationType | null;
+  };
+  startupFacilitatorConnection?: {
+    organizationSlug?: string | null;
+    organizationName?: string | null;
+    relationType?: OrganizationRelationType | null;
+  };
 };
 
-export function StartupCreateWizard({ entityType }: Props) {
+export function StartupCreateWizard({ entityType, orgProjectConnection, startupFacilitatorConnection }: Props) {
   const { user } = useAuth();
   const router = useRouter();
   const isOrgProject = entityType === 'org_project';
@@ -273,8 +286,31 @@ export function StartupCreateWizard({ entityType }: Props) {
       }
 
       const validSections = textSections.filter(s => s.heading.trim() && s.content.trim());
-      if (validSections.length > 0) {
-        promises.push(upsertTextSections(startup.id, validSections));
+      const affiliationLines = [
+        orgProjectConnection?.hostOrganizationName
+          ? `Host institution / umbrella organization: ${orgProjectConnection.hostOrganizationName}`
+          : null,
+        orgProjectConnection?.organizationName && orgProjectConnection?.relationType
+          ? `${orgProjectConnection.relationType === 'club_project' ? 'Linked club' : 'Connected organization'}: ${orgProjectConnection.organizationName}${orgProjectConnection.relationType !== 'club_project' ? ` (${orgProjectConnection.relationType.replace(/_/g, ' ')})` : ''}`
+          : null,
+        startupFacilitatorConnection?.organizationName && startupFacilitatorConnection?.relationType
+          ? `Startup facilitator: ${startupFacilitatorConnection.organizationName} (${startupFacilitatorConnection.relationType.replace(/_/g, ' ')})`
+          : null,
+      ].filter(Boolean) as string[];
+
+      const sectionsToPersist = affiliationLines.length > 0
+        ? [
+            ...validSections,
+            {
+              heading: 'Affiliation',
+              content: affiliationLines.join('\n'),
+              display_order: validSections.length,
+            },
+          ]
+        : validSections;
+
+      if (sectionsToPersist.length > 0) {
+        promises.push(upsertTextSections(startup.id, sectionsToPersist));
       }
 
       const validLinks = showcaseLinks.filter(l => l.title.trim() && l.url.trim());
@@ -288,6 +324,28 @@ export function StartupCreateWizard({ entityType }: Props) {
       }
 
       await Promise.all(promises);
+
+      if (isOrgProject && orgProjectConnection?.organizationSlug && orgProjectConnection.relationType) {
+        try {
+          await connectStartupEntity(startup.id, {
+            organization_slug: orgProjectConnection.organizationSlug,
+            relation_type: orgProjectConnection.relationType,
+          });
+        } catch (relationError) {
+          console.error('Failed to auto-link org project to organization', relationError);
+        }
+      }
+
+      if (!isOrgProject && startupFacilitatorConnection?.organizationSlug && startupFacilitatorConnection.relationType) {
+        try {
+          await connectStartupEntity(startup.id, {
+            organization_slug: startupFacilitatorConnection.organizationSlug,
+            relation_type: startupFacilitatorConnection.relationType,
+          });
+        } catch (relationError) {
+          console.error('Failed to auto-link startup to facilitator', relationError);
+        }
+      }
 
       router.push(isPublish ? `/startups/${startup.id}` : '/startups/my');
     } catch (err) {

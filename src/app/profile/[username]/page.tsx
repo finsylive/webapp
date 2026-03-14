@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap, Target, TrendingUp, Github, Globe, Youtube, Linkedin, ExternalLink } from 'lucide-react';
+import { Loader2, User, Diamond, Rocket, Building2, BadgeCheck, Pencil, Plus, MapPin, MessageCircle, Zap, GraduationCap, Target, TrendingUp, Github, Globe, Youtube, Linkedin, ExternalLink, FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/theme/ThemeContext';
 import { UserActivityFeed } from '@/components/posts/UserActivityFeed';
@@ -526,6 +526,33 @@ export default function PublicProfilePage() {
               {/* ── About Tab ── */}
               {activeTab === 'about' && (
                 <div className="space-y-8">
+
+                  {isOwnProfile && !loading && (
+                    <div className={`rounded-2xl border p-4 sm:p-5 ${
+                      isDarkMode
+                        ? 'border-emerald-500/20 bg-emerald-500/5'
+                        : 'border-emerald-200 bg-emerald-50/80'
+                    }`}>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 text-emerald-500">
+                            <FileText className="h-4 w-4" />
+                            <span className="text-sm font-semibold">Quick fill with resume</span>
+                          </div>
+                          <p className={`mt-1 text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            Upload a resume to auto-fill profile details like bio, skills, experience, education, links, and projects.
+                          </p>
+                        </div>
+                        <Link href="/profile/edit" className="shrink-0">
+                          <Button size="sm" className="rounded-full">
+                            Use Resume Upload
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Profile Completion — only shown to profile owner, above bio */}
                   {isOwnProfile && !loading && (() => {

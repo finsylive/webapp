@@ -281,7 +281,7 @@ function StartupsPageContent() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground">Org Project</p>
-                    <p className="text-xs text-muted-foreground">Club, team, or group</p>
+                    <p className="text-xs text-muted-foreground">Standalone or linked to an organization</p>
                   </div>
                 </Link>
                 <Link
@@ -295,6 +295,19 @@ function StartupsPageContent() {
                   <div>
                     <p className="text-sm font-medium text-foreground">Startup Facilitator</p>
                     <p className="text-xs text-muted-foreground">Incubator, accelerator, e-cell</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/organizations/create?type=club"
+                  onClick={() => setShowListMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Building2 className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Organization</p>
+                    <p className="text-xs text-muted-foreground">Club, society, or campus body</p>
                   </div>
                 </Link>
                 <div className="mx-3 my-1 border-t border-border" />

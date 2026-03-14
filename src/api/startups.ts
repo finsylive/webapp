@@ -362,7 +362,11 @@ export async function updateStartup(
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
+
+  if (!error && !data) {
+    return { data: null, error: { message: 'Startup not found or you do not have permission to edit it' } as PostgrestError };
+  }
 
   return { data: data as StartupProfile | null, error };
 }
@@ -374,6 +378,26 @@ export async function deleteStartup(id: string): Promise<{ error: PostgrestError
     .eq('id', id);
 
   return { error };
+}
+
+export async function connectStartupEntity(
+  startupId: string,
+  input: {
+    organization_slug: string;
+    relation_type: string;
+  }
+): Promise<{ data: { id: string; status: string } }> {
+  const res = await fetch(`/api/startups/${encodeURIComponent(startupId)}/connections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error || 'Failed to connect startup');
+  }
+  return json;
 }
 
 // --- Founders ---
