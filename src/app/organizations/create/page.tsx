@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -13,6 +13,14 @@ function tagsToArray(value: string) {
 }
 
 export default function CreateOrganizationPage() {
+  return (
+    <Suspense fallback={<DashboardLayout><div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></DashboardLayout>}>
+      <CreateOrganizationContent />
+    </Suspense>
+  );
+}
+
+function CreateOrganizationContent() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
